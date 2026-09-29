@@ -104,9 +104,9 @@ button:focus-visible { outline: 2px solid var(--abalone); outline-offset: 2px; }
   .hud-row { gap: 16px; } #objective { display: none; }
 }
 @media (hover: hover) and (pointer: fine) {
-  #dpad, #ab { display: none; }
-  #controls { justify-content: center; }
-  #controls::after { content: "Arrows / WASD move  ·  Z or Space: talk / swing  ·  X: prism beam  ·  M: menu"; font-size: 12px; color: var(--fog-dim); letter-spacing: .04em; }
+  /* on-screen controls stay visible (they work with a mouse); add a keyboard hint */
+  #controls { position: relative; }
+  #controls::after { content: "Keys: arrows walk · A talk / swing · B prism · M menu"; position: absolute; left: 0; right: 0; bottom: 0; text-align: center; font-size: 11px; color: var(--fog-dim); letter-spacing: .04em; pointer-events: none; }
 }
 
 /* ---------- title ---------- */
@@ -180,7 +180,7 @@ td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
 @media (max-width: 480px) { .cxlist { grid-template-columns: 1fr; gap: 2px; } .cxlist dd { margin-bottom: 8px; } }
 
 /* ---------- cinema ---------- */
-#cinema { position: fixed; inset: 0; z-index: 25; background: #070b10; display: grid; align-items: end; }
+#cinema { position: fixed; inset: 0; z-index: 25; background: #070b10; display: grid; align-items: end; cursor: pointer; touch-action: none; }
 #cinema-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .cin-box { position: relative; margin: 0 auto; width: 100%; max-width: 620px; padding: 20px 20px calc(30px + var(--safe-b)); background: linear-gradient(to top, rgba(5, 8, 14, .92) 60%, rgba(5, 8, 14, 0)); display: grid; gap: 8px; }
 #cin-who { margin: 0; font-family: var(--f-display); color: var(--poppy); letter-spacing: .06em; min-height: 1.4em; }

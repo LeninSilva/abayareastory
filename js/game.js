@@ -203,14 +203,15 @@
   const keys = { up: 0, down: 0, left: 0, right: 0 };
   const touchDir = { x: 0, y: 0 };
   let pressA = false, pressB = false;
-  const KEYMAP = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+  const KEYMAP = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  const A_KEYS = ['KeyA', 'KeyZ', 'Space', 'KeyJ'], B_KEYS = ['KeyB', 'KeyX', 'KeyK'];
   window.addEventListener('keydown', e => {
     if (e.repeat && !KEYMAP[e.code]) return;
     Sfx.init();
     if (KEYMAP[e.code]) { keys[KEYMAP[e.code]] = 1; if (dlg.open && dlg.choices) moveChoice(e.code); if (mode === 'play' || mode === 'dialog') e.preventDefault(); }
-    if (e.code === 'KeyZ' || e.code === 'Space' || e.code === 'KeyJ') { pressA = true; e.preventDefault(); }
+    if (A_KEYS.indexOf(e.code) >= 0) { pressA = true; e.preventDefault(); }
     if (e.code === 'Enter') { if (dlg.open || mode === 'cinema' || mode === 'dead') pressA = true; else if (mode === 'play') toggleMenu(); e.preventDefault(); }
-    if (e.code === 'KeyX' || e.code === 'KeyK') pressB = true;
+    if (B_KEYS.indexOf(e.code) >= 0) { pressB = true; e.preventDefault(); }
     if (e.code === 'KeyM' || e.code === 'Escape') { if (mode === 'play' || mode === 'menu') toggleMenu(); }
   });
   window.addEventListener('keyup', e => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = 0; });
@@ -232,7 +233,9 @@
     btn('#btn-a', () => { pressA = true; });
     btn('#btn-b', () => { pressB = true; });
     $('#btn-menu').addEventListener('click', () => { Sfx.init(); if (mode === 'play' || mode === 'menu') toggleMenu(); });
-    $('#stage').addEventListener('pointerdown', () => { if (dlg.open || mode === 'cinema' || mode === 'dead') pressA = true; });
+    const tapAdvance = () => { Sfx.init(); if ((dlg.open && !dlg.choices) || mode === 'cinema' || mode === 'dead') pressA = true; };
+    $('#stage').addEventListener('pointerdown', tapAdvance);
+    $('#cinema').addEventListener('pointerdown', e => { e.preventDefault(); tapAdvance(); });
   }
 
   /* ---------------- dialog ---------------- */
@@ -272,7 +275,7 @@
     box.children[0].classList.add('sel');
   }
   function moveChoice(code) {
-    const n = dlg.choices.length; if (code === 'ArrowUp' || code === 'KeyW') dlg.sel = (dlg.sel + n - 1) % n; if (code === 'ArrowDown' || code === 'KeyS') dlg.sel = (dlg.sel + 1) % n;
+    const n = dlg.choices.length; if (code === 'ArrowUp') dlg.sel = (dlg.sel + n - 1) % n; if (code === 'ArrowDown') dlg.sel = (dlg.sel + 1) % n;
     [...$('#choices').children].forEach((c, i) => c.classList.toggle('sel', i === dlg.sel)); Sfx.play('menu');
   }
   function pick(i) { const a = dlg.line.ask; const more = a.then(g, i) || []; dlg.queue.unshift(...more); Sfx.play('menu'); nextLine(); }
@@ -709,7 +712,7 @@
     if (menuTab === 'journal') body.appendChild(journalView());
     if (menuTab === 'map') body.appendChild(mapView());
     if (menuTab === 'memories') body.appendChild(memoryView());
-    if (menuTab === 'codex') body.appendChild(codexView());
+    if (menuTab === 'codex') body.appendChild(codexView(renderMenu));
     body.scrollTop = 0;
   }
   function el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
@@ -723,7 +726,7 @@
     for (const [k, val] of items) { stats.appendChild(el('dt', '', esc(k))); stats.appendChild(el('dd', '', esc(val))); }
     v.appendChild(stats);
     v.appendChild(el('p', 'eyebrow', 'Controls'));
-    v.appendChild(el('p', 'small', 'Touch: drag the pad to walk, A to talk or swing, B to fire the prism beam. Keyboard: arrows or WASD, Z or Space for A, X for B, M or Esc for this menu.'));
+    v.appendChild(el('p', 'small', 'Touch: drag the pad to walk, A to talk or swing, B to fire the prism beam. Keyboard: arrow keys to walk, A (or Z / Space) for A, B (or X) for B, M or Esc for this menu.'));
     const row = el('div', 'row');
     const snd = el('button', 'pill', save.sound ? 'Sound: on' : 'Sound: off'); snd.id = 'opt-sound';
     snd.onclick = () => { save.sound = !save.sound; store(); snd.textContent = save.sound ? 'Sound: on' : 'Sound: off'; };
@@ -765,7 +768,7 @@
     return v;
   }
   let codexOpen = null;
-  function codexView() {
+  function codexView(rerender) {
     const v = el('div', 'codex');
     if (!codexOpen) {
       v.appendChild(el('p', 'small', 'The story bible. Sections marked Real are documented science and history. Sections marked Story are this world\'s inventions.'));
@@ -773,13 +776,13 @@
       for (const c of CODEX) {
         const b = el('button', 'codex-item'); b.id = 'codex-' + c.id;
         b.innerHTML = `<span class="ci-title">${esc(c.title)}</span><span class="ci-kick">${esc(c.kicker)}</span>`;
-        b.onclick = () => { codexOpen = c.id; renderMenu(); };
+        b.onclick = () => { codexOpen = c.id; rerender(); };
         list.appendChild(b);
       }
       v.appendChild(list); return v;
     }
     const c = CODEX.find(x => x.id === codexOpen);
-    const back = el('button', 'pill', '← All entries'); back.id = 'codex-back'; back.onclick = () => { codexOpen = null; renderMenu(); };
+    const back = el('button', 'pill', '← All entries'); back.id = 'codex-back'; back.onclick = () => { codexOpen = null; rerender(); };
     v.appendChild(back);
     v.appendChild(el('h2', 'codex-title', esc(c.title)));
     v.appendChild(el('p', 'eyebrow', esc(c.kicker)));
@@ -846,9 +849,9 @@
     if (stored) { save = Object.assign(newSave(), stored); $('#btn-continue').hidden = false; $('#continue-note').textContent = `${save.shards.length} of 5 memories · ${SCREENS[save.screen] ? SCREENS[save.screen].name : ''}`; }
     $('#btn-new').onclick = () => begin(true);
     $('#btn-continue').onclick = () => begin(false);
-    $('#btn-title-codex').onclick = () => { $('#title-codex').hidden = false; const b = $('#title-codex-body'); b.innerHTML = ''; menuTab = 'codex'; codexOpen = null; b.appendChild(codexView()); };
+    const renderTitleCodex = () => { const b = $('#title-codex-body'); b.innerHTML = ''; b.appendChild(codexView(renderTitleCodex)); b.scrollTop = 0; };
+    $('#btn-title-codex').onclick = () => { $('#title-codex').hidden = false; codexOpen = null; renderTitleCodex(); };
     $('#title-codex-close').onclick = () => { $('#title-codex').hidden = true; };
-    $('#title-codex-body').addEventListener('click', e => { if (e.target.closest('.codex-item') || e.target.closest('#codex-back')) setTimeout(() => { const b = $('#title-codex-body'); b.innerHTML = ''; b.appendChild(codexView()); b.scrollTop = 0; }, 0); });
     $('#btn-title-install').onclick = doInstall;
     $('#install-help-close').onclick = () => { $('#install-help').hidden = true; };
     document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { menuTab = b.dataset.tab; codexOpen = null; Sfx.play('menu'); renderMenu(); });

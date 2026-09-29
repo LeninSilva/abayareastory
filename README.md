@@ -11,7 +11,7 @@ A Zelda-style, top-down adventure set in an alternate San Francisco, installable
 ## Play
 
 - **Touch:** drag the round pad to walk, **A** to talk or swing the Lumen Staff, **B** to fire the prism beam (once you have it), **Menu** for the journal, map, memories and Codex.
-- **Keyboard:** arrows or WASD, Z / Space = A, X = B, M / Esc = menu.
+- **Keyboard:** arrow keys walk, **A** (or Z / Space) = A, **B** (or X) = B, M / Esc = menu.
 - Progress saves automatically on the device.
 
 ## Install on an Android phone
