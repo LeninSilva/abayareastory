@@ -1,7 +1,7 @@
-/* Yelamu service worker: caches the app shell so the game runs offline once installed. */
-const CACHE = 'yelamu-v1';
+/* Open Your Eyes service worker: caches the app shell so the game runs offline once installed. */
+const CACHE = 'oye-v2';
 const SHELL = [
-  './', 'index.html', 'css/style.css', 'js/art.js', 'js/world.js', 'js/lore.js', 'js/game.js',
+  './', 'index.html', 'css/style.css', 'js/art.js', 'js/bust.js', 'js/world.js', 'js/notes.js', 'js/game.js',
   'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'
 ];
 self.addEventListener('install', e => {

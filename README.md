@@ -1,18 +1,33 @@
-# Yelamu: Open Your Eyes
+# Open Your Eyes
 
-A Zelda-style, top-down adventure set in an alternate San Francisco, installable on Android as a web app.
+A top-down adventure told in the first person, set in a San Francisco that is almost the one you know. It's installable on Android as a web app.
 
-**2026.** In a San Francisco that never built a car, a young Ohlone man named Tolowin carries a grade III arteriovenous malformation in his left temporal lobe. He chooses the Long Sleep: vitrification at −196 °C.
+It's twelve minutes past five in the morning. I was riding my bike home down Market Street when the light at New Montgomery turned red. Now I'm on the sidewalk in front of the Palace Hotel, and a valet in a red coat is laughing at me like I told him a joke. Every clock in the city says 5:12. The streets are right, but the people on them are wrong: Emperor Norton, Mark Twain, the poets of the Six Gallery, the men who built the Golden Gate. None of them are entirely alive.
 
-**2758.** 732 years later, the city is a sovereign city-state on the tip of the peninsula, the Free City of Yelamu–San Francisco. It runs on laser fusion born from an Ohlone crystal-lens tradition, alongside the ARM (Artificial Reasoning Machine). The ARM rewarms him, corrects the KRAS mutation behind his malformation, and spends a year regrowing his brain the way an axolotl regrows a limb.
+I just want to get home.
 
-**2759.** A machine tells him to open his eyes. He remembers nothing but his name. The game is his first year awake: re-integration class at the Conservatory of Flowers, a classmate named Maren whose face stays with him, her parents who want him gone, five lost memories scattered across the city, and Static gathering at the Resonance Mast on Twin Peaks.
+The story borrows its shape from two sources. Jean-Paul Sartre's *No Exit* supplies the valet, the room with no mirrors, and "hell is other people." *The Outer Limits* supplies the narrator's voice at the beginning and the end. Both are homages, written fresh.
 
-## Play
+## How it plays
 
-- **Touch:** drag the round pad to walk, **A** to talk or swing the Lumen Staff, **B** to fire the prism beam (once you have it), **Menu** for the journal, map, memories and Codex.
-- **Keyboard:** arrow keys walk, **A** (or Z / Space) = A, **B** (or X) = B, M / Esc = menu.
-- Progress saves automatically on the device.
+- You explore the city top-down. When you talk to someone, the view switches to first person: the person you're speaking to, large, in front of you. My own thoughts appear in italics.
+- There are six missing minutes, 5:07 through 5:12. Six ghosts are holding them without knowing it. Help each one and a minute of that morning comes back. Six puzzles:
+  - **Union Square:** herd Emperor Norton's dogs, Bummer and Lazarus, into a corner.
+  - **Portsmouth Square:** light Mrs. Lee's lanterns in the order of a poem carved at Angel Island.
+  - **The Six Gallery:** help Allen Ginsberg finish the last poem of the night.
+  - **Sutro Baths:** turn Adolph Sutro's linked valves until every pool fills.
+  - **The Golden Gate:** push the rivet kegs to mend the Halfway to Hell Club's net.
+  - **Hunters Point:** work out which canister is the real one, using clues from a sailor, a welder and Deep Throat.
+- Around 40 real San Franciscans, composites and animals share the city with them, among them Robin Williams, Harvey Milk, Willie Mays, Mary Ellen Pleasant, Monarch the grizzly and Claude the albino alligator.
+- **B** is a thought. It gives a first-person hint about what to try next, so you're never stuck.
+- **Field Notes** in the menu hold the real history behind everyone you meet. Each note is labelled as a real person, a real animal, a composite, or invented for the story.
+
+### Controls
+
+- **Touch:** drag the pad to walk; **A** talks, uses and opens; **B** thinks (a hint); **Menu** opens the journal, map, minutes and Field Notes. Walk into a keg to push it.
+- **Keyboard:** arrow keys; **A** / Z / Space; **B** / X; **M** or Esc for the menu.
+
+Progress saves automatically.
 
 ## Install on an Android phone
 
@@ -20,39 +35,25 @@ The app has to be served over HTTPS to be installable. This repo includes a GitH
 
 1. In the GitHub repo, open **Settings → Pages** and set **Source** to **GitHub Actions**.
 2. Push to `main` (or run the *Deploy to GitHub Pages* workflow by hand). The site appears at `https://<user>.github.io/abayareastory/`.
-3. Open that URL in Chrome on your phone, tap **⋮ → Install app** (or **Add to Home screen**), or use the **Install on this phone** button on the title screen.
+3. Open that URL in Chrome on your phone and tap **⋮ → Install app**, or use **Install on this phone** on the title screen.
 
-It opens full-screen from the home-screen icon and keeps working offline (a service worker caches the game).
+It opens full-screen from the home-screen icon and keeps working offline.
 
-To run locally: `npx http-server .` and open `http://localhost:8080`.
+To run it locally: `npx http-server .`, then open `http://localhost:8080`.
 
-## The Codex
+## A note on real people
 
-Everything the story rests on is written up inside the game (**Menu → Codex**, or **Read the Codex** on the title screen). Each section is tagged **Real** (documented science and history) or **Story** (this world's invention):
-
-- The city-state, its ports of entry (Golden Gate, Bay Bridge, Ferry Building), passports and residency, life without money
-- The Compact of Living Measure and its Ladder of Measures (steam → coal → rail → automobile → towers → grid → fission → thinking machines)
-- The crystal-lens lineage: burning lenses, birefringence, piezoelectricity, the ruby laser, second-harmonic generation in quartz, and laser fusion ignition at the National Ignition Facility (2022)
-- The Higgs field, and where the story's speculation begins
-- The ARM, Shannon entropy and Landauer's principle
-- Tolowin's diagnosis: Spetzler–Martin grade III (S3 E0 V0), a 6.4 cm nidus in the left anterior temporal lobe, with feeders, drainage and symptoms
-- Vitrification and nanowarming
-- The cure: KRAS in brain AVMs, axolotl regeneration, partial reprogramming
-- The Elemental-born: synthetic genomes and artificial wombs
-- Landmarks, people, a timeline, and a note on the Ohlone
-
-## About the names
-
-The Ramaytush Ohlone are the original people of the San Francisco Peninsula, and Yelamu is the name of the group whose villages stood here. The character names Tolowin, Awashi, Ahwa, Siwe and Tawi are invented for this fiction and are not Ohlone words. If the project grows, the right next step is to work with Ramaytush Ohlone community members on language, names and imagery.
+Real historical people appear as ghosts. Their lines are imagined, but the facts they tell come from the historical record, and the Field Notes give the history plainly. The Ohlone elder is written as a composite, with care; the Ramaytush Ohlone are a living people, and the Association of Ramaytush Ohlone works on their behalf today.
 
 ## Project layout
 
 ```
 index.html              app shell
 css/style.css           layout and UI
-js/art.js               all vector art (tiles, landmarks, characters, scenes), drawn with canvas paths
-js/world.js             maps, cast, dialogue, memories, ending
-js/lore.js              the Codex
-js/game.js              engine: movement, combat, dialogue, menus, save, audio
+js/art.js               cel-shaded vector art: tiles, landmarks, sprites, title and ending scenes
+js/bust.js              first-person encounter portraits
+js/world.js             cast, maps, dialogue, puzzles, the six minutes, prologue and ending
+js/notes.js             Field Notes (real history)
+js/game.js              engine: movement and collision, puzzles, dialogue, menus, save, audio
 sw.js, manifest.webmanifest, icons/   installable web app (PWA)
 ```

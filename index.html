@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Yelamu: Open Your Eyes</title>
-<meta name="description" content="A top-down adventure set in an alternate San Francisco, 2759: a city-state that never built a car, run alongside a reasoning machine, where a man frozen for 732 years wakes up.">
-<meta name="theme-color" content="#0b141b">
+<title>Open Your Eyes</title>
+<meta name="description" content="A first-person, top-down adventure through a ghostly San Francisco where every clock reads 5:12 a.m. Help the city's dead with their unfinished business and find your way home.">
+<meta name="theme-color" content="#0c1117">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,15 +14,15 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Marcellus+SC&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bodoni+Moda:ital,opsz,wght@0,6..96,500;1,6..96,400&family=IBM+Plex+Mono:wght@500&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div id="app">
   <header id="hud">
     <div class="hud-row">
-      <canvas id="hearts" width="64" height="20" aria-label="Hearts"></canvas>
-      <div id="shards" aria-label="Memory shards"></div>
+      <span id="clock" aria-label="Time">5:12<small>AM</small></span>
+      <div id="pips" aria-label="Minutes recovered"></div>
       <span id="place"></span>
     </div>
     <p id="objective"></p>
@@ -30,23 +30,19 @@
 
   <main id="stage">
     <div id="screen">
-      <canvas id="game" aria-label="Game world"></canvas>
+      <canvas id="game" aria-label="The city"></canvas>
       <div id="banner" aria-live="polite"><span id="banner-name"></span><span id="banner-sub"></span></div>
       <div id="dialog" hidden>
-        <canvas id="portrait" width="144" height="144"></canvas>
-        <div class="dbody">
+        <canvas id="enc" aria-hidden="true"></canvas>
+        <div class="dbox">
           <p id="speaker"></p>
           <p id="dtext"></p>
           <div id="choices"></div>
+          <span id="dnext" aria-hidden="true"></span>
         </div>
-        <span id="dnext" aria-hidden="true"></span>
       </div>
       <div id="fade"></div>
-      <div id="dead" hidden>
-        <p class="dead-title">The fog closes in</p>
-        <p>The ARM's caretakers carry you back to Parnassus.</p>
-        <p class="hint">Press A to wake</p>
-      </div>
+      <div id="flash"></div>
     </div>
   </main>
 
@@ -54,8 +50,8 @@
     <div id="dpad" aria-label="Movement pad"><div id="dpad-ring"></div><div id="dpad-knob"></div></div>
     <button id="btn-menu" aria-label="Menu">Menu</button>
     <div id="ab">
-      <button id="btn-b" class="round" aria-label="B: prism beam"><span>B</span></button>
-      <button id="btn-a" class="round" aria-label="A: talk or swing"><span>A</span></button>
+      <button id="btn-b" class="round" aria-label="B: think (hint)"><span>B</span></button>
+      <button id="btn-a" class="round" aria-label="A: talk, use, open"><span>A</span></button>
     </div>
   </div>
 </div>
@@ -63,13 +59,13 @@
 <section id="title">
   <canvas id="title-canvas"></canvas>
   <div class="title-inner">
-    <p class="kicker">San Francisco · Year 2759</p>
-    <h1><span class="t1">Yelamu</span><span class="t2">Open Your Eyes</span></h1>
-    <p class="pitch">A city that never built a car. A reasoning machine that learned how axolotls heal. A young Ohlone man, frozen for 732 years with a tangle of vessels in his brain, told to open his eyes.</p>
+    <p class="kicker">San Francisco · 5:12 a.m.</p>
+    <h1>Open Your Eyes</h1>
+    <p class="pitch">Every clock in the city has stopped at twelve past five. The streets are the ones you know, but the people on them are Emperor Norton, Mark Twain, the poets of the Six Gallery, the men who built the bridge. None of them are entirely alive. Neither, maybe, are you.</p>
+    <p id="title-end" class="end-note" hidden>You made it home. The fog is lifting.</p>
     <div class="title-actions">
       <button id="btn-continue" class="primary" hidden>Continue<small id="continue-note"></small></button>
-      <button id="btn-new" class="primary">Begin the year</button>
-      <button id="btn-title-codex" class="ghost">Read the Codex</button>
+      <button id="btn-new" class="primary">Begin</button>
       <button id="btn-title-install" class="ghost install-only">Install on this phone</button>
     </div>
   </div>
@@ -81,8 +77,8 @@
       <nav id="tabs" role="tablist">
         <button role="tab" data-tab="journal">Journal</button>
         <button role="tab" data-tab="map">Map</button>
-        <button role="tab" data-tab="memories">Memories</button>
-        <button role="tab" data-tab="codex">Codex</button>
+        <button role="tab" data-tab="minutes">Minutes</button>
+        <button role="tab" data-tab="notes">Field Notes</button>
       </nav>
       <button id="menu-close" aria-label="Close menu">Close</button>
     </div>
@@ -92,19 +88,12 @@
 
 <section id="cinema" hidden>
   <canvas id="cinema-canvas"></canvas>
-  <div class="cin-box"><p id="cin-who"></p><p id="cin-text"></p><p class="hint">Tap anywhere or press A</p></div>
+  <div class="cin-box"><p id="cin-text"></p><p class="hint">Tap anywhere or press A</p></div>
 </section>
-
-<div id="title-codex" hidden>
-  <div class="sheet">
-    <div class="sheet-head"><p class="sheet-title">Codex</p><button id="title-codex-close">Close</button></div>
-    <div id="title-codex-body"></div>
-  </div>
-</div>
 
 <div id="install-help" hidden>
   <div class="card">
-    <h2>Put Yelamu on your home screen</h2>
+    <h2>Put it on your home screen</h2>
     <ol>
       <li>Open this page in Chrome on your Android phone.</li>
       <li>Tap the <strong>⋮</strong> menu in the top-right corner.</li>
@@ -116,8 +105,9 @@
 </div>
 
 <script src="js/art.js"></script>
+<script src="js/bust.js"></script>
 <script src="js/world.js"></script>
-<script src="js/lore.js"></script>
+<script src="js/notes.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>
