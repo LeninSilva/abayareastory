@@ -1,0 +1,28 @@
+{
+  "name": "undertow",
+  "version": "1.0.0",
+  "description": "A top-down adventure told in the first person, set in a San Francisco that is almost the one you know. It's installable on Android as a web app.",
+  "main": "index.js",
+  "scripts": {
+    "data": "sh tools/fetch-data.sh && node tools/build-data.mjs raw",
+    "build": "node tools/bundle.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LeninSilva/abayareastory.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LeninSilva/abayareastory/issues"
+  },
+  "homepage": "https://github.com/LeninSilva/abayareastory#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
+    "esbuild": "^0.24.0",
+    "three": "^0.160.0"
+  },
+  "type": "module",
+  "private": true
+}
