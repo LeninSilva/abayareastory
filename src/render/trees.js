@@ -5,6 +5,7 @@ import { landmarkMaterial } from './shaders.js';
 function colored(geo, color) { const c = new THREE.Color(color), n = geo.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3); geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); return geo; }
 function lumpy(geo, amt, seed) { const p = geo.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i); const k = 1 + amt * (Math.sin(x * 3.1 + seed) * Math.sin(y * 2.7 + seed * 2) + Math.sin(z * 4.3 - seed)) * 0.5; p.setXYZ(i, x * k, y * k, z * k); } geo.computeVertexNormals(); return geo; }
 function merge(parts) {
+  parts = parts.map(g => g.index ? g.toNonIndexed() : g);
   let n = 0; for (const g of parts) n += g.attributes.position.count;
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3), idx = []; let o = 0;
   for (const g0 of parts) { const g = g0.index ? g0.toNonIndexed() : g0; const c = g.attributes.position.count; pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); col.set(g.attributes.color.array, o * 3); for (let i = 0; i < c; i++) idx.push(o + i); o += c; }

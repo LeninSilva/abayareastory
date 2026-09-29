@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Undertow</title>
+<meta name="description" content="A first-person story in the real San Francisco, where the dead have not left.">
+<meta name="theme-color" content="#1b2130">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>/*CSS*/</style>
+</head>
+<body>
+<canvas id="view" tabindex="0" aria-label="The city, seen through your eyes"></canvas>
+
+<!-- title -->
+<section id="title" class="screen show">
+  <div class="title-inner">
+    <h1>UNDERTOW</h1>
+    <p class="tag">A story of San Francisco, and of the people who never left it.</p>
+    <label class="field">Your name <input id="name-input" maxlength="24" autocomplete="off" placeholder="Your name"></label>
+    <div class="row">
+      <button id="btn-new" class="primary">Begin</button>
+      <button id="btn-continue" hidden>Continue</button>
+    </div>
+    <div class="row small">
+      <button id="btn-title-settings">Settings</button>
+      <button id="btn-about">About</button>
+    </div>
+    <p class="hint" id="title-hint">Move with WASD or the left side of the screen. Look with the mouse or the right side. Press E to talk.</p>
+  </div>
+</section>
+
+<!-- loading -->
+<section id="loading" class="screen"><div class="load-inner"><p id="load-text">Unfolding the city…</p><div class="bar"><i id="load-bar"></i></div></div></section>
+
+<!-- cutscene / story cards -->
+<section id="card" class="screen" role="dialog" aria-live="polite"><div class="card-inner"><p id="card-text"></p><button id="card-next" class="primary">Continue</button></div></section>
+
+<!-- HUD -->
+<div id="hud" hidden>
+  <div id="compass" aria-hidden="true"><div id="compass-strip"></div><div id="compass-mark"></div></div>
+  <div id="objective" role="status"></div>
+  <div id="place"><span id="place-name"></span><span id="clock"></span></div>
+  <canvas id="minimap" width="180" height="180" aria-hidden="true"></canvas>
+  <div id="bars">
+    <div class="bar hp"><i id="hp-bar"></i></div>
+    <div class="bar br"><i id="br-bar"></i></div>
+    <div class="bar st"><i id="st-bar"></i></div>
+    <div id="lvl"></div>
+  </div>
+  <div id="foe" hidden><span id="foe-name"></span><div class="bar"><i id="foe-bar"></i></div></div>
+  <div id="cross"></div>
+  <div id="prompt" hidden></div>
+  <div id="subtitle" hidden></div>
+  <div id="toasts" aria-live="polite"></div>
+  <button id="stuck" hidden>Stuck? Tap here (or press U) to step free</button>
+  <button id="btn-pause" class="corner" aria-label="Menu">☰</button>
+  <div id="flash"></div>
+</div>
+
+<!-- touch controls -->
+<div id="touch" hidden>
+  <div id="touch-layer"></div>
+  <div id="stick-base"><div id="stick-knob"></div></div>
+  <div id="tbtns">
+    <button data-action="attack" class="tb big" aria-label="Strike">⚔</button>
+    <button data-action="block" class="tb" aria-label="Block">🛡</button>
+    <button data-action="interact" class="tb act" id="tb-interact" aria-label="Talk or use">E</button>
+    <button data-action="jump" class="tb" aria-label="Jump">⤒</button>
+    <button data-action="ability" class="tb" aria-label="Ability">✦</button>
+    <button data-action="cycle" class="tb sm" aria-label="Change ability">↻</button>
+    <button data-action="bike" class="tb sm" aria-label="Bicycle">🚲</button>
+    <button data-action="heal" class="tb sm" aria-label="Eat">🍞</button>
+    <button data-action="map" class="tb sm" aria-label="Map">🗺</button>
+  </div>
+</div>
+
+<!-- dialogue -->
+<section id="dialogue" hidden role="dialog" aria-label="Conversation">
+  <header><div id="dlg-face"></div><div><h2 id="dlg-name"></h2><p id="dlg-title"></p></div><button id="dlg-close" aria-label="Leave the conversation">Leave</button></header>
+  <div id="dlg-log" aria-live="polite"></div>
+  <div id="dlg-chips"></div>
+  <form id="dlg-form" autocomplete="off"><input id="dlg-input" placeholder="Say anything…" maxlength="400"><button id="dlg-send" type="submit">Say</button><button id="dlg-stop" type="button" hidden>Stop</button></form>
+  <p id="dlg-mode"></p>
+</section>
+
+<!-- menu -->
+<section id="menu" hidden role="dialog" aria-label="Menu">
+  <nav id="tabs">
+    <button data-tab="map">Map</button><button data-tab="journal">Journal</button><button data-tab="inventory">Things</button>
+    <button data-tab="character">You</button><button data-tab="notes">Field Notes</button><button data-tab="settings">Settings</button>
+    <button id="menu-close" class="close" aria-label="Back to the city">Resume ✕</button>
+  </nav>
+  <div id="panel">
+    <div data-panel="map"><div id="map-wrap"><canvas id="map"></canvas><div id="map-tools"><button id="map-in" aria-label="Zoom in">＋</button><button id="map-out" aria-label="Zoom out">－</button><button id="map-me" aria-label="Center on me">◎</button><button id="map-clear">Clear marker</button></div><div id="map-info"></div></div></div>
+    <div data-panel="journal"></div>
+    <div data-panel="inventory"></div>
+    <div data-panel="character"></div>
+    <div data-panel="notes"></div>
+    <div data-panel="settings"></div>
+  </div>
+  <footer><button id="btn-save">Save</button><button id="btn-rescue">I'm stuck: take me to the nearest street</button><button id="btn-quit">Title screen</button></footer>
+</section>
+
+<script type="module">/*JS*/</script>
+</body>
+</html>

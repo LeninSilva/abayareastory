@@ -39,9 +39,9 @@ const KEYS = [
   [0.0,  0x4a5a8a, 0x05070f, 0x1b2335, 0x1d2536, 0x2a3350, 1.0],
   [5.2,  0x6a6a9a, 0x0d1224, 0x2c3048, 0x333a52, 0x333a55, 0.85],
   [6.3,  0xffa36b, 0x3a4f80, 0xf2b08a, 0xd6a894, 0x6a6480, 0.25],
-  [8.0,  0xffe0b0, 0x4f78b8, 0xe9d6c0, 0xcfc8c0, 0x7c8298, 0.0],
-  [12.0, 0xfff1dc, 0x4a7cc4, 0xd8e0e6, 0xc8d0d6, 0x8a92a4, 0.0],
-  [16.5, 0xffd7a0, 0x4a73b4, 0xf0d2b0, 0xd9c7b6, 0x857f90, 0.0],
+  [8.0,  0xffe0b0, 0x3f6db8, 0xe6cfb4, 0xc9c2bc, 0x7c8298, 0.0],
+  [12.0, 0xfff1dc, 0x3a72c8, 0xc6d6e4, 0xbcc8d4, 0x8a92a4, 0.0],
+  [16.5, 0xffd7a0, 0x3d69b0, 0xeec9a0, 0xd4bea8, 0x857f90, 0.0],
   [18.6, 0xff9a5a, 0x35477e, 0xf6a36e, 0xd99a7c, 0x6c5e78, 0.1],
   [19.6, 0xd5608a, 0x1d2550, 0x7b4a6e, 0x5a4a66, 0x4a4466, 0.55],
   [20.6, 0x4a5a8a, 0x080b18, 0x232a44, 0x262c40, 0x2c3452, 0.95],
@@ -64,5 +64,5 @@ export function setTimeOfDay(hour, fogBank) {
   U.uSunDir.value.set(Math.sin(sunAz) * Math.cos(Math.asin(sunEl)), sunEl, -Math.cos(sunAz) * 0.6 * Math.cos(Math.asin(sunEl))).normalize();
   if (night > 0.6) U.uSunColor.value.multiplyScalar(0.55);
   U.uFogBank.value = fogBank;
-  U.uFogDensity.value = 0.00022 + fogBank * 0.00055 + night * 0.00008;
+  U.uFogDensity.value = 0.00008 + fogBank * 0.00026 + night * 0.00004;
 }

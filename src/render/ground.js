@@ -52,7 +52,7 @@ void main(){
   vec3 golden = mix(vec3(.58,.54,.28), vec3(.47,.50,.25), nz2);
   vec3 grass = mix(lush, golden, smoothstep(60., 170., vW.y) * .7 + smoothstep(.6, .9, nz) * .25);
   // city ground: yards, gardens and paving between the houses
-  vec3 yards = mix(vec3(.50,.47,.41), vec3(.32,.45,.24), smoothstep(.35, .7, fbm(vW.xz * .09)) * .75);
+  vec3 yards = mix(vec3(.42,.40,.35), vec3(.30,.44,.22), smoothstep(.3, .65, fbm(vW.xz * .09)) * .85);
   vec3 col = mix(yards, grass, cov.r);
   col = mix(col, mix(vec3(.84,.77,.60), vec3(.76,.68,.52), nz2), cov.b);
   float slope = 1. - n.y;
@@ -161,7 +161,7 @@ void main(){
         B.pos.push(x, Math.max(city.heightAt(x, z), p[2]) + lift, z);
         B.info.push(s < 0 ? 0 : 1, along, kind + width * 0.01);
       }
-      if (i) { const q = base + (i - 1) * 2; B.idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
+      if (i) { const q = base + (i - 1) * 2; B.idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
     }
   }
   for (const s of city.streets) {

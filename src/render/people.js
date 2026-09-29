@@ -126,46 +126,49 @@ export const WEAPONS = {
   clapper: { name: 'Mission Bell Clapper', dmg: 18, speed: 0.7, reach: 2.2, spirit: 1.4, desc: 'The tongue of a bell that rang over the Mission in 1906. The Hollows remember the sound.' },
   stairblade: { name: 'Stair-Stone Blade', dmg: 24, speed: 1.1, reach: 2.5, spirit: 2.0, desc: 'Cut from the lowest stair. It hums when the tide turns.' }
 };
+const pmat = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.8 }, o || {}));
 function weaponModel(id) {
   const g = new THREE.Group();
-  const wood = mat(0x6b4a2e), iron = mat(0x3d3f42, { metalness: 0.7, roughness: 0.45 }), brass = mat(0xb58a3c, { metalness: 0.8, roughness: 0.35 });
+  const wood = pmat(0x6b4a2e), iron = pmat(0x3d3f42, { metalness: 0.7, roughness: 0.45 }), brass = pmat(0xb58a3c, { metalness: 0.8, roughness: 0.35 });
   if (id === 'stick') { g.add(mesh(G.cyl(0.018, 0.022, 1.1, 8), wood, 0, 0.35, 0)); g.add(mesh(G.sphere(0.03), wood, 0, 0.9, 0)); }
   if (id === 'grip') { g.add(mesh(G.cyl(0.02, 0.02, 0.35, 8), wood, 0, 0, 0)); g.add(mesh(G.box(0.05, 0.75, 0.03), iron, 0, 0.5, 0)); g.add(mesh(G.box(0.12, 0.08, 0.05), iron, 0.03, 0.88, 0)); }
-  if (id === 'canesword') { g.add(mesh(G.cyl(0.02, 0.02, 0.14, 8), mat(0x1a1a1a), 0, 0, 0)); g.add(mesh(G.sphere(0.028), brass, 0, 0.08, 0)); g.add(mesh(G.box(0.022, 0.85, 0.006), mat(0xdfe3e6, { metalness: 0.9, roughness: 0.2 }), 0, 0.52, 0)); }
+  if (id === 'canesword') { g.add(mesh(G.cyl(0.02, 0.02, 0.14, 8), pmat(0x1a1a1a), 0, 0, 0)); g.add(mesh(G.sphere(0.028), brass, 0, 0.08, 0)); g.add(mesh(G.box(0.022, 0.85, 0.006), pmat(0xdfe3e6, { metalness: 0.9, roughness: 0.2 }), 0, 0.52, 0)); }
   if (id === 'hook') { g.add(mesh(G.cyl(0.025, 0.025, 0.2, 8), wood, 0, 0, 0).rotateZ(Math.PI / 2)); g.add(mesh(G.cyl(0.012, 0.012, 0.3, 6), iron, 0, 0.15, 0)); const h = mesh(new THREE.TorusGeometry(0.1, 0.014, 6, 16, Math.PI * 1.3), iron, 0.1, 0.32, 0); h.rotation.z = -0.4; g.add(h); }
   if (id === 'clapper') { g.add(mesh(G.cyl(0.018, 0.018, 0.25, 8), wood, 0, 0, 0)); g.add(mesh(G.cyl(0.015, 0.03, 0.55, 8), iron, 0, 0.4, 0)); g.add(mesh(G.sphere(0.075), iron, 0, 0.7, 0)); }
-  if (id === 'stairblade') { g.add(mesh(G.cyl(0.02, 0.02, 0.18, 8), mat(0x3a3530), 0, 0, 0)); const b = mesh(G.box(0.07, 0.8, 0.02), mat(0xbdb6a6, { emissive: 0x2fbfae, emissiveIntensity: 0.6 }), 0, 0.5, 0); g.add(b); }
+  if (id === 'stairblade') { g.add(mesh(G.cyl(0.02, 0.02, 0.18, 8), pmat(0x3a3530), 0, 0, 0)); const b = mesh(G.box(0.07, 0.8, 0.02), pmat(0xbdb6a6, { emissive: 0x2fbfae, emissiveIntensity: 0.6 }), 0, 0.5, 0); g.add(b); }
   return g;
 }
 export function makeHands() {
   const root = new THREE.Group();
-  const sleeve = mat(0x4a4038), skin = mat(0xc9a07e, { emissive: 0x000000 });
+  const plain = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.8 }, o || {}));
+  const sleeve = plain(0x4a4038), skin = plain(0xc9a07e, { emissive: 0x000000 });
   const arm = (side) => {
     const a = new THREE.Group();
-    a.add(mesh(G.capsule(0.045, 0.32), sleeve, 0, 0, 0).rotateX(Math.PI / 2));
-    const hand = mesh(G.sphere(0.055, 12, 10), skin, 0, 0, -0.22); hand.scale.set(1, 0.8, 1.3); a.add(hand);
-    a.position.set(side * 0.22, -0.26, -0.35); return a;
+    const fore = mesh(G.capsule(0.032, 0.3), sleeve, 0, 0, 0.12); fore.rotation.x = Math.PI / 2; a.add(fore);
+    const cuff = mesh(G.cyl(0.036, 0.036, 0.03, 10), plain(0xd8cfc0), 0, 0, -0.07); cuff.rotation.x = Math.PI / 2; a.add(cuff);
+    const hand = mesh(G.sphere(0.036, 12, 10), skin, 0, 0, -0.12); hand.scale.set(0.9, 0.75, 1.25); a.add(hand);
+    a.position.set(side * 0.2, -0.24, -0.34); return a;
   };
   const left = arm(-1), right = arm(1); root.add(left, right);
-  const holder = new THREE.Group(); holder.position.set(0, 0, -0.24); right.add(holder);
+  const holder = new THREE.Group(); holder.position.set(0, 0.01, -0.12); right.add(holder);
   let weapon = null, weaponId = null;
   const bars = new THREE.Group();
-  bars.add(mesh(G.cyl(0.012, 0.012, 0.7, 8), mat(0x2a2a2a, { metalness: 0.6 }), 0, 0, 0).rotateZ(Math.PI / 2));
-  bars.add(mesh(G.cyl(0.018, 0.018, 0.12, 8), mat(0x151515), -0.3, 0, 0).rotateZ(Math.PI / 2));
-  bars.add(mesh(G.cyl(0.018, 0.018, 0.12, 8), mat(0x151515), 0.3, 0, 0).rotateZ(Math.PI / 2));
-  bars.add(mesh(G.cyl(0.02, 0.02, 0.4, 8), mat(0x7a2a24), 0, -0.2, -0.1));
+  bars.add(mesh(G.cyl(0.012, 0.012, 0.7, 8), pmat(0x2a2a2a, { metalness: 0.6 }), 0, 0, 0).rotateZ(Math.PI / 2));
+  bars.add(mesh(G.cyl(0.018, 0.018, 0.12, 8), pmat(0x151515), -0.3, 0, 0).rotateZ(Math.PI / 2));
+  bars.add(mesh(G.cyl(0.018, 0.018, 0.12, 8), pmat(0x151515), 0.3, 0, 0).rotateZ(Math.PI / 2));
+  bars.add(mesh(G.cyl(0.02, 0.02, 0.4, 8), pmat(0x7a2a24), 0, -0.2, -0.1));
   bars.position.set(0, -0.36, -0.55); bars.visible = false; root.add(bars);
   const aura = new THREE.PointLight(0xffd080, 0, 1.5, 2); aura.position.set(0, -0.2, -0.45); root.add(aura);
   root.userData = {
-    setWeapon(id) { if (weaponId === id) return; weaponId = id; if (weapon) holder.remove(weapon); weapon = weaponModel(id); weapon.rotation.x = -1.2; holder.add(weapon); },
+    setWeapon(id) { if (weaponId === id) return; weaponId = id; if (weapon) holder.remove(weapon); weapon = null; if (!id) return; weapon = weaponModel(id); weapon.rotation.x = -1.05; weapon.rotation.z = 0.25; weapon.scale.setScalar(id === 'stick' || id === 'grip' ? 0.5 : 0.62); holder.add(weapon); },
     // state: { t, swing (0..1 or -1), block, cast, moving, speed, bike, light (-1..1), reduced }
     update(st) {
       const bob = st.reduced ? 0 : Math.sin(st.t * (st.speed > 5 ? 11 : 8)) * 0.012 * Math.min(1, st.speed / 3);
       bars.visible = !!st.bike;
       if (st.bike) { left.position.set(-0.3, -0.33, -0.5); right.position.set(0.3, -0.33, -0.5); holder.visible = false; left.rotation.set(0, 0, 0); right.rotation.set(0, 0, 0); return; }
       holder.visible = true;
-      left.position.set(-0.24, -0.28 + bob, -0.36); right.position.set(0.24, -0.26 - bob, -0.36);
-      left.rotation.set(0, 0.15, 0); right.rotation.set(0, -0.1, 0);
+      left.position.set(-0.21, -0.27 + bob, -0.5); right.position.set(0.2, -0.25 - bob, -0.5);
+      left.rotation.set(0.35, 0.3, 0); right.rotation.set(0.3, -0.2, 0);
       if (st.swing >= 0) { const p = st.swing, e = p < 0.3 ? p / 0.3 : 1 - (p - 0.3) / 0.7; right.rotation.set(-0.2 - Math.sin(p * Math.PI) * 1.2, -0.1 + (0.5 - p) * 1.6, -0.3 * e); right.position.x = 0.24 - p * 0.3; right.position.y = -0.2 + e * 0.1; }
       if (st.block) { right.rotation.set(0.1, 0, 1.2); right.position.set(0.1, -0.12, -0.38); left.position.set(-0.12, -0.18, -0.4); }
       if (st.cast > 0) { const c = Math.sin(st.cast * Math.PI); left.position.set(-0.12, -0.14 + c * 0.05, -0.45 - c * 0.12); left.rotation.set(-c * 0.6, 0, 0); }

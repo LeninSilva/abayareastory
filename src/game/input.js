@@ -28,7 +28,7 @@ export class Input {
     canvas.addEventListener('mousedown', e => {
       if (!this.enabled) return;
       if (!this.locked && canvas.requestPointerLock && !this.touchMode) { try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {} }
-      if (e.button === 0 && this.locked) this.press('attack');
+      if (e.button === 0) this.press('attack');
       if (e.button === 2) this.press('block');
       dragging = !this.locked;
     });

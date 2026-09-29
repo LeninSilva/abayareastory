@@ -58,41 +58,70 @@ void main(){
     col = mix(base * .8, col, smoothstep(.3, .9, edge));                                        // parapet
   } else {
     bool glass = style == ${TOWER_ID}.;
-    float fh = (style >= 12. && style != 16. && style != 17.) || style == 30. || style == 31. ? 3.9 : 3.15;
+    bool commercial = style == 9. || style == 10. || style == 11. || style == 13. || style == 14. || style == 12.;
+    float fh = (style >= 12. && style != 16. && style != 17.) || style >= 30. ? 3.9 : 3.15;
     if (style == 14. || style == 13.) fh = 3.8;
     float fl = floor(up / fh), fy = fract(up / fh);
     float houseW = faceW / (front ? houses : max(1., floor(faceW / 7.)));
     float hx = fract(along / houseW);
-    float cols = max(2., floor(houseW / 2.4));
+    float hId = floor(along / houseW);
+    float cols = max(2., floor(houseW / (style == 14. || style == 31. ? 1.9 : 2.5)));
     float cx = fract(hx * cols);
-    float win = step(.22, cx) * step(cx, .78) * step(.28, fy) * step(fy, .82);
-    bool shopfront = (style == 9. || style == 10. || style == 11. || style == 13. || style == 14.) && fl < 1.;
-    if (shopfront) win = step(.08, cx) * step(cx, .92) * step(.12, fy) * step(fy, .86);
-    if (glass) win = step(.06, fract(along / 1.6)) * step(.1, fy);
-    col = base;
-    // Victorian trim: floor lines, window casings, a cornice
-    if (style <= 2.) {
-      float trim = (1. - step(.06, fy)) + (1. - step(.94, fy)) * 0. + step(.16, cx) * step(cx, .84) * step(.2, fy) * step(fy, .9) * (1. - win);
-      col = mix(col, vec3(.95,.93,.88), clamp(trim, 0., 1.) * .8);
-      // bay window: the middle bays read a little lighter, as if stepping out toward the street
-      if (front && hx > .15 && hx < .6) col *= 1.08;
-    }
+    float wInX = style == 14. || style == 31. ? .16 : .24, wTop = style <= 2. ? .86 : .8;
+    // a window with a frame: w = glass, fr = frame ring
+    float win = step(wInX, cx) * step(cx, 1. - wInX) * step(.26, fy) * step(fy, wTop);
+    float fr = step(wInX - .06, cx) * step(cx, 1. - wInX + .06) * step(.2, fy) * step(fy, wTop + .05) * (1. - win);
+    float sill = step(wInX - .08, cx) * step(cx, 1. - wInX + .08) * step(.19, fy) * step(fy, .24);
+    // fade fine detail where it would shimmer (far away or at grazing angles)
+    float detail = 1. - smoothstep(.25, .7, fwidth(hx * cols) + fwidth(fy) * .5);
+    win *= detail; fr *= detail; sill *= detail;
+    bool shopfront = commercial && fl < 1.;
+    if (shopfront) { win = step(.06, cx) * step(cx, .94) * step(.1, fy) * step(fy, .72); fr = 0.; sill = 0.; }
+    if (glass) { win = step(.05, fract(along / 1.55)) * step(.12, fy); fr = 0.; sill = 0.; }
+    // wall: the painted colour, weathered with broad soft noise
+    col = base * (.9 + .2 * fbm(vW.xz * .07 + vW.y * .05));
+    float r2 = hash12(vec2(hId + seed * 51., style));
+    if (style <= 2.) col = pal(style, r2);
+    // string course between floors (stone and brick downtown), quoins at the corners
+    if (style >= 12. || style == 9. || style == 10.) col *= 1. - .14 * (1. - step(.05, fy)) ;
+    if (style == 10.) { float bal = step(.12, fy) * step(fy, .2) * step(1., fl); col = mix(col, r > .5 ? vec3(.62,.16,.12) : vec3(.18,.42,.30), bal * .9); }
+    if (style == 13. || style == 14. || style == 31.) { float pil = 1. - step(.08, min(cx, 1. - cx)); col = mix(col, col * 1.12 + .03, pil * (1. - win)); }
+    // Victorian and Edwardian trim: cream casings, a painted accent on the frames, bays that step forward
+    vec3 trimC = style <= 2. ? mix(vec3(.96,.93,.86), pal(style, fract(r2 + .37)), .35) : style == 11. ? vec3(.95,.9,.8) : col * 1.25 + .06;
+    col = mix(col, trimC, clamp(fr + sill, 0., 1.));
+    if (style <= 2. && front) { float bay = step(.12, hx) * step(hx, .58) * step(1., fl); col *= mix(1., 1.1, bay); col = mix(col, trimC, (1. - step(.035, abs(hx - .12))) * bay + (1. - step(.035, abs(hx - .58))) * bay); }
+    // cornice: a strong band at the top, with a shadow line under it
     float top = vSc.y - up;
-    col = mix(col, col * 1.18 + .05, (1. - smoothstep(.3, .9, top)));                            // cornice
-    if (fl > .5 || shopfront) {
-      vec3 glassC = mix(vec3(.16,.22,.30), mix(uSkyHorizon, uSkyTop, .5) * .55, .45);
-      float lit = step(.62, hash12(vec2(floor(along / (houseW / cols)) + seed * 31., fl + hIdx * 7.))) * uNight;
-      glassC = mix(glassC, vec3(1.,.78,.45) * 1.4, lit);
-      col = mix(col, glassC, win);
-    } else if (!shopfront) {
-      // ground floor of a house: a door and a garage in the Sunset, stoops elsewhere
+    col = mix(col, trimC * .95, 1. - smoothstep(.25, .6, top));
+    col *= 1. - .25 * (smoothstep(.55, .7, top) - smoothstep(.7, 1.1, top));
+    // shop awnings over ground floors
+    if (shopfront) { float aw = step(.74, fy) * step(fy, .9); vec3 awC = style == 10. ? (r2 > .5 ? vec3(.7,.15,.12) : vec3(.15,.4,.28)) : style == 11. ? pal(11., r2) : vec3(.25,.3,.28); col = mix(col, awC, aw); }
+    // soft occlusion: at the ground and in the corners
+    float edgeD = min(along, faceW - along);
+    float ao = mix(.62, 1., smoothstep(0., 3., up)) * mix(.8, 1., smoothstep(0., 1.2, edgeD));
+    vec3 lit = lightIt(col, n, ao);
+    // glass: the sky reflected, darker inside; lights come on at dusk
+    vec3 refl = mix(uSkyHorizon, uSkyTop, clamp(.3 + fy * .5, 0., 1.)) * (glass ? .8 : .55);
+    vec3 inside = vec3(.09,.11,.14) + uAmbient * .1;
+    vec3 glassC = mix(inside, refl, glass ? .75 : .45) * (1. - .3 * step(.5, fract(fy * 1.8 + .2)) * (1. - float(glass)));
+    float litW = step(.58, hash12(vec2(floor(along / (houseW / cols)) + seed * 31., fl + hIdx * 7.))) * smoothstep(.2, .7, uNight);
+    vec3 glow = vec3(1., .72, .38) * (shopfront ? 2.6 : 1.9) * litW;
+    vec3 wc = glassC * (1. - uNight * .6) + glow;
+    if (!(fl > .5 || shopfront)) {
+      // ground floor of a house: door and garage
       float door = step(.72, hx) * step(hx, .86) * step(fy, .78);
-      col = mix(col, col * .45, door);
-      if (style == 5. || style == 6. || style == 7.) col = mix(col, vec3(.72,.70,.66), step(.12, hx) * step(hx, .55) * step(fy, .72));
+      lit = mix(lit, lit * .4, door);
+      if (style == 5. || style == 6. || style == 7.) lit = mix(lit, lightIt(vec3(.74,.72,.68), n, ao), step(.12, hx) * step(hx, .55) * step(fy, .72));
+      win = 0.;
     }
+    lit = mix(lit, wc, win);
+    lit = mix(lit, mix(lit, wc, .3), (1. - detail) * step(.5, fl + float(glass)));
     // separation between houses in a row
-    col *= 1. - .18 * (1. - smoothstep(.0, .015, min(hx, 1. - hx))) * step(1.5, houses);
-    col *= mix(.72, 1., smoothstep(0., 2.5, up));                                                  // ground contact
+    lit *= 1. - .22 * (1. - smoothstep(.0, .012, min(hx, 1. - hx))) * step(1.5, houses);
+    gl_FragColor = vec4(fogIt(lit, vW), 1.);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    return;
   }
   vec3 lit = lightIt(col, n, 1.);
   // windows glow on their own at night
