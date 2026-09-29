@@ -1,59 +1,98 @@
-# Open Your Eyes
+# Undertow
 
-A top-down adventure told in the first person, set in a San Francisco that is almost the one you know. It's installable on Android as a web app.
+A first-person story set in the real San Francisco, where the dead have not left.
 
-It's twelve minutes past five in the morning. I was riding my bike home down Market Street when the light at New Montgomery turned red. Now I'm on the sidewalk in front of the Palace Hotel, and a valet in a red coat is laughing at me like I told him a joke. Every clock in the city says 5:12. The streets are right, but the people on them are wrong: Emperor Norton, Mark Twain, the poets of the Six Gallery, the men who built the Golden Gate. None of them are entirely alive.
+Your mother, Marisela, asked you on her deathbed to go to the city and find your father, Hollis Vane. He founded Remnant, the company that recorded the dying so their families could keep talking to them. People say he took the whole city in with him. The truth is older and stranger. It runs through the stepped stone temples buried in the tops of the hills, down to a harbor that the sea swallowed ten thousand years ago.
 
-I just want to get home.
+You can play it in a browser or install it on Android as an app: open the page in Chrome, then choose **Add to Home screen**. It plays offline after the first visit.
 
-The story borrows its shape from two sources. Jean-Paul Sartre's *No Exit* supplies the valet, the room with no mirrors, and "hell is other people." *The Outer Limits* supplies the narrator's voice at the beginning and the end. Both are homages, written fresh.
+## The city
+
+- **The whole city, at full scale.**
+  - The terrain comes from the city's elevation contours.
+  - The streets were traced from the positions of more than 60,000 street trees in the city's inventory.
+  - The neighborhoods come from their real boundaries.
+  - More than 57,000 buildings are generated along the real streets. Each is styled for its district: Victorian and Edwardian rows, Sunset stucco, Chinatown brick with balconies and awnings, Mission color, SoMa warehouses, downtown stone and glass.
+- **Hand-modelled landmarks at their real positions:**
+  - Downtown and the waterfront: the Ferry Building, the Transamerica Pyramid, Salesforce Tower, 555 California, the Flood Building, the Palace Hotel, Oracle Park.
+  - Civic Center: City Hall, the Main Library, UN Plaza, the War Memorial and the Opera House.
+  - Hills and parks: Coit Tower, Sutro Tower, the Painted Ladies, the Palace of Fine Arts, the Conservatory, the de Young, the Academy of Sciences.
+  - Churches and campuses: Mission Dolores, St. Ignatius, Grace Cathedral, SF State, Parkmerced.
+  - The edges of the city: the Cliff House and Sutro Baths, the Legion of Honor, Fort Point, Alcatraz.
+  - Both bridges, which you can walk across.
+  - The twelve branch libraries in the game, which are safe places, save points and fast-travel stops.
+- **Time and weather.** Time passes from dawn to night. The fog is thicker in the west and in the mornings and evenings. A foghorn sounds from the Gate.
 
 ## How it plays
 
-- You explore the city top-down. When you talk to someone, the view switches to first person: the person you're speaking to, large, in front of you. My own thoughts appear in italics.
-- There are six missing minutes, 5:07 through 5:12. Six ghosts are holding them without knowing it. Help each one and a minute of that morning comes back. Six puzzles:
-  - **Union Square:** herd Emperor Norton's dogs, Bummer and Lazarus, into a corner.
-  - **Portsmouth Square:** light Mrs. Lee's lanterns in the order of a poem carved at Angel Island.
-  - **The Six Gallery:** help Allen Ginsberg finish the last poem of the night.
-  - **Sutro Baths:** turn Adolph Sutro's linked valves until every pool fills.
-  - **The Golden Gate:** push the rivet kegs to mend the Halfway to Hell Club's net.
-  - **Hunters Point:** work out which canister is the real one, using clues from a sailor, a welder and Deep Throat.
-- Around 40 real San Franciscans, composites and animals share the city with them, among them Robin Williams, Harvey Milk, Willie Mays, Mary Ellen Pleasant, Monarch the grizzly and Claude the albino alligator.
-- **B** is a thought. It gives a first-person hint about what to try next, so you're never stuck.
-- **Field Notes** in the menu hold the real history behind everyone you meet. Each note is labelled as a real person, a real animal, a composite, or invented for the story.
+- **First person throughout.**
+  - Keyboard and mouse: WASD to walk, the mouse to look, Shift to sprint, Space to jump, **E** to talk or use, left click to strike, right click or R to block, F for an ability, B for the bicycle, M for the map, Esc for the menu.
+  - Touch: the left thumb walks and the right thumb looks, with buttons on the right.
+  - Gamepads are supported.
+- **Talk to anyone, in your own words.** Every character has their own voice, history, secrets and agenda, and can point you somewhere new. Gold chips move the story forward. You can type anything else.
+  - In the claude.ai app, characters answer live through your own Claude account, after you approve it.
+  - In the installed app, you can add your own Anthropic API key under Settings → Voices. Requests go straight from your device to Anthropic with Claude's server-side refusal fallback turned on: if a reply is declined, it is retried on a fallback model.
+  - Without either, everyone speaks from their own written lines, chosen by what you ask about.
+- **The main story** has eight chapters and three endings.
+- **Fourteen side quests**, among them:
+  - Incense for Chinatown's hungry ghosts
+  - A Beat poet's pages blown across North Beach
+  - A Barbary Coast duel
+  - Overdue library books
+  - The UN Charter delegate's pen nibs
+  - Mural pigments for Balmy Alley
+  - Sunday supper in the Excelsior
+  - An oral exam at SF State
+  - The Hollows around the Parkmerced towers
+  - A surfer's lost board
+  - Graves the city never moved
+  - A founder stuck on demo day
+  - The bells of the Gold Rush ships buried under the Financial District
+  - A vigilante's challenge
+- **Mini quests:**
+  - 24 murmurs of the dead to overhear
+  - 12 stair glyphs to read
+  - 20 lost things to return to any library
+- **Growth, Fable-style:**
+  - Six weapons to find or earn, from a walking stick to a blade cut from the lowest stair.
+  - Three abilities: Hush, Flare and Undertow Step.
+  - XP and levels, with points for Strength, Skill and Will.
+  - A Light and Shade heart that shows in your hands and decides which endings are open to you.
+- **Nobody gets trapped.**
+  - Collision always pushes you back out.
+  - Anything you might be stuck in, you are moved out of.
+  - If you stop moving while pressing forward, a button appears. **U**, or "I'm stuck" in the menu, takes you to the nearest real street.
+  - Every marker is placed where a person can stand.
+- **Accessibility:**
+  - Text size and high-contrast panels
+  - Reduced motion (no head bob, shake or flashes)
+  - Look sensitivity and inverted look
+  - Always, never or automatic on-screen controls
+  - A "Story" damage setting and an option to turn off the wandering Hollows
+  - Volume controls and three quality presets
 
-### Controls
+## What's real and what isn't
 
-- **Touch:** drag the pad to walk; **A** talks, uses and opens; **B** thinks (a hint); **Menu** opens the journal, map, minutes and Field Notes. Walk into a keg to push it.
-- **Keyboard:** arrow keys; **A** / Z / Space; **B** / X; **M** or Esc for the menu.
+The streets, neighborhoods, landmarks and history in the in-game Field Notes are real. The hotel, the Vane House, Remnant and every character are invented. So are the Stair People and their temples in the hills. They are not the Ohlone, whose shellmounds along the bay are real, and whose people are still here. One character, Ruth Encinas, is an Ohlone elder written as a composite. She is not based on any real person.
 
-Progress saves automatically.
+## Building
 
-## Install on an Android phone
-
-The app has to be served over HTTPS to be installable. This repo includes a GitHub Pages workflow:
-
-1. In the GitHub repo, open **Settings → Pages** and set **Source** to **GitHub Actions**.
-2. Push to `main` (or run the *Deploy to GitHub Pages* workflow by hand). The site appears at `https://<user>.github.io/abayareastory/`.
-3. Open that URL in Chrome on your phone and tap **⋮ → Install app**, or use **Install on this phone** on the title screen.
-
-It opens full-screen from the home-screen icon and keeps working offline.
-
-To run it locally: `npx http-server .`, then open `http://localhost:8080`.
-
-## A note on real people
-
-Real historical people appear as ghosts. Their lines are imagined, but the facts they tell come from the historical record, and the Field Notes give the history plainly. The Ohlone elder is written as a composite, with care; the Ramaytush Ohlone are a living people, and the Association of Ramaytush Ohlone works on their behalf today.
-
-## Project layout
-
+```sh
+npm install
+npm run data    # downloads the open data into raw/ and builds data/city.bin + data/city.json
+npm run build   # bundles src/ into a single self-contained index.html and sw.js
 ```
-index.html              app shell
-css/style.css           layout and UI
-js/art.js               cel-shaded vector art: tiles, landmarks, sprites, title and ending scenes
-js/bust.js              first-person encounter portraits
-js/world.js             cast, maps, dialogue, puzzles, the six minutes, prologue and ending
-js/notes.js             Field Notes (real history)
-js/game.js              engine: movement and collision, puzzles, dialogue, menus, save, audio
-sw.js, manifest.webmanifest, icons/   installable web app (PWA)
-```
+
+Serve the folder with any static server. GitHub Pages deploys it from this branch (`.github/workflows/pages.yml`).
+
+- `src/geo.js`: projection, district styles, landmarks, towers, parks, libraries
+- `tools/build-data.mjs`: turns the raw data into the compact city file
+- `src/render/`: sky, terrain, water, streets, buildings, trees, landmarks and bridges, ruins, people
+- `src/game/`: input, player, combat, story, quests, lore, dialogue voices, audio, UI
+
+## Data and credits
+
+- Elevation contours: City and County of San Francisco, DataSF, via the kepler.gl sample datasets
+- Street Tree List: San Francisco Public Works, DataSF, via the kepler.gl sample datasets
+- Neighborhood boundaries: the Code for America click_that_hood project
+- Rendering: three.js

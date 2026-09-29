@@ -1,33 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#0c1117"/>
-  <rect y="330" width="512" height="182" fill="#1b2834"/>
-  <g fill="#eef1f2" opacity=".22">
-    <ellipse cx="120" cy="338" rx="170" ry="26"/>
-    <ellipse cx="400" cy="350" rx="190" ry="30"/>
-  </g>
-  <!-- bridge tower, cel-shaded -->
-  <g stroke="#1d1b27" stroke-width="6" stroke-linejoin="round">
-    <rect x="330" y="120" width="34" height="300" fill="#c9543a"/>
-    <rect x="410" y="120" width="34" height="300" fill="#c9543a"/>
-    <rect x="348" y="120" width="16" height="300" fill="#9a3a27" stroke="none"/>
-    <rect x="428" y="120" width="16" height="300" fill="#9a3a27" stroke="none"/>
-    <rect x="330" y="160" width="114" height="16" fill="#c9543a"/>
-    <rect x="330" y="240" width="114" height="16" fill="#c9543a"/>
-  </g>
-  <path d="M0 250 Q180 420 330 128" fill="none" stroke="#c9543a" stroke-width="6"/>
-  <!-- the clock, stopped at 5:12 -->
-  <g stroke="#1d1b27" stroke-linejoin="round">
-    <circle cx="200" cy="232" r="132" fill="#ebe7df" stroke-width="10"/>
-    <path d="M200 100 A132 132 0 0 1 200 364 Z" fill="#cfcac0" stroke="none"/>
-    <circle cx="200" cy="232" r="132" fill="none" stroke-width="10"/>
-  </g>
-  <g stroke="#1d1b27" stroke-linecap="round">
-    <line x1="200" y1="232" x2="232" y2="291" stroke-width="16"/>
-    <line x1="200" y1="232" x2="296" y2="194" stroke-width="10"/>
-  </g>
-  <circle cx="200" cy="232" r="12" fill="#c9543a" stroke="#1d1b27" stroke-width="5"/>
-  <g fill="#1d1b27">
-    <rect x="195" y="112" width="10" height="24"/><rect x="195" y="328" width="10" height="24"/>
-    <rect x="80" y="227" width="24" height="10"/><rect x="296" y="227" width="24" height="10"/>
-  </g>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2438"/><stop offset=".6" stop-color="#5a4450"/><stop offset="1" stop-color="#e2966a"/></linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a6f6a"/><stop offset="1" stop-color="#0c1a22"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <!-- the stepped hill -->
+  <path d="M40 330 h80 v-26 h40 v-26 h40 v-26 h40 v-26 h32 v26 h40 v26 h40 v26 h40 v26 h80 v182 H40z" fill="#e8dcc0"/>
+  <path d="M236 226 h40 v104 h-40z" fill="#c9b894"/>
+  <circle cx="256" cy="200" r="20" fill="none" stroke="#f6e6c4" stroke-width="7"/>
+  <!-- the tide coming in -->
+  <path d="M0 360 q64 -22 128 0 t128 0 t128 0 t128 0 V512 H0z" fill="url(#sea)"/>
+  <path d="M0 392 q64 -18 128 0 t128 0 t128 0 t128 0" fill="none" stroke="#8fe3d4" stroke-width="6" opacity=".7"/>
+  <path d="M0 430 q64 -14 128 0 t128 0 t128 0 t128 0" fill="none" stroke="#8fe3d4" stroke-width="5" opacity=".45"/>
 </svg>
