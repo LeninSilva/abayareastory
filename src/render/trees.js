@@ -38,8 +38,28 @@ function palm() {
   return merge(parts);
 }
 
+// laurel de la India, the plaza tree: a dense, clipped dome of dark leaves on a thick grey trunk
+function laurel() {
+  const parts = [colored(new THREE.CylinderGeometry(0.28, 0.42, 2.6, 7).translate(0, 1.3, 0), 0x6e6a60)];
+  const g = lumpy(new THREE.IcosahedronGeometry(3.1, 2), 0.08, 1.7); g.scale(1.15, 0.8, 1.15); g.translate(0, 4.4, 0); parts.push(colored(g, 0x2f5a26));
+  return merge(parts);
+}
+// jacaranda: a thin crown, lilac
+function jacaranda() {
+  const parts = [trunk(3.4, 0.2)];
+  for (const [x, y, z, r] of [[0, 5, 0, 2.2], [1.4, 4.6, 0.5, 1.6], [-1.3, 4.7, -0.6, 1.7], [0.3, 6.1, -0.2, 1.3]]) { const g = lumpy(new THREE.IcosahedronGeometry(r, 1), 0.3, x * 5 + z); g.scale(1.1, 0.75, 1.1); g.translate(x, y, z); parts.push(colored(g, 0x8a74c8)); }
+  return merge(parts);
+}
+// huizache and scrub on the dry slopes
+function scrub() {
+  const parts = [trunk(0.9, 0.12)];
+  for (const [x, y, z, r] of [[0, 1.5, 0, 1.3], [0.7, 1.2, 0.3, 0.9], [-0.6, 1.3, -0.4, 0.9]]) { const g = lumpy(new THREE.IcosahedronGeometry(r, 1), 0.3, x + 3 * z); g.scale(1.3, 0.7, 1.3); g.translate(x, y, z); parts.push(colored(g, 0x5a6a2e)); }
+  return merge(parts);
+}
+
 export function makeTrees(city, quality) {
-  const types = [broadleaf(), palm(), conifer(), eucalyptus()];
+  // 0 laurel, 1 palm, 2 pine and oak on the hills, 3 ahuehuete and eucalyptus in the Bosque, 4 jacaranda, 5 scrub
+  const types = [laurel(), palm(), conifer(), eucalyptus(), jacaranda(), scrub()];
   const mat = landmarkMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
   const cap = quality === 'low' ? 2500 : quality === 'medium' ? 5000 : 9000;
   const radius = quality === 'low' ? 320 : quality === 'medium' ? 480 : 700;
@@ -50,13 +70,13 @@ export function makeTrees(city, quality) {
   const T = city.trees, CELL = 100, grid = new Map();
   for (let k = 0; k < T.length / 4; k++) { const key = Math.floor((T[k * 4] + city.half) / CELL) * 1000 + Math.floor((T[k * 4 + 1] + city.half) / CELL); let a = grid.get(key); if (!a) grid.set(key, a = []); a.push(k); }
   // trunks are solid
-  for (let k = 0; k < T.length / 4; k++) { const x = T[k * 4], z = T[k * 4 + 1], y = city.heightAt(x, z); city.colliders.addCircle(x, z, T[k * 4 + 2] === 1 ? 0.35 : 0.3, y - 1, y + 5, 'tree'); }
+  for (let k = 0; k < T.length / 4; k++) { const x = T[k * 4], z = T[k * 4 + 1], y = city.heightAt(x, z); const ty = T[k * 4 + 2]; if (ty !== 5) city.colliders.addCircle(x, z, ty === 0 ? 0.42 : ty === 1 ? 0.35 : 0.3, y - 1, y + 5, 'tree'); }
   let lastX = 1e9, lastZ = 1e9;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), v = new THREE.Vector3(), s = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
   group.userData.update = (x, z, force) => {
     if (!force && Math.hypot(x - lastX, z - lastZ) < 30) return;
     lastX = x; lastZ = z;
-    const counts = [0, 0, 0, 0], r = Math.ceil(radius / CELL), ci = Math.floor((x + city.half) / CELL), cj = Math.floor((z + city.half) / CELL);
+    const counts = types.map(() => 0), r = Math.ceil(radius / CELL), ci = Math.floor((x + city.half) / CELL), cj = Math.floor((z + city.half) / CELL);
     const near = [];
     for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) { const a = grid.get((ci + di) * 1000 + cj + dj); if (a) for (const k of a) { const d = (T[k * 4] - x) ** 2 + (T[k * 4 + 1] - z) ** 2; if (d < radius * radius) near.push([d, k]); } }
     near.sort((a, b) => a[0] - b[0]);

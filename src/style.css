@@ -153,3 +153,22 @@ body.jet .tb.jetonly { display: block; }
 body.jet .tb[data-action=block] { display: none; }
 body.jet .tb[data-action=jet] { background: rgba(226,184,101,0.6); }
 #jetinfo { position: absolute; left: 50%; bottom: calc(18px + var(--safe-b, 0px)); transform: translateX(-50%); padding: 5px 12px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); font: 600 13px var(--sans); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; pointer-events: none; }
+/* ---- Añil ---- */
+:root { --indigo: #3a4fa0; --indigo-2: #26346e; }
+#title { background: radial-gradient(ellipse at 50% 30%, rgba(58,79,160,0.55), rgba(10,14,30,0.92)); }
+#title h1 { letter-spacing: 0.3em; color: #dfe6ff; text-shadow: 0 0 30px rgba(90,120,255,0.5); }
+.tb[data-action=interact] { right: 6px; bottom: 6px; width: 82px; height: 82px; font: 700 20px var(--sans); }
+.tb[data-action=jump] { right: 100px; bottom: 6px; }
+.tb.jetonly { right: 100px; bottom: 76px; }
+.tb[data-action=sprint] { right: 168px; bottom: 34px; }
+.tb.caronly { display: none; right: 176px; bottom: 104px; }
+body.car .tb.caronly { display: block; }
+body.car .tb[data-action=jet] { display: none; }
+.tb[data-action=jet] { right: 122px; bottom: 150px; }
+.tb[data-action=case] { right: 68px; bottom: 176px; }
+#raceinfo { position: absolute; top: calc(96px + var(--safe-t, 0px)); left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 10px; background: rgba(20,24,50,0.85); border: 1px solid var(--gold); font: 700 18px var(--sans); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; pointer-events: none; white-space: nowrap; }
+.ach-pop { position: absolute; left: 14px; top: calc(62px + var(--safe-t, 0px)); max-width: 300px; padding: 10px 14px; border-radius: 12px; background: linear-gradient(135deg, rgba(38,52,110,0.95), rgba(20,24,50,0.95)); border: 1px solid var(--gold); display: grid; gap: 2px; animation: tin 0.4s ease; transition: opacity 0.6s, transform 0.6s; pointer-events: none; }
+.ach-pop small { color: var(--gold); font: 700 10px var(--sans); letter-spacing: 0.14em; } .ach-pop b { font-size: 16px; } .ach-pop span { color: var(--ink-dim); font-size: 13px; }
+.ach-pop.out { opacity: 0; transform: translateX(-30px); }
+.item.ach { opacity: 0.55; } .item.ach.on { opacity: 1; border-color: var(--gold); }
+@media (max-height: 460px) { #raceinfo { top: 60px; } }

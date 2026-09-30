@@ -1,12 +1,11 @@
-// Loads data/city.bin + data/city.json and answers spatial questions about the city.
-import { STYLE_BY_ID, LANDMARKS, TOWERS, LIBRARIES, toXZ } from './geo.js';
-import { prepWaterfront } from './waterfront.js';
+// Loads data/jiquilpan.bin + data/jiquilpan.json and answers spatial questions about the town and the valley.
+import { CLEAR, HALF, PLACES, barrio } from './geo.js';
 
-export const SIDEWALK = 3.2;   // sidewalk width on each side of a street (m)
+export const SIDEWALK = 1.6;   // banquetas in Jiquilpan are narrow
 
 export async function loadCity(onProgress) {
-  const meta = await (await fetch('data/city.json')).json();
-  const res = await fetch('data/city.bin');
+  const meta = await (await fetch('data/jiquilpan.json')).json();
+  const res = await fetch('data/jiquilpan.bin');
   const total = +res.headers.get('content-length') || 0;
   let buf;
   if (res.body && total) {
@@ -20,40 +19,70 @@ export async function loadCity(onProgress) {
   return new City(meta, S);
 }
 
+class Grid {
+  constructor(m, data, scale) { Object.assign(this, m); this.d = Float32Array.from(data, v => v * scale); }
+  at(x, z) {
+    const n = this.n, fx = (x - this.x0) / (this.x1 - this.x0) * (n - 1), fz = (z - this.z0) / (this.z1 - this.z0) * (n - 1);
+    if (!(fx >= 0 && fz >= 0 && fx < n - 1 && fz < n - 1)) return null;
+    const i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j, k = j * n + i, d = this.d;
+    return (d[k] * (1 - u) + d[k + 1] * u) * (1 - v) + (d[k + n] * (1 - u) + d[k + n + 1] * u) * v;
+  }
+  // how far inside the grid (0 at the edge), for blending one grid into the next
+  inside(x, z) { return Math.min(x - this.x0, this.x1 - x, z - this.z0, this.z1 - z); }
+}
+
 export class City {
   constructor(meta, S) {
-    this.meta = meta; this.half = meta.half;
-    this.demN = meta.demN; this.dem = Float32Array.from(S('dem'), v => v / 10);
-    this.landN = meta.landN; this.land = S('land');
-    this.districts = meta.districts;
-    // streets
-    const sp = S('streetPts'), so = S('streetOff'), sw = S('streetW'), sn = S('streetName');
+    this.meta = meta; this.half = HALF; this.walkHalf = 10500; this.flyHalf = 11000;
+    this.demTown = new Grid(meta.demTown, S('demTown'), 0.1);
+    this.demMid = new Grid(meta.demMid, S('demMid'), 0.1);
+    this.demRegion = new Grid(meta.demRegion, S('demRegion'), 1);
+    this.cover = S('cover'); this.coverM = meta.cover;
+    this.places = meta.places; this.streams = meta.streams;
+    // streets: road (kind 0) with sidewalks, footway 1, steps 2, track 3, pedestrian 4
+    const sp = S('streetPts'), so = S('streetOff'), si = S('streetInfo');
     this.streets = [];
     for (let s = 0; s + 1 < so.length; s++) {
-      const pts = []; for (let k = so[s]; k < so[s + 1]; k++) pts.push([sp[k * 2] / 4, sp[k * 2 + 1] / 4]);
-      this.streets.push({ pts, width: sw[s], name: meta.streetNames[sn[s]] });
+      const pts = []; for (let k = so[s]; k < so[s + 1]; k++) pts.push([sp[k * 2], sp[k * 2 + 1]]);
+      this.streets.push({ pts, width: si[s * 3], kind: si[s * 3 + 1], name: meta.streetNames[si[s * 3 + 2]] || '' });
     }
-    // buildings
-    const bi = S('bldI'), bs = S('bldS'), n = bi.length / 7;
-    this.buildings = new Array(n);
-    for (let k = 0; k < n; k++) this.buildings[k] = { x: bi[k * 7] / 4, z: bi[k * 7 + 1] / 4, w: bi[k * 7 + 2] / 10, d: bi[k * 7 + 3] / 10, ang: bi[k * 7 + 4] / 10000, h: bi[k * 7 + 5] / 10, y: bi[k * 7 + 6] / 10, style: STYLE_BY_ID[bs[k * 3]], styleId: bs[k * 3], seed: bs[k * 3 + 1], houses: bs[k * 3 + 2] };
-    // trees
-    const ti = S('treeI'), ts = S('treeS');
-    this.trees = new Float32Array(ti.length / 2 * 4);
-    for (let k = 0; k < ti.length / 2; k++) { this.trees[k * 4] = ti[k * 2] / 4; this.trees[k * 4 + 1] = ti[k * 2 + 1] / 4; this.trees[k * 4 + 2] = ts[k * 2]; this.trees[k * 4 + 3] = ts[k * 2 + 1] / 100; }
-    // alleys, places, lanes and courts are narrow: an alley in Chinatown is not a 20 m boulevard
-    for (const st of this.streets) if (/\b(ALY|ALLEY|PL|LN|WAY|TER|CT|WALK|STPS|STAIRS|PATH|ROW)$/.test(st.name || '')) st.width = Math.min(st.width, 9);
+    const t = S('trees'), keep = [], clear0 = CLEAR.map(([x, z, hw, hd]) => ({ x, z, hw, hd }));
+    for (let k = 0; k < t.length / 4; k++) { const x = t[k * 4], z = t[k * 4 + 1]; if (!clear0.some(c => Math.abs(x - c.x) < c.hw && Math.abs(z - c.z) < c.hd)) keep.push(x, z, t[k * 4 + 2], t[k * 4 + 3]); }
+    this.trees = Float32Array.from(keep);
     this._segIndex();
-    this._dedupeStreets();
-    prepWaterfront(this);
-    this._treesOffTheRoad();
-    this.colliders = new Colliders(this.half);
-    for (const b of this.buildings) this.colliders.addBox(b.x, b.z, b.w, b.d, b.ang, b.y - 2, b.y + b.h, 'building');
-    for (const t of TOWERS) { const [x, z] = toXZ(t.lat, t.lon); t.x = x; t.z = z; }
-    for (const l of LANDMARKS) { const [x, z] = toXZ(l.lat, l.lon); l.x = x; l.z = z; }
-    for (const l of LIBRARIES) { const [x, z] = toXZ(l.lat, l.lon); l.x = x; l.z = z; }
+    this._anchor(S);
+    // buildings: x z w d ang h y style seed houses floors
+    const b = this._bld, clear = CLEAR.map(([x, z, hw, hd]) => ({ x, z, hw, hd }));
+    this.buildings = [];
+    for (let k = 0; k < b.length / 11; k++) {
+      const o = k * 11, x = b[o], z = b[o + 1];
+      if (clear.some(c => Math.abs(x - c.x) < c.hw && Math.abs(z - c.z) < c.hd)) continue;
+      this.buildings.push({ x, z, w: b[o + 2], d: b[o + 3], ang: b[o + 4], h: b[o + 5], y: b[o + 6], styleId: b[o + 7], seed: b[o + 8], houses: b[o + 9], floors: b[o + 10] });
+    }
+    this.colliders = new Colliders(12000);
+    for (const q of this.buildings) this.colliders.addBox(q.x, q.z, q.w, q.d, q.ang, q.y - 3, q.y + q.h, 'building');
   }
-  /* Street segments in a spatial hash: which street is under a point, and how far from its centerline. */
+  /* The story's invented places, put on real ground: Rosa's garage on a real street frontage,
+     Aurelio's house in a real house of San Cayetano. */
+  _anchor(S) {
+    this._bld = S('bld');
+    const near = (x0, z0, test) => { let best = null, bd = Infinity; for (const st of this.streets) { if (!test(st)) continue; for (let k = 0; k + 1 < st.pts.length; k++) { const [ax, az] = st.pts[k], [bx, bz] = st.pts[k + 1], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1, u = Math.max(0, Math.min(1, ((x0 - ax) * dx + (z0 - az) * dz) / L2)), px = ax + dx * u, pz = az + dz * u, d = Math.hypot(px - x0, pz - z0); if (d < bd) { bd = d; const L = Math.sqrt(L2); best = { x: px, z: pz, tx: dx / L, tz: dz / L, half: st.width / 2 }; } } } return best; };
+    const t = PLACES.taller, r = near(t.x, t.z, st => st.kind === 0 && st.width >= 11);
+    if (r) {
+      let nx = r.tz, nz = -r.tx; if ((t.x - r.x) * nx + (t.z - r.z) * nz < 0) { nx = -nx; nz = -nz; }
+      t.x = r.x + nx * (r.half + 7.5); t.z = r.z + nz * (r.half + 7.5); t.ry = Math.atan2(nx, nz);
+      const c = CLEAR.find(q => q[0] === 560); if (c) { c[0] = t.x; c[1] = t.z; c[2] = c[3] = 12; }
+    }
+    // Aurelio's house: the nearest real house to where the story put it, and its street door
+    const b = this._bld, a = PLACES.casaAurelio; let bi = -1, bd = Infinity;
+    for (let k = 0; k < b.length / 11; k++) { const d = Math.hypot(b[k * 11] - a.x, b[k * 11 + 1] - a.z); if (d < bd && (b[k * 11 + 7] === 41 || b[k * 11 + 7] === 40) && b[k * 11 + 2] > 6) { bd = d; bi = k; } }
+    if (bi >= 0) {
+      const o = bi * 11, x = b[o], z = b[o + 1], d = b[o + 3], ang = b[o + 4], lzx = -Math.sin(ang), lzz = Math.cos(ang);
+      let side = 1; const hits = []; for (const sg of [1, -1]) if (this.streetsAt(x + lzx * sg * (d / 2 + 3), z + lzz * sg * (d / 2 + 3), hits).length) { side = sg; break; }
+      a.x = x + lzx * side * (d / 2 + 1.3); a.z = z + lzz * side * (d / 2 + 1.3);
+    }
+  }
+  /* Street segments in a spatial hash. */
   _segIndex() {
     const CELL = 40, grid = new Map(); this.segCell = CELL; this.segGrid = grid;
     this.streets.forEach((st, si) => {
@@ -65,28 +94,6 @@ export class City {
       }
     });
   }
-  /* The tracer sometimes followed one street twice (its trees were listed under two spellings of the name).
-     Each shorter trace gives up the stretches that run inside a longer trace of the same street. */
-  _dedupeStreets() {
-    const len = st => { let L = 0; for (let i = 1; i < st.pts.length; i++) L += Math.hypot(st.pts[i][0] - st.pts[i - 1][0], st.pts[i][1] - st.pts[i - 1][1]); return L; };
-    const key = st => (st.name || '').toUpperCase().replace(/\s+/g, ' ').trim();
-    const L = this.streets.map(len), K = this.streets.map(key), hits = [], out = [];
-    let trimmed = 0;
-    this.streets.forEach((st, si) => {
-      // densify to ~10 m so trimming is precise
-      const pts = [];
-      for (let i = 1; i < st.pts.length; i++) { const [ax, az] = st.pts[i - 1], [bx, bz] = st.pts[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 10)); for (let k = i === 1 ? 0 : 1; k <= n; k++) pts.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n]); }
-      const covered = pts.map(([x, z]) => this.streetsAt(x, z, hits).some(h => h.si !== si && K[h.si] === K[si] && (L[h.si] > L[si] || (L[h.si] === L[si] && h.si < si)) && Math.abs(h.d) < h.half - 1));
-      if (!covered.some(Boolean)) { out.push(st); return; }
-      trimmed++;
-      let run = [];
-      pts.forEach((p, i) => { if (!covered[i]) run.push(p); else { if (run.length > 1) out.push({ ...st, pts: run }); run = []; } });
-      if (run.length > 1) out.push({ ...st, pts: run });
-    });
-    this.streets = out; this.dedupe = trimmed;
-    this._segIndex();
-  }
-  // every street whose right-of-way contains (x,z): [{ si, d (signed, left -), half, tx, tz }]
   streetsAt(x, z, out = []) {
     out.length = 0;
     const a = this.segGrid.get(Math.floor(x / this.segCell) * 100000 + Math.floor(z / this.segCell)); if (!a) return out;
@@ -99,48 +106,25 @@ export class City {
     }
     return out;
   }
-  // true if (x,z) is on the roadway (between the curbs) of any street
-  onRoad(x, z) { for (const h of this.streetsAt(x, z, this._tmp || (this._tmp = []))) if (Math.abs(h.d) < h.half - SIDEWALK + 0.2) return true; return false; }
-  /* Street trees are recorded by address; our streets are traced from them and run a few metres off.
-     Move every tree that ended up in a roadway onto the nearest sidewalk, and drop any that still can't find one. */
-  _treesOffTheRoad() {
-    const T = this.trees, keep = [], hits = [];
-    let moved = 0, dropped = 0;
-    for (let k = 0; k < T.length / 4; k++) {
-      let x = T[k * 4], z = T[k * 4 + 1];
-      for (let pass = 0; pass < 3; pass++) {
-        const road = this.streetsAt(x, z, hits).find(h => Math.abs(h.d) < h.half - SIDEWALK + 0.6);
-        if (!road) break;
-        const side = road.d >= 0 ? 1 : -1, target = side * (road.half - Math.min(1.3, SIDEWALK * 0.4)), shift = target - road.d;
-        x += road.tz * shift; z -= road.tx * shift; moved++;
-      }
-      if (this.onRoad(x, z)) { dropped++; continue; }
-      keep.push(x, z, T[k * 4 + 2], T[k * 4 + 3]);
-    }
-    this.trees = Float32Array.from(keep);
-    this.treeFix = { moved, dropped };
-  }
-  // Bilinear ground height (metres above sea level)
+  onRoad(x, z) { for (const h of this.streetsAt(x, z, this._tmp || (this._tmp = []))) if (this.streets[h.si].kind === 0 && Math.abs(h.d) < h.half - SIDEWALK + 0.2) return true; return false; }
+  // ground height: fine near town, coarser in the hills, coarsest across the valley; blended at the seams
   heightAt(x, z) {
-    const N = this.demN, C = (2 * this.half) / N;
-    const fx = (x + this.half) / C - 0.5, fz = (z + this.half) / C - 0.5;
-    const i = Math.max(0, Math.min(N - 2, Math.floor(fx))), j = Math.max(0, Math.min(N - 2, Math.floor(fz)));
-    const u = Math.min(1, Math.max(0, fx - i)), v = Math.min(1, Math.max(0, fz - j)), k = j * N + i, d = this.dem;
-    return (d[k] * (1 - u) + d[k + 1] * u) * (1 - v) + (d[k + N] * (1 - u) + d[k + N + 1] * u) * v;
+    const t = this.demTown.at(x, z), m = this.demMid.at(x, z), r = this.demRegion.at(x, z);
+    const far = r === null ? 0 : r;
+    const mid = m === null ? far : m;
+    if (t === null) { if (m === null) return far; const w = Math.min(1, this.demMid.inside(x, z) / 600); return far + (mid - far) * w; }
+    const w = Math.min(1, this.demTown.inside(x, z) / 300); return mid + (t - mid) * w;
   }
-  landIndex(x, z) {
-    const N = this.landN, C = (2 * this.half) / N;
-    const i = Math.floor((x + this.half) / C), j = Math.floor((z + this.half) / C);
-    if (i < 0 || j < 0 || i >= N || j >= N) return 0;
-    return this.land[j * N + i];
+  coverAt(x, z) {
+    const c = this.coverM, i = Math.floor((x - c.x0) / (c.x1 - c.x0) * c.n), j = Math.floor((z - c.z0) / (c.z1 - c.z0) * c.n);
+    return i >= 0 && j >= 0 && i < c.n && j < c.n ? this.cover[j * c.n + i] : 0;
   }
-  isLand(x, z) { return this.landIndex(x, z) > 0; }
-  district(x, z) { const v = this.landIndex(x, z); return v && v !== 255 ? this.districts[v - 1] : v === 255 ? 'Alcatraz' : null; }
+  isLand() { return true; }
+  district(x, z) { return barrio(x, z); }
 }
 
-const ROOFS = new Set(['building', 'tower']);
-
-/* 2D oriented boxes and circles in a spatial hash, for walking collision. */
+/* 2D oriented boxes and circles in a spatial hash, for walking and driving collision. */
+const ROOFS = new Set(['building', 'tower', 'roof']);
 export class Colliders {
   constructor(half, cell = 32) { this.half = half; this.cell = cell; this.n = Math.ceil(2 * half / cell); this.grid = new Map(); this.items = []; }
   _cells(minx, minz, maxx, maxz, fn) {
@@ -149,40 +133,34 @@ export class Colliders {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) fn(j * this.n + i);
   }
   _insert(item, r) { const id = this.items.push(item) - 1; item.id = id; item.r = r; this._cells(item.x - r, item.z - r, item.x + r, item.z + r, k => { let a = this.grid.get(k); if (!a) this.grid.set(k, a = []); a.push(id); }); return item; }
-  /** Take a collider out again (street furniture and parked cars come and go as you move). */
   remove(item) {
     if (!item || item.dead) return; item.dead = true; const r = item.r;
     this._cells(item.x - r, item.z - r, item.x + r, item.z + r, k => { const a = this.grid.get(k); if (!a) return; const i = a.indexOf(item.id); if (i >= 0) a.splice(i, 1); });
     this.items[item.id] = null;
   }
   addBox(x, z, w, d, ang, y0, y1, tag) { return this._insert({ type: 'box', x, z, hw: w / 2, hd: d / 2, c: Math.cos(ang), s: Math.sin(ang), y0, y1, tag }, Math.hypot(w, d) / 2); }
-  addCircle(x, z, r, y0, y1, tag) { return this._insert({ type: 'circle', x, z, r, y0, y1, tag }, r); }
+  addCircle(x, z, r, y0, y1, tag) { return this._insert({ type: 'circle', x, z, r: r, rad: r, y0, y1, tag }, r); }
   query(x, z, r, fn) {
     const seen = new Set();
     this._cells(x - r, z - r, x + r, z + r, k => { const a = this.grid.get(k); if (a) for (const id of a) if (!seen.has(id)) { seen.add(id); const it = this.items[id]; if (it) fn(it); } });
   }
-  // Push a circle (x,z,r) at height y out of everything it overlaps. Returns the corrected position.
   resolve(x, z, r, yFeet, yHead) {
     for (let pass = 0; pass < 4; pass++) {
       let moved = false;
       this.query(x, z, r + 2, it => {
-        if (it.solid || yHead < it.y0 || yFeet > it.y1 - 0.4) return;   // above or below it (steps up onto low things)
+        if (it.solid || yHead < it.y0 || yFeet > it.y1 - 0.4) return;
         if (it.type === 'circle') {
-          const dx = x - it.x, dz = z - it.z, d = Math.hypot(dx, dz), m = r + it.r;
+          const dx = x - it.x, dz = z - it.z, d = Math.hypot(dx, dz), m = r + it.rad;
           if (d < m) { const k = d > 1e-4 ? (m - d) / d : 1; x += (d > 1e-4 ? dx : 1) * k; z += (d > 1e-4 ? dz : 0) * k; moved = true; }
           return;
         }
-        // box: work in the box's frame
         const dx = x - it.x, dz = z - it.z, lx = dx * it.c + dz * it.s, lz = -dx * it.s + dz * it.c;
         const cx = Math.max(-it.hw, Math.min(it.hw, lx)), cz = Math.max(-it.hd, Math.min(it.hd, lz));
         let ox = lx - cx, oz = lz - cz, d = Math.hypot(ox, oz);
         if (d >= r) return;
         let nx, nz, push;
         if (d > 1e-4) { nx = ox / d; nz = oz / d; push = r - d; }
-        else {  // centre inside the box: leave by the nearest face
-          const fx = it.hw - Math.abs(lx), fz = it.hd - Math.abs(lz);
-          if (fx < fz) { nx = Math.sign(lx) || 1; nz = 0; push = fx + r; } else { nx = 0; nz = Math.sign(lz) || 1; push = fz + r; }
-        }
+        else { const fx = it.hw - Math.abs(lx), fz = it.hd - Math.abs(lz); if (fx < fz) { nx = Math.sign(lx) || 1; nz = 0; push = fx + r; } else { nx = 0; nz = Math.sign(lz) || 1; push = fz + r; } }
         const wx = nx * it.c - nz * it.s, wz = nx * it.s + nz * it.c;
         x += wx * push; z += wz * push; moved = true;
       });
@@ -190,9 +168,7 @@ export class Colliders {
     }
     return [x, z];
   }
-  // Solid, walkable blocks (temple terraces, steps, piers, interiors): tops are floors, sides are walls.
   addSolid(x, z, w, d, ang, y0, top, tag) { return this._insert({ type: 'box', solid: true, x, z, hw: w / 2, hd: d / 2, c: Math.cos(ang), s: Math.sin(ang), y0, y1: top, tag }, Math.hypot(w, d) / 2); }
-  // Highest solid top under (x,z) that a walker with feet at yFeet can step onto; and whether a taller solid blocks.
   floorAt(x, z, yFeet, step, roofs = true) {
     let floor = -Infinity, wall = false;
     this.query(x, z, 0.1, it => {
@@ -200,7 +176,6 @@ export class Colliders {
       if (!it.solid && !roof) return;
       const dx = x - it.x, dz = z - it.z, lx = dx * it.c + dz * it.s, lz = -dx * it.s + dz * it.c;
       if (Math.abs(lx) > it.hw || Math.abs(lz) > it.hd) return;
-      // a roof is a floor only from above (you land on it; you never step up onto it)
       if (roof) { if (it.y1 <= yFeet + 0.05 && it.y1 > floor) floor = it.y1; return; }
       if (it.y1 <= yFeet + step) { if (it.y1 > floor) floor = it.y1; }
       else if (it.y0 < yFeet + 1.6) wall = true;
@@ -211,7 +186,7 @@ export class Colliders {
     let hit = false;
     this.query(x, z, r + 2, it => {
       if (hit || it.solid || yHead < it.y0 || yFeet > it.y1 - 0.4) return;
-      if (it.type === 'circle') { if (Math.hypot(x - it.x, z - it.z) < r + it.r - 0.01) hit = true; return; }
+      if (it.type === 'circle') { if (Math.hypot(x - it.x, z - it.z) < r + it.rad - 0.01) hit = true; return; }
       const dx = x - it.x, dz = z - it.z, lx = dx * it.c + dz * it.s, lz = -dx * it.s + dz * it.c;
       const cx = Math.max(-it.hw, Math.min(it.hw, lx)), cz = Math.max(-it.hd, Math.min(it.hd, lz));
       if (Math.hypot(lx - cx, lz - cz) < r - 0.01) hit = true;

@@ -1,10 +1,9 @@
-// UNDERTOW: boot, world, and the loop.
+// AÑIL: a mystery in Jiquilpan de Juárez, Michoacán. The game: world, story, driving, flying, people, rendering.
 import * as THREE from 'three';
 import { loadCity } from './data.js';
 import { U } from './render/shaders.js';
 import { makeSky, setTimeOfDay } from './render/sky.js';
-import { makeTerrain, makeWater, makeStreets, makeBackdrop } from './render/ground.js';
-import { makeEmbarcadero } from './render/embarcadero.js';
+import { makeTerrain, makeStreets, makeStreams } from './render/ground.js';
 import { SunShadows } from './render/shadows.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -12,34 +11,30 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { WF, XS, FERRY, RINCON, wfLocal, wfPoint, inCorridor } from './waterfront.js';
-const RINCON_T = RINCON.t1;
 import { makeBuildings } from './render/buildings.js';
 import { makeTrees } from './render/trees.js';
-import { makeDetail } from './render/detail.js';
+import { makeDetail, CarKit } from './render/detail.js';
 import { Traffic } from './render/traffic.js';
-import { makeLandmarks, makeBridges } from './render/landmarks.js';
-import { makeRuins, makeUnderworld, glyphTexture } from './render/ruins.js';
-import { makePerson, makeHands, WEAPONS } from './render/people.js';
-import { toXZ, toLatLon, LIBRARIES, LANDMARKS, DISTRICT_STYLE, STYLES } from './geo.js';
+import { makeLandmarks } from './render/landmarks.js';
+import { makePerson, makeHands } from './render/people.js';
+import { PLACES, barrio } from './geo.js';
 import { Input } from './game/input.js';
 import { Player } from './game/player.js';
-import { CHARACTERS, PLACES, EXTRAS } from './game/story.js';
-import { makeCitizen, REGULARS } from './game/citizens.js';
-import { QUESTS, QuestBook, MAIN_ORDER } from './game/quests.js';
-import { ITEMS, MURMURS, LOST, PICKUP_SETS, PROVISIONS } from './game/lore.js';
+import { CHARACTERS, EXTRAS } from './game/story.js';
+import { Story, CHAPTERS, CLUES, ENDINGS } from './game/quests.js';
+import { PAGES, ACHIEVEMENTS } from './game/lore.js';
 import { Voices, parseTags } from './game/dialogue.js';
-import { Combat, ABILITIES } from './game/combat.js';
 import { Audio } from './game/audio.js';
-import { UI } from './game/ui.js';
+import { UI, LANDMARK_IDS, fmtT } from './game/ui.js';
+import { makeCitizen, REGULARS } from './game/citizens.js';
+import { Vehicles } from './game/vehicle.js';
+import { makeRaces, RaceRun } from './game/races.js';
 
-const SAVE_KEY = 'undertow-save-v1', SET_KEY = 'undertow-settings-v1';
-const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} }, del(k) { try { localStorage.removeItem(k); } catch (_) {} } };
+const SAVE_KEY = 'anil-save-v1', SET_KEY = 'anil-settings-v1';
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} } };
 const $ = id => document.getElementById(id);
 const mobile = matchMedia('(pointer: coarse)').matches;
-
-const DEFAULT_SETTINGS = { quality: mobile ? 'low' : 'medium', text: 'm', contrast: 'normal', reduced: false, timeScale: '1', sensitivity: 1, invertY: false, touch: 'auto', hollows: 'normal', damage: '1', master: 0.8, music: 0.5, fx: 0.8, voice: 'auto', apiKey: '' };
-const WEAPON_ORDER = ['stick', 'grip', 'canesword', 'hook', 'clapper', 'stairblade'];
+const DEFAULT_SETTINGS = { quality: mobile ? 'low' : 'medium', text: 'm', contrast: 'normal', reduced: false, timeScale: '1', sensitivity: 1, invertY: false, touch: 'auto', chase: 'normal', master: 0.8, music: 0.5, fx: 0.8, voice: 'auto', apiKey: '' };
 
 class Game {
   constructor() {
@@ -50,7 +45,7 @@ class Game {
     for (const b of document.querySelectorAll('#tbtns [data-action]')) this.input.bindButton(b);
     this.voices = new Voices(this.settings);
     this.ui = new UI(this);
-    this.started = false; this.paused = false; this.t = 0; this.shakeA = 0; this.fogBank = 0.4; this.wardT = 0; this.talk = null;
+    this.started = false; this.paused = false; this.t = 0; this.talk = null; this.walkers = []; this.npcs = [];
     this.applySettings();
     this.input.onUnlock = () => { if (this.started && !this.paused && !this.talk && !this.ui.cardOpen) this.ui.openMenu(); };
     this._titleWiring();
@@ -63,16 +58,13 @@ class Game {
     $('btn-continue').hidden = !save;
     $('name-input').value = (save && save.name) || '';
     $('name-input').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('btn-new').click(); });
-    $('btn-new').addEventListener('click', () => {
-      if (store.get(SAVE_KEY) && !confirm('Begin a new story? Your saved story will be replaced.')) return;
-      this.begin(null);
-    });
+    $('btn-new').addEventListener('click', () => { if (store.get(SAVE_KEY) && !confirm('Begin a new game? Your saved game will be replaced.')) return; this.begin(null); });
     $('btn-continue').addEventListener('click', () => this.begin(store.get(SAVE_KEY)));
     $('btn-title-settings').addEventListener('click', () => this.ui.openMenu('settings'));
     $('btn-about').addEventListener('click', () => this.ui.card([
-      '<em>UNDERTOW</em>\nA first-person story in San Francisco, the real one: its streets, hills, buildings and history, drawn from the city\'s own open data.',
-      'You came to find your father. The city is full of people who never left it. Talk to anyone. Help whom you like. Fight what you must.',
-      'The places and history in the Field Notes are real. The people, the hotel, the company, and the ancient stairs in the hills are invented.'
+      '<em>AÑIL</em>\nA mystery in Jiquilpan de Juárez, Michoacán: the real town, its streets, houses, churches, plazas and mountains, built from open map and elevation data.',
+      'Your grandfather found what his father hid in 1940. Then he vanished on the Cerro de San Francisco. Follow the clues. Talk to anyone. Drive any car. Fly.',
+      'The town, its landmarks and its history are real. Every character, the company, the 1938 title and the cave are invented.'
     ]));
   }
   setSetting(k, v) {
@@ -81,7 +73,7 @@ class Game {
     if (['sensitivity', 'master', 'music', 'fx'].includes(k)) v = +v;
     const qualityChanged = k === 'quality' && v !== this.settings.quality;
     this.settings[k] = v; store.set(SET_KEY, this.settings); this.applySettings();
-    if (qualityChanged && this.started) this.ui.toast('Picture quality changes fully the next time the city loads.', 'good');
+    if (qualityChanged && this.started) this.ui.toast('Picture quality changes fully the next time the town loads.', 'good');
   }
   applySettings() {
     const s = this.settings, root = document.documentElement;
@@ -99,150 +91,139 @@ class Game {
   async begin(save) {
     this.audio.start();
     $('title').classList.remove('show'); $('loading').classList.add('show');
-    try { await this.buildWorld(); }
-    catch (e) { console.error(e); $('load-text').textContent = 'The city would not load: ' + e.message + '. Check your connection and reload.'; return; }
+    try { if (!this.city) await this.buildWorld(); }
+    catch (e) { console.error(e); $('load-text').textContent = 'The town would not load: ' + e.message + '. Check your connection and reload.'; return; }
     $('loading').classList.remove('show');
     this.newState(save);
     this.started = true; document.body.classList.toggle('touch', this.touchUI()); this.ui.showHUD(true);
     this.placeNPCs();
-    if (save) {
-      this.enterInterior(save.interior && this.flags.underOpen);
-      this.player.teleport(save.pos[0], save.pos[2], save.pos[1]); this.player.yaw = save.yaw || 0;
-      this.ui.toast('Welcome back, ' + this.state.name + '.', 'good');
+    const p = this.player;
+    if (save && save.pos) {
+      p.teleport(save.pos[0], save.pos[2], save.pos[1]); p.yaw = save.yaw || 0;
+      this.ui.toast('Bienvenido de nuevo, ' + this.state.name + '.', 'good');
     } else {
-      const f = wfPoint(FERRY.t - 20, 52);
-      this.player.teleport(f[0], f[1]); this.player.yaw = -f[2] - Math.PI / 2 - 0.3;   // on the Ferry Building plaza, looking up the Embarcadero toward the clock tower
+      const j = PLACES.jardin; p.teleport(j.x + 26, j.z - 8); p.yaw = Math.PI / 2 + 0.25;   // on the Jardín, looking at the kiosco and the Parroquia's tower
       this.ui.card([
-        'Your mother, Marisela, died in Stockton in the spring, in a room that smelled of oranges.',
-        'Near the end she held your wrist hard and said: <em>Go to the city. Find your father. Hollis Vane. Make him pay what he owes us, which is not money.</em>',
-        'You had never seen him. You had seen his name on buildings, in the news, on the side of a glass tower. Everyone had.',
-        'So you took the last ferry across the bay, and the fog came in to meet it.'
-      ], () => this.tutorial());
+        'Three nights ago your grandfather called you from Jiquilpan. You had not heard his voice in a year.',
+        '"<em>Encontré lo que escondió Cuco.</em> I found what Cuco hid. Come before the cabildo votes on Friday." Then the line went dead.',
+        'The next morning the police said Don Aurelio Valdovinos had gone walking on the Cerro de San Francisco and not come back. After three days they stopped looking.',
+        'You take the bus from Guadalajara, along the lake. It leaves you on the Jardín at dusk, under the bells of San Francisco.'
+      ], () => { this.tutorial(); this.unlock('bienvenido'); });
     }
+    { const st = this.story.step(); if (st && (st.escape || st.timed)) this.stepStarted(st); }
     this.lastT = performance.now(); if (!this.looping) { this.looping = true; requestAnimationFrame(t => this.frame(t)); }
   }
   tutorial() {
     const touch = this.touchUI();
-    this.ui.toast(touch ? 'Left thumb to walk, right thumb to look.' : 'WASD to walk. Click the view to look around with the mouse.', 'good');
-    setTimeout(() => this.ui.toast(touch ? 'Tap the gold button to talk when someone is near.' : 'Press E to talk to someone. Esc opens the menu and the map.', 'good'), 4500);
-    setTimeout(() => this.ui.toast('Follow the gold diamond on the compass to your next step.', 'good'), 9000);
+    this.ui.toast(touch ? 'Left thumb to walk, right thumb to look.' : 'WASD to walk. Click the view to look with the mouse.', 'good');
+    setTimeout(() => this.ui.toast(touch ? 'The big button talks, examines and gets you into cars.' : 'E talks, examines, and gets you into any car. C opens the case file.', 'good'), 4500);
+    setTimeout(() => this.ui.toast('Follow the gold diamond on the compass. Tía Cuca is at her cart on the Jardín.', 'good'), 9000);
   }
   newState(save) {
     const name = ($('name-input').value || '').trim() || (save && save.name) || 'Ana';
-    const s = save ? save : {
-      name, hour: 18.4, day: 1, hp: 100, breath: 100, xp: 0, level: 1, points: 0, stats: { strength: 0, skill: 0, will: 0 }, light: 0,
-      weapon: 'stick', weapons: [], abilities: [], ability: null, inv: { letter: 1, sourdough: 2 }, flags: {}, sets: {}, murmurs: MURMURS.map(() => 0), glyphs: [], seenSites: [],
-      lost: LOST.map(() => 0), lostReturned: 0, libs: [], prov: {}, kills: {}, track: null, customWP: null, ending: null, pos: null
-    };
-    if (!save) s.weapons = []; // the walking stick comes from the hotel
-    this.state = s; this.flags = s.flags;
-    this.quests = new QuestBook(s, {
-      fx: (fx, q) => this.applyFx(fx, q),
-      notify: (text, kind) => { this.ui.toast(text, kind); if (kind === 'done') this.audio.chime(); },
-      counts: () => ({ sets: Object.fromEntries(Object.entries(s.sets).map(([k, v]) => [k, v.filter(Boolean).length])), murmurs: s.murmurs.filter(Boolean).length, glyphs: s.glyphs.length, kills: s.kills }),
-      changed: () => { this.save(); this.refreshNPCs(); }
+    const s = save || { name, hour: 18.25, day: 1, ch: 0, st: 0, any: [], used: [], clues: [], flags: {}, met: [], ach: {}, pages: [], visited: [], talked: 0, odo: 0, flown: 0, races: {}, customWP: null, ending: null, pos: null, cars: [], jetpack: false };
+    this.state = s;
+    this.story = new Story({
+      state: () => this.state,
+      fx: fx => this.applyFx(fx),
+      changed: () => { this.save(); this.refreshNPCs(); },
+      stepStart: st => { this.ui.toast(st.text, 'quest'); this.stepStarted(st); },
+      chapterStart: c => { this.ui.toast(c.title, 'quest'); this.audio.chime(); this.stepStarted(this.story.step()); },
+      chapterDone: c => this.ui.toast('Solved: ' + c.title, 'good'),
+      inspect: (ins, done) => this.inspect(ins, done),
+      ending: id => { this.pendingEnding = id; }
     });
-    for (const site of this.ruins.userData.sites) this.ruins.userData.setAwake(site.id, s.glyphs.includes(site.id) || s.ending === 'light');
-    this.combat.enemies.forEach(e => e.dead = true);
-    this.player.interior = null; this.player.bike = false; this.player.jet = false; this.player.distance = s.walked || 0;
+    const p = this.player; p.jet = false; p.driving = null; p.bike = false;
+    this.vehicles.cars = []; this.vehicles.driving = null;
+    for (const c of s.cars || []) this.vehicles.add({ x: c.x, z: c.z, y: this.city.heightAt(c.x, c.z) + 0.1, ang: c.ang, kind: c.kind, color: c.color });
+    if (this.race) { this.race.dispose(); this.race = null; }
+    this.chaser = null; this.timer = null;
   }
   save() {
-    if (!this.started) return; const s = this.state, p = this.player;
-    s.pos = p.jet && p.lastSafe ? p.lastSafe.slice() : [p.x, p.y, p.z]; s.yaw = p.yaw; s.interior = !!p.interior; s.walked = p.distance;
+    if (!this.started) return; const s = this.state, p = this.player, c = this.vehicles.driving;
+    s.pos = c ? [c.x + 2.5 * Math.sin(c.ang), c.y, c.z - 2.5 * Math.cos(c.ang)] : p.jet && p.lastSafe ? p.lastSafe.slice() : [p.x, p.y, p.z]; s.yaw = p.yaw;
+    s.cars = this.vehicles.cars.map(v => ({ x: v.x, z: v.z, ang: v.ang, kind: v.kind, color: v.color }));
     store.set(SAVE_KEY, s);
   }
-  toTitle() {
-    this.save(); this.started = false; this.endTalk(); this.ui.showHUD(false); $('btn-continue').hidden = !store.get(SAVE_KEY);
-    $('title').classList.add('show'); document.exitPointerLock && document.exitPointerLock();
-  }
+  toTitle() { this.save(); this.started = false; this.endTalk(); this.ui.showHUD(false); $('btn-continue').hidden = !store.get(SAVE_KEY); $('title').classList.add('show'); document.exitPointerLock && document.exitPointerLock(); }
 
   /* ---------------- the world ---------------- */
   async buildWorld() {
-    if (this.city) return;
-    const set = (t, f) => { $('load-text').textContent = t; if (f != null) $('load-bar').style.width = (f * 100) + '%'; };
+    const set = (t, f) => { $('load-text').textContent = t; $('load-bar').style.width = (f * 100) + '%'; };
     const tick = () => new Promise(r => setTimeout(r, 0));
-    set('Unfolding the city…', 0);
-    const city = this.city = await loadCity(f => set('Unfolding the city…', f * 0.5));
+    set('Unfolding the town…', 0.02);
+    const city = this.city = await loadCity(f => set('Unfolding the town…', f * 0.4));
     const q = this.settings.quality;
     const R = this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: q !== 'low', powerPreference: 'high-performance' });
     R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 0.8; R.outputColorSpace = THREE.SRGBColorSpace; R.autoClear = false;
     this.maxPR = this.qualityPR(); this.pr = this.maxPR; R.setPixelRatio(this.pr);
     const scene = this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(68, 1, 0.2, 30000); this.camera.rotation.order = 'YXZ';
+    this.camera = new THREE.PerspectiveCamera(68, 1, 0.2, 60000); this.camera.rotation.order = 'YXZ';
     this.handsScene = new THREE.Scene(); this.handsCam = new THREE.PerspectiveCamera(60, 1, 0.01, 10);
-    this.sun = new THREE.DirectionalLight(0xffffff, 2.2); this.hemi = new THREE.HemisphereLight(0xbcd0ff, 0x6a5a48, 1.1);
-    scene.add(this.sun, this.sun.target, this.hemi);
+    this.sun = new THREE.DirectionalLight(0xffffff, 2.2); this.hemi = new THREE.HemisphereLight(0xbcd0ff, 0x6a5a48, 1.1); scene.add(this.sun, this.sun.target, this.hemi);
     this.hsun = new THREE.DirectionalLight(0xffffff, 2); this.hhemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1); this.handsScene.add(this.hsun, this.hhemi);
     this.onResize(); addEventListener('resize', () => this.onResize());
-    set('Raising the hills…', 0.55); await tick();
+    set('Raising the Cerro de San Francisco…', 0.45); await tick();
     this.surface = new THREE.Group(); scene.add(this.surface);
     this.sky = makeSky(); scene.add(this.sky);
-    this.terrain = makeTerrain(city, q); this.water = makeWater(city); this.backdrop = makeBackdrop();
-    this.surface.add(this.terrain, this.water, this.backdrop);
-    set('Laying the streets…', 0.62); await tick();
-    this.streets = makeStreets(city, (x, z) => inCorridor(x, z, 4)); this.surface.add(this.streets);
-    this.embarcadero = makeEmbarcadero(city); this.surface.add(this.embarcadero);
-    // the Ferry Building's plaza is where the story starts
-    { const [x, z] = wfPoint(FERRY.t - 30, 50); const [lat, lon] = toLatLon(x, z); PLACES.ferry.lat = lat; PLACES.ferry.lon = lon; }
-    set('Building the houses…', 0.7); await tick();
+    this.terrain = makeTerrain(city, q); this.surface.add(this.terrain);
+    this.streams = makeStreams(city); this.surface.add(this.streams);
+    set('Laying the empedrado…', 0.55); await tick();
+    this.streets = makeStreets(city); this.surface.add(this.streets);
+    set('Whitewashing the houses…', 0.65); await tick();
     this.buildings = makeBuildings(city, q); this.surface.add(this.buildings);
-    set('Planting the street trees…', 0.8); await tick();
+    set('Planting the laureles and the jacarandas…', 0.74); await tick();
     this.trees = makeTrees(city, q); this.surface.add(this.trees);
-    set('Parking the cars, lighting the lamps…', 0.83); await tick();
+    set('Ringing the bells of San Francisco…', 0.82); await tick();
+    this.landmarks = makeLandmarks(city); this.surface.add(this.landmarks); this.spots = this.landmarks.userData.spots;
+    set('Parking the cars…', 0.9); await tick();
     this.detail = makeDetail(city, R, q); this.surface.add(this.detail);
-    set('Raising the landmarks and the bridges…', 0.86); await tick();
-    this.landmarks = makeLandmarks(city); this.surface.add(this.landmarks);
-    this.bridges = makeBridges(city); this.surface.add(this.bridges);
-    set('Uncovering the old stairs…', 0.92); await tick();
-    this.ruins = makeRuins(city); this.surface.add(this.ruins);
-    this.under = makeUnderworld(city); scene.add(this.under);
-    this.player = new Player(city);
-    this.player.onCaught = () => { this.ui.toast('The jetpack catches you. Hold Space to climb, or let it set you down.'); this.audio.jetStart(); };
-    this.player.onLanded = ok => this.ui.toast(ok ? 'Down. The jetpack folds away (G or 🚀 to fly again).' : 'No room to land here: fly over solid ground, a street or a flat roof, and try again.', ok ? undefined : 'warn');
-    this.player.onRescueInterior = () => { const l = this.under.userData.landing; this.player.teleport(l[0] + 2, l[2], l[1]); };
-    this.combat = new Combat(this);
-    this.hands = makeHands(); this.handsScene.add(this.hands);
-    this._streetIndex(); this._markers(); this.walkers = [];
     this.traffic = new Traffic(city, R, q, (x, z, r) => this.nearStreets(x, z, r)); this.surface.add(this.traffic.group);
-    this.npcs = []; this.met = new Set();
+    this.vehicles = new Vehicles(city, R); this.surface.add(this.vehicles.group);
+    this.chaseKit = new CarKit(R, 1); this.surface.add(this.chaseKit.group);
+    this.player = new Player(city);
+    this.player.onLanded = ok => this.ui.toast(ok ? 'Down. (G or 🚀 to fly again.)' : 'No room to land here: find a street, a field or a flat roof.', ok ? undefined : 'warn');
+    this.player.onCaught = () => { this.ui.toast('The mochila catches you. Hold Space to climb, or let it set you down.'); this.audio.jetStart(); };
+    this.hands = makeHands(); this.handsScene.add(this.hands);
+    this._streetIndex(); this._markers();
+    this.races = makeRaces(city, this.spots);
     this._post(q);
-    set('Waking the dead…', 1); await tick();
-    // compile shaders up front so the first steps don't stutter
+    set('Waking the town…', 1); await tick();
     try { R.compile(scene, this.camera); } catch (_) {}
   }
-  /* Post: HDR with multisampling, bloom (lit windows, lamps, the sun on the water), filmic output, a quiet grade. */
   _post(q) {
-    const R = this.renderer;
-    if (q === 'low') return;
+    const R = this.renderer; if (q === 'low') return;
     const size = new THREE.Vector2(); R.getDrawingBufferSize(size);
     const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: q === 'high' ? 4 : 2 });
     const c = this.composer = new EffectComposer(R, rt);
     c.addPass(new RenderPass(this.scene, this.camera));
-    // ground-truth ambient occlusion: contact shadow where walls meet the pavement, under cars, cornices and eaves
     const ao = this.ao = new GTAOPass(this.scene, this.camera, size.x, size.y);
     ao.updateGtaoMaterial({ radius: 1.1, distanceExponent: 1.6, thickness: 2.5, scale: 1.0, samples: q === 'high' ? 16 : 8, distanceFallOff: 1, screenSpaceRadius: false });
     ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: q === 'high' ? 16 : 8 });
     ao.blendIntensity = 0.6;
-    if (q !== 'high') { const set = ao.setSize.bind(ao); ao.setSize = (w, h) => set(Math.ceil(w / 2), Math.ceil(h / 2)); ao.setSize(size.x, size.y); }
-    // people, the sky and the markers don't need occlusion: leave them out of its extra pass
+    if (q !== 'high') { const setS = ao.setSize.bind(ao); ao.setSize = (w, h) => setS(Math.ceil(w / 2), Math.ceil(h / 2)); ao.setSize(size.x, size.y); }
     { const hide = [], ov = ao.overrideVisibility.bind(ao), rv = ao.restoreVisibility.bind(ao);
-      ao.overrideVisibility = () => { ov(); hide.length = 0; for (const o of [this.sky, this.backdrop, this.markerGroup, this.beacon, ...this.npcs.map(n => n.mesh), ...this.walkers.map(w => w.mesh), ...this.combat.enemies.map(e => e.mesh).filter(Boolean)]) if (o && o.visible) { o.visible = false; hide.push(o); } };
+      ao.overrideVisibility = () => { ov(); hide.length = 0; for (const o of [this.sky, this.markerGroup, this.beacon, this.raceGroup(), ...this.npcs.map(n => n.mesh), ...this.walkers.map(w => w.mesh)]) if (o && o.visible) { o.visible = false; hide.push(o); } };
       ao.restoreVisibility = () => { for (const o of hide) o.visible = true; rv(); }; }
     c.addPass(ao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.3, 0.55, 1.05); c.addPass(this.bloom);
     c.addPass(new OutputPass());
     c.addPass(new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, uTime: U.uTime },
+      uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uSpeed: { value: 0 } },
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-      fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;
-        void main(){ vec3 c = texture2D(tDiffuse, vUv).rgb;
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uSpeed; varying vec2 vUv;
+        void main(){ vec2 d = vUv - .5;
+          // speed: a little radial smear at the edges when you're flying or driving fast
+          vec3 c = texture2D(tDiffuse, vUv).rgb;
+          if (uSpeed > .01) { vec3 acc = c; for (int i = 1; i < 6; i++) acc += texture2D(tDiffuse, vUv - d * float(i) * .012 * uSpeed * dot(d, d) * 4.).rgb; c = mix(c, acc / 6., smoothstep(.05, .3, length(d))); }
           float l = dot(c, vec3(.299,.587,.114));
-          c = mix(c, c * vec3(1.03, 1.0, .96), smoothstep(.45, .9, l));          // warm highlights
-          c = mix(c, c * vec3(.95, .99, 1.05), smoothstep(.45, .05, l));         // cool shadows
-          vec2 d = vUv - .5; c *= 1. - dot(d, d) * .55;                          // vignette
-          c += (fract(sin(dot(vUv * 1000. + uTime, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;   // dither
+          c = mix(c, c * vec3(1.04, 1.0, .95), smoothstep(.45, .9, l));
+          c = mix(c, c * vec3(.95, .98, 1.06), smoothstep(.45, .05, l));
+          c *= 1. - dot(d, d) * .5;
+          c += (fract(sin(dot(vUv * 1000. + uTime, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;
           gl_FragColor = vec4(c, 1.); }`
     }));
+    this.grade = c.passes[c.passes.length - 1];
     this.shadows = new SunShadows(R, q === 'high' ? 2048 : 1536, q === 'high' ? 170 : 130);
   }
   onResize() {
@@ -256,241 +237,199 @@ class Game {
     this.city.streets.forEach((s, i) => { const seen = new Set(); for (const [x, z] of s.pts) { const k = Math.floor(x / C) * 10000 + Math.floor(z / C); if (seen.has(k)) continue; seen.add(k); let a = idx.get(k); if (!a) idx.set(k, a = []); a.push(i); } });
   }
   nearStreets(x, z, r) {
-    const C = 250, out = new Set(), n = Math.ceil(r / C);
-    const ci = Math.floor(x / C), cj = Math.floor(z / C);
+    const C = 250, out = new Set(), n = Math.ceil(r / C), ci = Math.floor(x / C), cj = Math.floor(z / C);
     for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) { const a = this.streetIdx.get((ci + i) * 10000 + cj + j); if (a) for (const s of a) out.add(s); }
     return [...out].map(i => this.city.streets[i]);
   }
+  /* the map: land cover, streets and every house, drawn once */
+  get mapBox() { const t = this.city.demTown; return { x0: t.x0, x1: t.x1, z0: t.z0, z1: t.z1 }; }
   mapImage() {
     if (this._mapImg) return this._mapImg;
-    const city = this.city, N = city.landN, cv = document.createElement('canvas'); cv.width = cv.height = N;
-    const c = cv.getContext('2d'), img = c.createImageData(N, N);
-    const pal = { park: [96, 138, 78], victorian: [196, 170, 160], edwardian: [190, 178, 160], marina: [214, 204, 186], mansion: [204, 196, 176], sunset: [216, 208, 190], cottage: [200, 184, 162], suburb: [196, 192, 176], apartment: [184, 176, 168], northbeach: [206, 186, 160], chinatown: [196, 150, 130], mission: [214, 176, 140], soma: [168, 160, 156], civic: [194, 190, 180], downtown: [170, 172, 178], industrial: [160, 150, 140], parkmerced: [200, 196, 176], presidio: [116, 146, 96] };
-    for (let k = 0; k < N * N; k++) {
-      const v = city.land[k]; let col;
-      if (!v) { const x = k % N, z = Math.floor(k / N), h = city.heightAt(-city.half + (x + 0.5) * 2 * city.half / N, -city.half + (z + 0.5) * 2 * city.half / N); col = h < -12 ? [40, 66, 96] : [58, 92, 124]; }
-      else if (v === 255) col = [150, 140, 120];
-      else { const d = city.districts[v - 1]; col = pal[DISTRICT_STYLE[d] === 'park' ? 'park' : d === 'Presidio' ? 'presidio' : DISTRICT_STYLE[d]] || [190, 180, 164]; }
-      img.data.set([col[0], col[1], col[2], 255], k * 4);
+    const city = this.city, b = this.mapBox, N = 1600, sx = N / (b.x1 - b.x0), sz = N / (b.z1 - b.z0);
+    const cv = document.createElement('canvas'); cv.width = cv.height = N; const c = cv.getContext('2d');
+    const cm = city.coverM, pal = [[112, 128, 76], [196, 186, 168], [52, 84, 44], [104, 116, 66], [150, 150, 86], [156, 110, 80], [110, 138, 70], [82, 128, 64], [96, 150, 80], [60, 96, 120], [190, 180, 160], [170, 164, 140]];
+    const img = c.createImageData(cm.n, cm.n);
+    for (let k = 0; k < cm.n * cm.n; k++) { const v = city.cover[k], col = pal[v] || pal[0]; img.data.set([col[0], col[1], col[2], 255], k * 4); }
+    const tmp = document.createElement('canvas'); tmp.width = tmp.height = cm.n; tmp.getContext('2d').putImageData(img, 0, 0);
+    c.imageSmoothingEnabled = true; c.drawImage(tmp, (cm.x0 - b.x0) * sx, (cm.z0 - b.z0) * sz, (cm.x1 - cm.x0) * sx, (cm.z1 - cm.z0) * sz);
+    // hillshade from the terrain
+    const T = city.demTown, n = T.n; const hs = c.createImageData(n, n);
+    for (let j = 1; j < n - 1; j++) for (let i = 1; i < n - 1; i++) { const d = T.d, k = j * n + i, gx = d[k + 1] - d[k - 1], gz = d[k + n] - d[k - n], v = Math.max(0, Math.min(1, 0.5 + (gx - gz) * 0.04)); hs.data.set([v < .5 ? 0 : 255, v < .5 ? 0 : 255, v < .5 ? 0 : 255, Math.abs(v - .5) * 150], k * 4); }
+    const tmp2 = document.createElement('canvas'); tmp2.width = tmp2.height = n; tmp2.getContext('2d').putImageData(hs, 0, 0); c.drawImage(tmp2, 0, 0, N, N);
+    for (const s of this.city.streets) {
+      c.strokeStyle = s.kind === 0 ? (s.width >= 12.5 ? '#f4e2a8' : '#efe8da') : '#d8c8a8'; c.lineWidth = Math.max(0.8, s.width * sx * 0.9); c.lineCap = 'round';
+      c.beginPath(); s.pts.forEach(([x, z], i) => { const X = (x - b.x0) * sx, Y = (z - b.z0) * sz; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke();
     }
-    c.putImageData(img, 0, 0);
-    this._mapImg = cv; return cv;
+    c.fillStyle = 'rgba(176,104,84,0.9)';
+    for (const q of city.buildings) { c.save(); c.translate((q.x - b.x0) * sx, (q.z - b.z0) * sz); c.rotate(q.ang); c.fillRect(-q.w / 2 * sx, -q.d / 2 * sz, q.w * sx, q.d * sz); c.restore(); }
+    c.strokeStyle = '#4a8ab8'; c.lineWidth = 2; for (const s of city.streams) { c.beginPath(); s.pts.forEach(([x, z], i) => { const X = (x - b.x0) * sx, Y = (z - b.z0) * sz; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke(); }
+    return (this._mapImg = cv);
   }
-
-  /* markers: murmurs, lost things, provisions, quest objects; and the waypoint beacon */
+  /* markers: Aurelio's lost pages, what to examine next, and the beacon */
   _markers() {
     const tex = (() => { const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'); const g = c.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.6)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(cv); })();
-    this.glowTex = tex; this.markerGroup = new THREE.Group(); this.surface.add(this.markerGroup);
-    const mk = (lat, lon, color, size, kind, data) => {
-      const [x0, z0] = toXZ(lat, lon), [x, y, z] = this.findSpot(x0, z0);   // always somewhere a person can stand
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-      sp.scale.setScalar(size); sp.position.set(x, y + 1.3, z); this.markerGroup.add(sp);
-      return Object.assign({ x, z, y, sprite: sp, kind }, data);
-    };
-    this.marks = [];
-    MURMURS.forEach((m, i) => this.marks.push(mk(m.lat, m.lon, 0x9ff3e6, 1.4, 'murmur', { i })));
-    LOST.forEach((m, i) => this.marks.push(mk(m.lat, m.lon, 0xffd9a0, 0.9, 'lost', { i })));
-    PROVISIONS.forEach((m, i) => this.marks.push(mk(m.lat, m.lon, 0xffffff, 0.7, 'prov', { i, item: m.item })));
-    for (const [set, list] of Object.entries(PICKUP_SETS)) list.forEach((m, i) => {
-      let lat = m.lat, lon = m.lon; if (m.lib) { const l = LIBRARIES.find(q => q.id === m.lib); lat = l.lat; lon = l.lon; }
-      this.marks.push(mk(lat, lon, set === 'grip' ? 0xffc080 : 0xffe28a, 1.1, 'pickup', { set, i, def: m }));
-    });
-    for (const l of LIBRARIES) { const [x, z] = toXZ(l.lat, l.lon); l.x = x; l.z = z; }
-    // waypoint beacon: a column of light
-    const bm = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide });
-    this.beacon = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 400, 12, 1, true).translate(0, 200, 0), bm); this.scene.add(this.beacon);
+    this.markerGroup = new THREE.Group(); this.surface.add(this.markerGroup);
+    const sprite = (color, size) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); sp.scale.setScalar(size); this.markerGroup.add(sp); return sp; };
+    this.pageMarks = PAGES.map(pg => { const [x, y, z] = this.findSpot(pg.x, pg.z); pg.x = x; pg.z = z; pg.y = y; const sp = sprite(0x7f9cff, 1.1); sp.position.set(x, y + 1.1, z); return { pg, sp }; });
+    this.inspectMark = sprite(0xffcf5a, 1.6);
+    const bm = new THREE.MeshBasicMaterial({ color: 0xffcf5a, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide });
+    this.beacon = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 500, 12, 1, true).translate(0, 250, 0), bm); this.scene.add(this.beacon);
   }
-  markVisible(m) {
-    const s = this.state;
-    if (m.kind === 'murmur') return !s.murmurs[m.i];
-    if (m.kind === 'lost') return !s.lost[m.i];
-    if (m.kind === 'prov') return (s.prov[m.i] || 0) < s.day;
-    if (m.kind === 'pickup') {
-      if (m.set === 'grip') return !s.weapons.includes('grip');
-      const st = Object.keys(s.quests).map(id => this.quests.stageOf(id)).find(st => st && st.collect === m.set);
-      return !!st && !(s.sets[m.set] || [])[m.i];
-    }
-    return true;
-  }
+  raceGroup() { return this.race ? this.race.group : null; }
 
   /* ---------------- people ---------------- */
-  findSpot(x, z, y) { const t = new Player(this.city); t.interior = this.player.interior && y !== undefined ? this.player.interior : null; t.teleport(x, z, y); return [t.x, t.y, t.z]; }
+  findSpot(x, z, y) { const t = new Player(this.city); t.teleport(x, z, y); return [t.x, t.y, t.z]; }
   placeNPCs() {
     for (const n of this.npcs) this.scene.remove(n.mesh);
     this.npcs = [];
-    const chairs = this.under.userData.chairs;
-    const room = { hollis: 0, susannah_room: 1, gil_room: 2 };
+    const s = this.state;
     for (const [id, def] of Object.entries(CHARACTERS)) {
-      let x, y, z, inRoom = false;
-      if (def.place === 'room') { const c = chairs[room[id]]; x = c[0]; y = c[1]; z = c[2]; inRoom = true; }
-      else { const p = PLACES[def.place]; const [px, pz] = toXZ(p.lat, p.lon); [x, y, z] = this.findSpot(px, pz); }
+      if (id === 'guero') continue;
+      const home = id === 'aurelio' && s.ending ? PLACES.jardin : PLACES[def.place];
+      const off = id === 'aurelio' && s.ending ? [-10, 14] : def.offset || [0, 0];
+      const [x, y, z] = this.findSpot(home.x + off[0], home.z + off[1]);
       const mesh = makePerson(def.look); mesh.position.set(x, y, z); this.scene.add(mesh);
-      if (inRoom) { mesh.scale.setScalar(1); }
-      this.npcs.push({ id, def, mesh, x, y, z, hx: x, hz: z, facing: 0, visible: true, inRoom, hostile: false });
+      this.npcs.push({ id, def, mesh, x, y, z, hx: x, hz: z, facing: 0, visible: true, hostile: false });
     }
-    // the regulars: always on the same corner, each their own person
     REGULARS.forEach((q, i) => {
       const def = makeCitizen(q.seed, q.district, { id: 'reg' + i, job: q.job, tag: q.tag, age: q.age }); EXTRAS[def.id] = def;
-      const [px, pz] = toXZ(q.at[0], q.at[1]), [x, y, z] = this.findSpot(px, pz);
-      const mesh = makePerson(Object.assign({}, def.look, { ghost: def.dead && !!this.flags.slept })); mesh.position.set(x, y, z); this.scene.add(mesh);
-      this.npcs.push({ id: def.id, def, mesh, x, y, z, hx: x, hz: z, facing: (q.seed % 7), visible: true, inRoom: false, hostile: false, regular: true });
+      const pl = PLACES[q.at], [x, y, z] = this.findSpot(pl.x + q.dx, pl.z + q.dz);
+      const mesh = makePerson(def.look); mesh.position.set(x, y, z); this.scene.add(mesh);
+      this.npcs.push({ id: def.id, def, mesh, x, y, z, hx: x, hz: z, facing: q.seed % 7, visible: true, hostile: false, regular: true });
     });
     this.refreshNPCs();
-    // parked cars and lamps keep clear of everyone and everything the story needs
-    const spots = this.npcs.filter(n => !n.inRoom).map(n => [n.x, n.z]).concat(this.marks.map(m => [m.x, m.z]), LIBRARIES.map(l => [l.x, l.z]), Object.values(PLACES).map(q => toXZ(q.lat, q.lon)), this.ruins.userData.sites.map(q => [q.stele[0], q.stele[1]]));
+    const spots = this.npcs.map(n => [n.x, n.z]).concat(PAGES.map(p => [p.x, p.z]), Object.values(PLACES).map(p => [p.x, p.z]), Object.values(this.spots).map(p => [p[0], p[2]]));
     this.detail.userData.reserve(spots);
   }
-  npcShown(id) {
-    const s = this.state, f = this.flags;
-    if (id === 'dot') return !!f.slept;
-    if (id === 'stairkeeper') return s.glyphs.length >= 3 || !!(s.quests.m7 && (s.quests.m7.stage >= 2 || s.quests.m7.done));
-    if (s.ending && ['hollis', 'susannah_room', 'gil_room'].includes(id)) return s.ending !== 'light' && s.ending !== 'ferry' ? id !== 'hollis' : s.ending === 'ferry';
-    if (s.ending === 'light' && ['gil', 'susannah'].includes(id)) return false;
-    return true;
-  }
+  npcShown(id) { const s = this.state; if (id === 'aurelio') return !!s.flags.aurelioFound; return true; }
   refreshNPCs() { for (const n of this.npcs) { n.visible = this.npcShown(n.id); n.mesh.visible = n.visible; } }
-  npcHasQuest(id) { return this.quests.chipsFor(id).some(c => !c.locked); }
+  npcHasQuest(id) { return this.story.chipsFor(id).some(c => !c.locked); }
 
-  /* ---------------- interiors ---------------- */
-  enterInterior(on) {
-    this.player.interior = on ? this.under.userData.bounds : null;
-    this.under.visible = !!on; this.surface.visible = !on; this.sky.visible = !on;
-    for (const w of this.walkers) this.scene.remove(w.mesh); this.walkers = [];
-  }
-  goUnder() {
-    this.enterInterior(true); const l = this.under.userData.landing;
-    this.player.teleport(l[0] + 1, l[2], l[1]); this.player.yaw = -Math.PI / 2; this.player.bike = false;
-    this.quests.check(); this.save();
-  }
-  goUp() {
-    this.enterInterior(false); const d = this.ruins.userData.sites.find(s => s.id === 'twinpeaks');
-    this.player.teleport(d.door.x + Math.cos(d.ang) * 2.5, d.door.z + Math.sin(d.ang) * 2.5); this.save();
-  }
-
-  /* ---------------- quests' effects ---------------- */
-  applyFx(fx, quest) {
+  /* ---------------- the story's hooks ---------------- */
+  applyFx(fx) {
     const s = this.state;
-    if (fx.xp) this.gainXP(fx.xp);
-    if (fx.light) { s.light += fx.light; this.ui.toast(fx.light > 0 ? 'Your hands grow warmer.' : 'Something in you goes cold.', fx.light > 0 ? 'good' : 'warn'); }
-    for (const it of fx.give || []) this.give(it);
-    for (const it of fx.take || []) if (s.inv[it]) s.inv[it]--;
-    if (fx.weapon) this.giveWeapon(fx.weapon);
-    if (fx.ability && !s.abilities.includes(fx.ability)) { s.abilities.push(fx.ability); s.ability = fx.ability; this.ui.toast(`Learned: ${ABILITIES[fx.ability].name}. Press F (or ✦) to use it.`, 'quest'); }
-    if (fx.stat) { s.stats[fx.stat] = Math.min(10, s.stats[fx.stat] + 1); this.ui.toast(`${fx.stat[0].toUpperCase() + fx.stat.slice(1)} grows.`, 'good'); }
+    for (const c of fx.clues || []) if (!s.clues.includes(c)) { s.clues.push(c); this.ui.toast('Clue: ' + CLUES[c].name, 'quest'); this.audio.chime(); }
     if (fx.flag) s.flags[fx.flag] = true;
-    if (fx.travel) this.pending = () => { const p = PLACES[fx.travel], [x, z] = toXZ(p.lat, p.lon); this.endTalk(); this.travelTo(x, z, p.name, true); };
-    if (fx.sleep) this.pending = () => { this.endTalk(); this.sleepScene(); };
-    if (fx.ending) this.pending = () => { this.endTalk(); this.ending(fx.ending); };
+    if (fx.jetpack) s.jetpack = true;
+    if (fx.ach) this.unlock(fx.ach);
+    if (fx.reveal) { s.flags.aurelioFound = true; this.refreshNPCs(); }
+    if (fx.car === 'rosa') { const t = this.spots.taller, a = 0; const c = this.vehicles.add({ x: t[0] + 5, z: t[2] - 4, y: this.city.heightAt(t[0] + 5, t[2] - 4) + 0.1, ang: a, kind: 0, color: 0x2e6a3a }); c.rosa = true; }
+    if (fx.card) this.pending = () => this.ui.card(fx.card, fx.chase ? () => this.startChase() : null);
+    else if (fx.chase) this.pending = () => this.startChase();
   }
-  give(id, n = 1) { const s = this.state; s.inv[id] = (s.inv[id] || 0) + n; this.ui.toast(`Received: ${ITEMS[id].name}`, 'good'); }
-  giveWeapon(id) { const s = this.state; if (!s.weapons.includes(id)) s.weapons.push(id); s.weapon = id; this.ui.toast(`Weapon: ${WEAPONS[id].name}. Strike with left click (or ⚔).`, 'quest'); }
-  wield(id) { if (this.state.weapons.includes(id)) { this.state.weapon = id; this.ui.toast(WEAPONS[id].name + ' in hand.'); } }
-  useItem(id) {
-    const s = this.state, d = ITEMS[id]; if (!d || !d.use || !s.inv[id]) return;
-    s.inv[id]--; const u = d.use;
-    if (u.heal) s.hp = Math.min(this.maxHP(), s.hp + u.heal);
-    if (u.breath) s.breath = Math.min(this.maxBreath(), s.breath + u.breath);
-    if (u.stamina) this.player.stamina = 1;
-    if (u.ward) { this.wardT = u.ward; for (const e of this.combat.enemies) if (e.ambient) e.dead = true; }
-    this.ui.toast(`${d.name}: ${u.heal ? 'you feel better' : u.ward ? 'the smoke keeps its distance' : 'you feel awake'}.`, 'good');
+  stepStarted(st) {
+    if (!st) return;
+    if (st.escape && !this.chaser) this.startChase();
+    if (st.timed) { const easy = this.settings.chase === 'easy'; this.timer = { left: st.timed.secs * (easy ? 1.5 : 1), to: st.timed.to }; this.ui.toast('Fly! Hold Shift to boost. The Presidencia is on the compass.', 'warn'); }
   }
-  gainXP(n) {
-    const s = this.state; s.xp += n;
-    while (s.xp >= this.xpNext()) { s.xp -= this.xpNext(); s.level++; s.points++; s.hp = this.maxHP(); this.ui.toast(`Level ${s.level}. Spend your point under You in the menu.`, 'quest'); this.audio.chime(); }
+  inspect(ins, done) {
+    const run = () => {
+      if (!ins.puzzle) { done(); return; }
+      const pz = ins.puzzle, npc = { id: 'puzzle', def: { name: ins.label.replace(/^(Examine|Read|Open|Tap|Push open|Search|Step into) (the )?/, ''), title: 'Look closely', look: { top: 0x7a5a32 } }, mesh: null };
+      this.talk = { npc, history: [], puzzle: true }; this.pauseInput(true); document.exitPointerLock && document.exitPointerLock();
+      this.ui.openDialogue(npc, true); this.ui.logLine('npc', pz.q);
+      const chips = pz.options.map((o, i) => ({ label: o, quest: true, onClick: () => {
+        this.ui.logLine('me', o);
+        if (i === pz.answer) { this.ui.logLine('npc', pz.right); this.ui.chips([{ label: 'Continue', quest: true, onClick: () => { this.endTalk(); done(); } }]); this.audio.chime(); }
+        else this.ui.logLine('sys', pz.wrong);
+      } }));
+      this.ui.chips(chips);
+    };
+    if (ins.cards && ins.cards.length) this.ui.card(ins.cards, run); else run();
   }
-  xpNext() { return 80 + this.state.level * 60; }
-  spendPoint(k) { const s = this.state; if (s.points > 0 && s.stats[k] < 10) { s.points--; s.stats[k]++; } }
-  maxHP() { return 100 + this.state.stats.strength * 12; }
-  maxBreath() { return 100 + this.state.stats.will * 15; }
-  cycleAbility() { const a = this.state.abilities; if (!a.length) { this.ui.toast('No abilities yet.'); return; } this.state.ability = a[(a.indexOf(this.state.ability) + 1) % a.length]; this.ui.toast('Ready: ' + ABILITIES[this.state.ability].name); }
-  hurtPlayer(n, blocked) {
-    const s = this.state; if (blocked) { n *= 0.2; this.audio.block(); } else { this.audio.hurt(); this.shake(0.5); }
-    s.hp -= n * (+this.settings.damage || 1);
-    if (s.hp <= 0) this.fall();
+  unlock(id) {
+    const s = this.state; if (!s || s.ach[id] || !ACHIEVEMENTS[id]) return;
+    s.ach[id] = Date.now(); this.ui.achievement(ACHIEVEMENTS[id]); this.audio.chime(); this.save();
   }
-  fall() {
-    const s = this.state; s.hp = this.maxHP();
-    if (this.combat.duel) this.combat.endDuel(false);
-    this.combat.enemies.forEach(e => { if (e.ambient) e.dead = true; });
-    this.ui.card(['The fog closes over you, and for a while you are nowhere at all.', 'You come to somewhere quiet, with the smell of old paper.'], () => {
-      const p = this.player;
-      if (p.interior) { const l = this.under.userData.landing; p.teleport(l[0] + 1, l[2], l[1]); return; }
-      const spots = this.restSpots(); let best = spots[0], bd = Infinity;
-      for (const r of spots) { const d = Math.hypot(r.x - p.x, r.z - p.z); if (d < bd) { bd = d; best = r; } }
-      p.teleport(best.x + 3, best.z + 3);
-    }, true);
+  endingTitle() { const e = ENDINGS[this.state.ending]; return e ? e.title : ''; }
+  finishEnding(id) {
+    const s = this.state, e = ENDINGS[id]; s.ending = id; this.unlock(e.ach);
+    const cards = e.cards.slice();
+    if (id === 'pueblo') cards[1] = s.flags.inesAlly ? 'Maestra Inés steps out of the crowd, takes the paper in both hands, and says, loud enough for the back of the plaza: "This seal is genuine. I have spent my life with 1938. This is the town\'s." The company\'s lawyer stops smiling. The cabildo votes eleven to none: the springs of the cerro belong to Jiquilpan.' : 'Barragán calls it a forgery. Nobody in the plaza can swear otherwise; the maestra is not there. The cabildo postpones the vote, and a judge in Morelia will take a year to agree with you. But the water stays in the ground, and the whole town knows why.';
+    this.ui.card(cards, () => { this.placeNPCs(); this.save(); this.ui.toast('The mystery is solved. Races, lost pages and achievements are waiting in Goals.', 'good'); });
   }
-  restSpots() {
-    const out = this.state.libs.map(id => LIBRARIES.find(l => l.id === id));
-    if (this.flags.hotel) { const [x, z] = toXZ(PLACES.esperanza.lat, PLACES.esperanza.lon); out.push({ x, z, name: 'Hotel Esperanza' }); }
-    const [fx, fz] = toXZ(PLACES.ferry.lat, PLACES.ferry.lon); out.push({ x: fx, z: fz, name: 'Ferry Building' });
-    return out;
+  startChase() {
+    const p = this.player, st = this.story.step(); if (!st || !st.escape || this.chaser) return;
+    const a = Math.random() * Math.PI * 2, x = p.x + Math.cos(a) * 45, z = p.z + Math.sin(a) * 45;
+    this.chaser = { x, z, y: this.city.heightAt(x, z) + 0.1, ang: a + Math.PI, v: 0, grab: 0, caught: 0 };
+    this.ui.toast('Güero is after you! Get to Rosa\'s garage: drive, run, or fly.', 'warn'); this.audio.hornCar();
   }
-  fastTravelSpots() {
-    const out = [];
-    const [fx, fz] = toXZ(PLACES.ferry.lat, PLACES.ferry.lon); out.push({ x: fx, z: fz, kind: 'travel', label: 'Ferry Building', color: '#e2b865' });
-    if (this.flags.hotel) { const [x, z] = toXZ(PLACES.esperanza.lat, PLACES.esperanza.lon); out.push({ x, z, kind: 'travel', label: 'Hotel Esperanza', color: '#e2b865' }); }
-    return out;
+  _chase(dt) {
+    const c = this.chaser, p = this.player; if (!c) return;
+    const easy = this.settings.chase === 'easy', max = easy ? 15 : 21;
+    const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), want = Math.atan2(dz, dx);
+    let da = want - c.ang; da = Math.atan2(Math.sin(da), Math.cos(da)); c.ang += Math.max(-2.2 * dt, Math.min(2.2 * dt, da));
+    c.v += ((d > 8 ? max : 4) - c.v) * Math.min(1, dt * 1.5);
+    let nx = c.x + Math.cos(c.ang) * c.v * dt, nz = c.z + Math.sin(c.ang) * c.v * dt;
+    for (const t of [-1.6, 0, 1.6]) { const px = nx + Math.cos(c.ang) * t, pz = nz + Math.sin(c.ang) * t, [rx, rz] = this.city.colliders.resolve(px, pz, 1.1, c.y + 0.3, c.y + 1.6); nx += rx - px; nz += rz - pz; }
+    c.x = nx; c.z = nz; c.y = this.city.heightAt(c.x, c.z) + 0.1;
+    const ground = p.y - this.city.heightAt(p.x, p.z) < 3;
+    if (d < 4.5 && ground) { c.grab += dt; if (c.grab > (easy ? 2.2 : 1.3)) { c.grab = 0; c.caught++; c.x -= Math.cos(c.ang) * 50; c.z -= Math.sin(c.ang) * 50; c.v = 0; this.ui.toast(c.caught > 1 ? 'He grabs your collar and you tear free again! Keep going!' : 'His hand closes on your sleeve. You twist free! Run!', 'warn'); this.audio.crash(0.5); } }
+    else c.grab = Math.max(0, c.grab - dt);
+    this.chaseKit.begin(); this.chaseKit.add(c.x, c.y, c.z, c.ang, 0, 1, 0x101012); this.chaseKit.commit(); this.chaseKit.night(this.uNight());
+    const t = PLACES.taller; if (Math.hypot(p.x - t.x, p.z - t.z) < t.r + 4) { this.chaser = null; this.chaseKit.begin(); this.chaseKit.commit(); this.story.event('escaped'); if (this.pending) { const f = this.pending; this.pending = null; f(); } }
   }
-  travelTo(x, z, name, ride) {
-    this.enterInterior(false);
-    this.ui.card([ride ? 'Bautista stands on the pedals and the city tilts past: Market Street, the old Mint, the long flat run of Valencia, taquerias, bicycles, the smell of rain.' : `You go by the quiet ways to ${name}.`], () => { this.player.teleport(x + 2, z + 2); this.save(); });
+  _timer(dt) {
+    const tm = this.timer, p = this.player; if (!tm || this.talk) return;
+    tm.left -= dt;
+    const to = PLACES[tm.to], d = Math.hypot(p.x - to.x, p.z - to.z);
+    this.ui.raceInfo(`⏱ ${fmtT(Math.max(0, tm.left))} · ${d > 950 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m'} to the Presidencia`);
+    if (d < to.r + 10) { this.timer = null; this.ui.raceInfo(null); this.story.event('arrived'); if (this.pending) { const f = this.pending; this.pending = null; f(); } return; }
+    if (tm.left <= 0) { tm.left = (this.story.step().timed.secs) * (this.settings.chase === 'easy' ? 1.5 : 1); this.ui.toast('The pickup\'s headlights are right behind you! Faster: hold Shift and fly straight.', 'warn'); }
   }
-  sleepScene() {
-    this.ui.card([
-      'Room seven is small and clean. The bed is made the way your mother made beds.',
-      'The walls begin to talk. Not loudly. A woman asking about the rent. A boy being called in for dinner. A man counting doors.',
-      'You try not to listen. You listen. Each voice takes a little of your breath with it, the way the tide takes sand.',
-      '<em>A little after three in the morning, you stop breathing.</em>',
-      '…',
-      'Someone is talking to you. The voice is coming up out of the ground.'
-    ], () => {
-      this.flags.slept = true; this.state.hour = 5.6; this.state.day++;
-      const p = PLACES.lonemountain, [x, z] = toXZ(p.lat, p.lon); this.player.teleport(x + 3, z + 1);
-      this.refreshNPCs(); this.save();
-    }, true);
+  /* ---------------- races ---------------- */
+  startRace(id) {
+    const r = this.races.find(q => q.id === id); if (!r) return;
+    if (this.chaser || this.timer) { this.ui.toast('Not now: you\'re in the middle of something.', 'warn'); return; }
+    if (this.race) this.race.dispose();
+    const p = this.player, s0 = r.pts[0], s1 = r.pts[1];
+    if (this.vehicles.driving) this.vehicles.exit(p);
+    const a = Math.atan2(s1[1] - s0[1], s1[0] - s0[0]), bx = s0[0] - Math.cos(a) * 20, bz = s0[1] - Math.sin(a) * 20;
+    if (r.mode === 'car') { const [x, y, z] = this.findSpot(bx, bz); const c = this.vehicles.add({ x, z, y: this.city.heightAt(x, z) + 0.1, ang: a, kind: 0, color: 0xd8a020 }); this.vehicles.enter(c, p); }
+    else { const [x, y, z] = this.findSpot(bx, bz); p.teleport(x, z, y); p.yaw = -a - Math.PI / 2; if (this.state.jetpack) { p.jet = true; p.y += 15; } }
+    this.race = new RaceRun(this.scene, r); this.raceCount = 3;
+    this.ui.toast(`${r.name}: gold ${fmtT(r.times[0])}. Go through the gold rings.`, 'quest');
   }
-  ending(kind) {
-    const s = this.state; s.ending = kind; this.quests.advance('m8');
-    const T = {
-      light: ['Your father stands. It takes him a long time.', 'He lays his hand on the grey stone he poured, and the stone remembers it was only ever sand.', 'The Tide Door opens. The sound is every foghorn on the bay at once, and then it is only the sea.', 'Susannah goes first, without looking back, and then she looks back. Gil goes, still talking. Your father goes last, holding his hat.', 'Up in the city, all at once, the murmuring stops. On Valencia Street, Edie sets down her broom. On the Embarcadero, a pedicab rolls to a stop.', 'At the bottom of the stair, on a boat that is almost not there, a woman with your eyes is waiting. She is laughing at something.', '<em>THE TIDE DOOR</em>\n\nThe city is quiet now. Walk it as long as you like. The boat will wait.'],
-      shade: ['You take his chair. It is warm, and it fits you, and that is the worst of it.', 'He stands, lighter, blinking, and does not leave either. None of them leave. Now there are four.', 'Up in the city the murmuring grows. It is starting to sound like your name.', '<em>THE ROOM</em>\n\nThe city is yours. It will murmur for you, always. Walk it, if you can bear to.'],
-      ferry: ['You leave them there: three chairs, an open door, three people still explaining themselves to each other.', 'You climb all the stairs. The fog is in. On the Embarcadero a pedicab is waiting, and the man on it has your jaw.', 'He pedals you to the last ferry without asking anything, and on the way you tell him, and he laughs until he cries.', '<em>THE FERRY</em>\n\nThe door is still ajar. Someone else may close it. The city is still here for you to walk.']
-    }[kind];
-    if (kind === 'light') { s.light += 2; for (const site of this.ruins.userData.sites) this.ruins.userData.setAwake(site.id, true); this.combat.enemies.forEach(e => e.dead = true); }
-    if (kind === 'shade') s.light -= 3;
-    this.ui.card(T, () => {
-      if (kind === 'ferry' || kind === 'light') { this.enterInterior(false); const [x, z] = toXZ(PLACES.ferry.lat, PLACES.ferry.lon); this.player.teleport(x + 2, z); }
-      this.refreshNPCs(); this.save();
-      this.ui.toast('The story has ended. The city and its unfinished stories are still yours to walk.', 'quest');
-    }, true);
+  _race(dt) {
+    const R = this.race; if (!R) return;
+    if (this.raceCount > 0) { this.raceCount -= dt; this.ui.raceInfo(this.raceCount > 0 ? `${Math.ceil(this.raceCount)}…` : '¡Vámonos!'); if (this.raceCount <= 0) this.audio.bell(); return; }
+    const p = this.player, c = this.vehicles.driving, x = c ? c.x : p.x, y = c ? c.y + 1 : p.y + 1, z = c ? c.z : p.z;
+    const ev = R.update(dt, x, y, z);
+    if (ev === 'gate') this.audio.ui();
+    this.ui.raceInfo(`${R.race.name} · ${fmtT(R.t)} · ring ${Math.min(R.i + 1, R.race.pts.length)} of ${R.race.pts.length}`);
+    if (ev === 'finish') {
+      const r = R.race, best = this.state.races[r.id], t = R.t, medal = t <= r.times[0] ? 'Gold 🥇' : t <= r.times[1] ? 'Silver 🥈' : t <= r.times[2] ? 'Bronze 🥉' : 'No medal';
+      if (best == null || t < best) this.state.races[r.id] = t;
+      this.ui.toast(`${r.name}: ${fmtT(t)} · ${medal}${best != null && t < best ? ' · new best!' : ''}`, 'quest'); this.audio.chime();
+      if (this.races.every(q => this.state.races[q.id] != null && this.state.races[q.id] <= q.times[0])) this.unlock('carreras');
+      setTimeout(() => this.ui.raceInfo(null), 3000); R.dispose(); this.race = null; this.save();
+    }
   }
-
   /* ---------------- conversation ---------------- */
-  /* a passer-by stops, turns, and is somebody */
+  startTalk(npc) {
+    this.talk = { npc, history: [] }; if (npc.mesh) npc.mesh.userData.talking = true; this.pauseInput(true);
+    document.exitPointerLock && document.exitPointerLock();
+    const s = this.state; if (!npc.def.ambient && !s.met.includes(npc.id)) s.met.push(npc.id);
+    this.ui.openDialogue(npc);
+    const g = this.voices.greet(npc.id); this.ui.logLine('npc', g); this.talk.history.push({ role: 'npc', text: g });
+    this.renderChips();
+  }
   talkToWalker(w) {
     const q = w.mesh.position; EXTRAS[w.def.id] = w.def;
     const npc = { id: w.def.id, def: w.def, mesh: w.mesh, x: q.x, y: q.y, z: q.z, facing: w.mesh.rotation.y, visible: true, hostile: false, walker: w };
     w.talk = npc; this.startTalk(npc);
   }
-  startTalk(npc) {
-    this.talk = { npc, history: [] }; npc.mesh.userData.talking = true; this.pauseInput(true);
-    document.exitPointerLock && document.exitPointerLock();
-    this.player.bike = false;
-    this.ui.openDialogue(npc);
-    const g = this.voices.greet(npc.id); this.ui.logLine('npc', g); this.talk.history.push({ role: 'npc', text: g });
-    this.renderChips();
-  }
   renderChips() {
-    const t = this.talk; if (!t) return;
-    const chips = this.quests.chipsFor(t.npc.id).map(c => ({ ...c, onClick: () => this.pickChip(c) }));
+    const t = this.talk; if (!t || t.puzzle) return;
+    const chips = this.story.chipsFor(t.npc.id).map(c => ({ ...c, onClick: () => this.pickChip(c) }));
     const c = t.npc.def, extras = [];
     const ask = (label, q) => extras.push({ label, onClick: () => this.say(q, label) });
+    if (t.npc.id === 'rosa' && this.state.ch >= 2 && !this.chaser && !this.timer) for (const r of this.races) extras.push({ label: `Race me: ${r.name} ${r.mode === 'jet' ? '🚀' : '🚗'}`, onClick: () => { this.endTalk(); this.startRace(r.id); } });
     if (!chips.length || chips.every(x => x.locked)) {
       ask('Tell me about yourself.', 'Tell me about yourself.');
-      if (c.topics.vane) ask('What do you know about Hollis Vane?', 'What do you know about Hollis Vane?');
-      if (c.topics.city) ask('Tell me about this part of the city.', 'Tell me about this part of the city.');
-      if (c.topics.help && !c.quest) ask('Do you need anything?', 'Do you need anything?');
+      ask('What do you think about the water vote?', 'What do you think about the vote on the springs?');
+      if (!c.ambient) ask('What do you know about my grandfather?', 'What do you know about my grandfather, Aurelio?');
+      ask('Tell me about this part of town.', 'Tell me about this part of Jiquilpan.');
       ask('Where should I go?', 'Where should I go next?');
     }
     extras.push({ label: 'Goodbye.', onClick: () => this.endTalk() });
@@ -501,169 +440,104 @@ class Game {
     this.ui.logLine('me', c.label);
     const r = c.run();
     if (r.reply) { this.ui.logLine('npc', r.reply); this.talk.history.push({ role: 'player', text: c.label }, { role: 'npc', text: r.reply }); }
-    this.audio.ui();
-    this.renderChips();
-    if (this.pending) { const p = this.pending; this.pending = null; setTimeout(() => { this.ui.logLine('sys', '…'); setTimeout(p, 1400); }, 200); }
-    this.save();
+    this.audio.ui(); this.renderChips(); this.save();
+    if (this.pendingEnding) { this.ui.chips([{ label: 'Continue', quest: true, onClick: () => { const e = this.pendingEnding; this.pendingEnding = null; this.endTalk(); this.finishEnding(e); } }]); }
   }
   async say(text, shown) {
-    const t = this.talk; if (!t || t.busy) return;
+    const t = this.talk; if (!t || t.busy || t.puzzle) return;
     this.ui.logLine('me', shown || text);
     const el = this.ui.logLine('npc', '…'); t.busy = true; this.ui.busy(true);
     t.ctl = new AbortController();
     let out = '';
-    try {
-      out = await this.voices.reply(t.npc.id, t.history, text, this.talkContext(), s => this.ui.setLine(el, s), t.ctl.signal);
-    } catch (e) { out = e && e.code === 'cancelled' || (t.ctl.signal.aborted) ? (el.textContent === '…' ? '…' : el.textContent) : this.voices.offline(t.npc.id, text, this.talkContext()); }
+    try { out = await this.voices.reply(t.npc.id, t.history, text, this.talkContext(), s => this.ui.setLine(el, s), t.ctl.signal); }
+    catch (e) { out = (e && e.code === 'cancelled') || t.ctl.signal.aborted ? (el.textContent === '…' ? '…' : el.textContent) : this.voices.offline(t.npc.id, text, this.talkContext()); }
     if (this.talk !== t) return;
     const { text: clean, go } = parseTags(out || '…');
     this.ui.setLine(el, clean);
     t.history.push({ role: 'player', text }, { role: 'npc', text: clean });
-    if (go) { const p = PLACES[go], [x, z] = toXZ(p.lat, p.lon); this.state.customWP = { x, z, label: p.name }; this.ui.logLine('sys', `Marked on your map: ${p.name}`); }
+    if (go) { const p = PLACES[go]; this.state.customWP = { x: p.x, z: p.z, label: p.name }; this.ui.logLine('sys', `Marked on your map: ${p.name}`); }
     t.busy = false; this.ui.busy(false);
   }
   stopTalk() { if (this.talk && this.talk.ctl) this.talk.ctl.abort(); }
   talkContext() {
-    const s = this.state, main = MAIN_ORDER.find(id => s.quests[id] && !s.quests[id].done) || 'after';
-    const st = this.quests.stageOf(main);
-    const done = MAIN_ORDER.filter(id => s.quests[id] && s.quests[id].done).map(id => QUESTS[id].title);
-    return { name: s.name, dead: !!s.flags.slept, light: s.light, progress: `Chapters finished: ${done.join(', ') || 'none'}. Current: ${QUESTS[main].title}${st ? ' — ' + st.text : ''}.${s.ending ? ' The story has ended (' + s.ending + ').' : ''}`, extra: this.flags.signed ? 'The player signed Gil Sedgwick\'s paper renouncing the estate.' : '' };
+    const s = this.state, ch = this.story.chapter(), st = this.story.step();
+    const done = CHAPTERS.slice(0, s.ch).map(c => c.title);
+    return { name: s.name, dead: false, clues: s.clues.map(c => CLUES[c].name).join('; '),
+      progress: `Chapters solved: ${done.join(', ') || 'none'}. ${ch ? 'Now: ' + ch.title + (st ? ' — ' + st.text : '') : ''} ${s.flags.aurelioFound ? 'Aurelio has been found alive in the Cueva del Añil.' : 'Aurelio is still missing.'}${s.ending ? ' The story has ended (' + this.endingTitle() + ').' : ''}`,
+      extra: s.flags.inesAlly ? 'Inés has confessed and promised to testify.' : s.flags.tempted ? 'The player listened to Barragán\'s price.' : '' };
   }
   endTalk() {
     const t = this.talk; if (!t) return;
     if (t.ctl) t.ctl.abort();
-    t.npc.mesh.userData.talking = false; this.talk = null; this.ui.closeDialogue(); this.pauseInput(false);
-    if (t.npc.def.ambient) this.met.add(t.npc.id);
+    if (t.npc.mesh) t.npc.mesh.userData.talking = false; this.talk = null; this.ui.closeDialogue(); this.pauseInput(false);
+    if (t.npc.def && t.npc.def.ambient && !this.state.met.includes(t.npc.id)) { this.state.met.push(t.npc.id); this.state.talked++; if (this.state.talked >= 10) this.unlock('platica'); }
     if (t.npc.walker) t.npc.walker.talk = null;
+    if (this.pendingEnding) { const e = this.pendingEnding; this.pendingEnding = null; this.finishEnding(e); return; }
     if (this.pending) { const p = this.pending; this.pending = null; p(); }
   }
   pauseInput(on) { this.paused = on; this.input.enabled = !on; if (on) this.input.releaseAll(); }
-  canAct() { return !this.paused && !this.talk; }
 
   /* ---------------- world queries ---------------- */
   uNight() { return U.uNight.value; }
-  groundY(x, z) { if (this.player.interior) { const f = this.city.colliders.floorAt(x, z, this.player.y + 2, 4).floor; return isFinite(f) ? f : this.player.y; } return Math.max(this.city.heightAt(x, z), 0); }
-  safeAt(x, z) { if (this.player.interior) return false; for (const id of this.state.libs.concat(['lib-main'])) { const l = LIBRARIES.find(q => q.id === id); if (Math.hypot(l.x - x, l.z - z) < 30) return true; } return false; }
+  viewYaw() { const c = this.vehicles.driving; return c ? -c.ang - Math.PI / 2 + this.vehicles.camYaw : this.player.yaw; }
   placeName() {
-    const p = this.player; if (p.interior) return 'Beneath Twin Peaks';
-    let best = null, bd = Infinity;
-    for (const l of LANDMARKS) { const d = Math.hypot(l.x - p.x, l.z - p.z); if (d < Math.max(60, l.r * 1.3) && d < bd) { bd = d; best = l.name; } }
-    return best || this.city.district(p.x, p.z) || 'San Francisco Bay';
+    const p = this.player; let best = null, bd = Infinity;
+    for (const id of LANDMARK_IDS.concat(['taller', 'petra', 'cueva', 'sendero'])) { const q = PLACES[id], d = Math.hypot(q.x - p.x, q.z - p.z); if (d < Math.max(40, q.r * 1.6) && d < bd) { bd = d; best = q.name.split(' (')[0]; } }
+    return best || barrio(p.x, p.z);
   }
-  // what the player should do next, and where
+  targetPos() {
+    const ref = this.story.targetRef(); if (!ref) return null;
+    const npcAt = id => { const n = this.npcs.find(q => q.id === id); return n && n.visible ? { x: n.x, z: n.z } : { x: PLACES[CHARACTERS[id].place].x, z: PLACES[CHARACTERS[id].place].z }; };
+    if (ref.npc) return npcAt(ref.npc);
+    if (ref.place) return { x: PLACES[ref.place].x, z: PLACES[ref.place].z };
+    if (ref.spot) { const s = this.spots[ref.spot]; return s ? { x: s[0], z: s[2] } : PLACES[ref.spot] ? { x: PLACES[ref.spot].x, z: PLACES[ref.spot].z } : null; }
+    if (ref.npcs) { const p = this.player; let b = null, bd = Infinity; for (const id of ref.npcs) { const q = npcAt(id), d = Math.hypot(q.x - p.x, q.z - p.z); if (d < bd) { bd = d; b = q; } } return b; }
+    return null;
+  }
   objective() {
-    const s = this.state, p = this.player;
-    let id = s.track && s.quests[s.track] && !s.quests[s.track].done ? s.track : MAIN_ORDER.find(k => s.quests[k] && !s.quests[k].done);
-    if (!id) return null;
-    const st = this.quests.stageOf(id); if (!st) return null;
-    const tgt = this.targetFor(id, st);
-    return { quest: QUESTS[id].title, text: st.text, target: tgt, dist: tgt ? Math.hypot(tgt.x - p.x, tgt.z - p.z) : null };
+    const s = this.state, st = this.story.step(), ch = this.story.chapter();
+    if (!st) return s.ending ? { title: 'Free roam', text: 'Races, lost pages and achievements are in Goals (the menu).', dist: null } : null;
+    const t = this.targetPos(), p = this.player;
+    return { title: ch.title, text: st.text, target: t, dist: t ? Math.hypot(t.x - p.x, t.z - p.z) : null };
   }
-  targetFor(id, st) {
-    const p = this.player, s = this.state, under = this.under.userData;
-    const npcAt = nid => { const n = this.npcs.find(q => q.id === nid); return n && n.visible ? { x: n.x, z: n.z, under: n.inRoom } : null; };
-    const place = pid => { if (pid === 'tidehall') return { x: under.hall[0], z: under.hall[2], under: true }; const q = PLACES[pid]; const [x, z] = toXZ(q.lat, q.lon); return { x, z }; };
-    let t = null;
-    if (st.talk) t = npcAt(st.talk) || (st.talk === 'hollis' ? { x: under.room[0], z: under.room[2], under: true } : null);
-    else if (st.reach) t = place(st.reach);
-    else if (st.hollows) t = place(st.hollows.place);
-    else if (st.duel) t = npcAt(st.duel);
-    else if (st.door === 'tidedoor') { const d = this.ruins.userData.sites.find(q => q.id === 'twinpeaks').door; t = { x: d.x, z: d.z }; }
-    else if (st.door === 'hatch') t = { x: under.tideDoor[0], z: under.tideDoor[2], under: true };
-    else if (st.collect || st.murmurs || st.glyphs) {
-      let best = null, bd = Infinity;
-      const cand = st.collect ? this.marks.filter(m => m.kind === 'pickup' && m.set === st.collect && this.markVisible(m)) : st.murmurs ? this.marks.filter(m => m.kind === 'murmur' && this.markVisible(m)) : this.ruins.userData.sites.filter(q => !s.glyphs.includes(q.id)).map(q => ({ x: q.stele[0], z: q.stele[1] }));
-      for (const m of cand) { const d = Math.hypot(m.x - p.x, m.z - p.z); if (d < bd) { bd = d; best = m; } }
-      if (best) t = { x: best.x, z: best.z };
-    }
-    if (t && t.under && !p.interior) { const d = this.ruins.userData.sites.find(q => q.id === 'twinpeaks').door; t = { x: d.x, z: d.z }; }
-    if (t && !t.under && p.interior) t = { x: under.landing[0], z: under.landing[2] };
-    return t;
-  }
-  waypoint() { const s = this.state; if (s.customWP) return s.customWP; const o = this.objective(); return o && o.target; }
+  waypoint() { const s = this.state; if (this.race) { const n = this.race.next(); return n ? { x: n[0], z: n[1] } : null; } if (s.customWP) return s.customWP; const o = this.objective(); return o && o.target; }
+  canTravel() { return !this.chaser && !this.timer && !this.race; }
+  travelTo(id) { const p = PLACES[id]; if (this.vehicles.driving) this.vehicles.exit(this.player); this.player.jet = false; const [x, y, z] = this.findSpot(p.x + 4, p.z + 4); this.player.teleport(x, z, y); this.ui.toast('You arrive at ' + p.name + '.', 'good'); this.save(); }
+  rescue() { if (this.vehicles.driving) this.vehicles.exit(this.player); this.player.jet = false; this.player.rescue(); }
 
   /* ---------------- interaction ---------------- */
   interactables() {
-    const p = this.player, s = this.state, out = [];
-    const near = (x, z, r) => Math.hypot(x - p.x, z - p.z) < r;
-    for (const n of this.npcs) if (n.visible && !n.hostile && near(n.x, n.z, 3.2) && Math.abs(n.y - p.y) < 3) out.push({ x: n.x, z: n.z, label: `Talk to ${n.def.ambient && !this.met.has(n.id) ? n.def.tag : n.def.name}`, icon: '💬', minor: !!n.def.ambient, run: () => this.startTalk(n) });
-    for (const w of this.walkers) { const q = w.mesh.position; if (w.def && near(q.x, q.z, 2.6) && Math.abs(q.y - p.y) < 3) out.push({ x: q.x, z: q.z, label: `Talk to ${this.met.has(w.def.id) ? w.def.name : w.def.tag}`, icon: '💬', minor: true, run: () => this.talkToWalker(w) }); }
-    if (!p.interior) {
-      for (const m of this.marks) {
-        if (!near(m.x, m.z, 2.8) || !this.markVisible(m)) continue;
-        if (m.kind === 'lost') out.push({ x: m.x, z: m.z, label: `Pick up: ${LOST[m.i].name}`, icon: '✋', run: () => { s.lost[m.i] = 1; this.ui.subtitle(LOST[m.i].name, LOST[m.i].text); this.audio.chime(); this.gainXP(10); this.ui.toast('Return lost things at any library.', 'good'); } });
-        if (m.kind === 'prov') out.push({ x: m.x, z: m.z, label: `Take: ${ITEMS[m.item].name}`, icon: '✋', run: () => { s.prov[m.i] = s.day; this.give(m.item); } });
-        if (m.kind === 'pickup') out.push({ x: m.x, z: m.z, label: m.def.action || `Pick up: ${m.def.name}`, icon: '✋', run: () => this.takePickup(m) });
-      }
-      for (const site of this.ruins.userData.sites) {
-        if (near(site.stele[0], site.stele[1], 2.8) && Math.abs(site.y - p.y) < 3) out.push({ x: site.stele[0], z: site.stele[1], label: s.glyphs.includes(site.id) ? `The sign of ${site.glyph}` : 'Lay your hand on the stone', icon: '✋', run: () => this.readGlyph(site) });
-        if (site.door && near(site.door.x, site.door.z, 3.2)) out.push({ x: site.door.x, z: site.door.z, label: this.flags.underOpen ? 'Go down through the round door' : 'Touch the round stone door', icon: '⬇', run: () => this.tideDoor() });
-      }
-      for (const l of LIBRARIES) if (near(l.x, l.z, 14)) out.push({ x: l.x, z: l.z, label: `Rest in the ${l.name}`, icon: '📖', run: () => this.rest(l) });
-      if (this.flags.hotel) { const [hx, hz] = toXZ(PLACES.esperanza.lat, PLACES.esperanza.lon); if (near(hx, hz, 8)) out.push({ x: hx, z: hz, label: 'Rest in room seven', icon: '🛏', run: () => this.rest({ name: 'Hotel Esperanza', hotel: true }) }); }
-    } else {
-      const u = this.under.userData;
-      if (near(u.landing[0], u.landing[2], 4)) out.push({ x: u.landing[0], z: u.landing[2], label: 'Climb back up to Twin Peaks', icon: '⬆', run: () => this.goUp() });
-      if (near(u.tideDoor[0], u.tideDoor[2], 4)) out.push({ x: u.tideDoor[0], z: u.tideDoor[2], label: this.quests.stageOf('m8') && this.quests.stageOf('m8').door === 'hatch' ? 'Open the steel hatch' : s.quests.m8 && s.quests.m8.stage > 2 ? 'Go into the room' : 'A steel hatch, sealed', icon: '🚪', run: () => this.hatch() });
-      if (near(u.roomEntry[0], u.roomEntry[2], 2.5)) out.push({ x: u.roomEntry[0], z: u.roomEntry[2], label: 'Leave the room', icon: '🚪', run: () => { const t = u.tideDoor; this.player.teleport(t[0] - 2, t[2], t[1]); } });
+    const p = this.player, s = this.state, out = [], near = (x, z, r) => Math.hypot(x - p.x, z - p.z) < r;
+    if (this.vehicles.driving) return { label: 'Get out of the car', icon: '🚪', run: () => { this.vehicles.exit(p); this.save(); } };
+    for (const n of this.npcs) if (n.visible && near(n.x, n.z, 3.2) && Math.abs(n.y - p.y) < 3) out.push({ x: n.x, z: n.z, label: `Talk to ${n.def.ambient && !s.met.includes(n.id) ? n.def.tag : n.def.name}`, icon: '💬', minor: !!n.def.ambient, run: () => this.startTalk(n) });
+    for (const w of this.walkers) { const q = w.mesh.position; if (w.def && near(q.x, q.z, 2.6) && Math.abs(q.y - p.y) < 3) out.push({ x: q.x, z: q.z, label: `Talk to ${s.met.includes(w.def.id) ? w.def.name : w.def.tag}`, icon: '💬', minor: true, run: () => this.talkToWalker(w) }); }
+    const ins = this.story.inspectable();
+    if (ins) { const sp = this.spots[ins.spot] || (PLACES[ins.spot] && [PLACES[ins.spot].x, 0, PLACES[ins.spot].z]); if (sp && near(sp[0], sp[2], ins.spot === 'cueva' ? 8 : 4.5)) out.push({ x: sp[0], z: sp[2], label: ins.label, icon: '🔍', run: ins.run }); }
+    for (const m of this.pageMarks) if (!s.pages.includes(m.pg.id) && near(m.pg.x, m.pg.z, 2.8)) out.push({ x: m.pg.x, z: m.pg.z, label: 'Pick up a page of Aurelio\'s notebook', icon: '📄', run: () => this.takePage(m.pg) });
+    if (!p.jet) {
+      const own = this.vehicles.nearest(p.x, p.z, 3.4); if (own) out.push({ x: own.x, z: own.z, label: own.rosa ? 'Drive Rosa\'s green sedan' : 'Get in the car', icon: '🚗', minor: true, run: () => this.vehicles.enter(own, p) });
+      const parked = this.detail.userData.nearestCar(p.x, p.z, 3.4);
+      if (parked) out.push({ x: parked.x, z: parked.z, label: 'Get in the parked car', icon: '🚗', minor: true, run: () => { this.detail.userData.take(parked.key); const c = this.vehicles.add({ x: parked.x, y: parked.y, z: parked.z, ang: parked.ang, kind: parked.kind, color: parked.color, pitch: parked.pitch }); this.vehicles.enter(c, p); } });
+      for (const t of this.traffic.cars) if (near(t.x, t.z, 3.6) && t.v < 3) { out.push({ x: t.x, z: t.z, label: 'Take this car ("¡Oiga!")', icon: '🚗', minor: true, run: () => { this.traffic.cars.splice(this.traffic.cars.indexOf(t), 1); const c = this.vehicles.add({ x: t.x, y: t.y, z: t.z, ang: t.ang, kind: t.kind, color: t.color }); this.vehicles.enter(c, p); this.ui.subtitle('The driver', '¡Oiga! ¡Mi carro! ...Bueno, bring it back with gas.', 4); } }); break; }
     }
-    // closest first, preferring what you face
     const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
-    out.forEach(o => { const dx = o.x - p.x, dz = o.z - p.z, d = Math.hypot(dx, dz) || 1; o.score = d - (dx * fx + dz * fz) / d * 1.5 + (o.minor ? 2.5 : 0); });   // the story's people before passers-by
+    out.forEach(o => { const dx = o.x - p.x, dz = o.z - p.z, d = Math.hypot(dx, dz) || 1; o.score = d - (dx * fx + dz * fz) / d * 1.5 + (o.minor ? 2.5 : 0); });
     out.sort((a, b) => a.score - b.score);
     return out[0] || null;
   }
-  takePickup(m) {
-    const s = this.state, d = m.def;
-    if (d.weapon) { this.giveWeapon(d.weapon); this.audio.chime(); return; }
-    if (d.item && m.set === 'books') { if (!s.inv[d.item]) { this.ui.toast('You do not have that book.', 'warn'); return; } s.inv[d.item]--; }
-    else if (d.item) this.give(d.item);
-    (s.sets[m.set] = s.sets[m.set] || [])[m.i] = 1;
-    if (m.set === 'bells') this.audio.bell(); else this.audio.chime();
-    this.ui.float(d.name); this.quests.check(); this.save();
-  }
-  readGlyph(site) {
-    const s = this.state;
-    if (!s.seenSites.includes(site.id)) s.seenSites.push(site.id);
-    if (s.glyphs.includes(site.id)) { this.ui.subtitle(site.name, `The sign of ${site.glyph}. The stone is warm.`); return; }
-    if (!s.abilities.includes('hush') && !this.flags.stairsight) { this.ui.subtitle(site.name, 'The stone is carved with a sign you cannot read yet. Someone in the city must know how.'); return; }
-    s.glyphs.push(site.id); this.ruins.userData.setAwake(site.id, true); this.audio.bell(); this.gainXP(40);
-    const meaning = { Door: 'a door that opens downward', Ash: 'what the fire leaves', Fog: 'the grey that walks', Name: 'what is kept when the body is not', Ferry: 'the boat that takes and brings', Salt: 'what the sea leaves on you', Shell: 'a house that was a body', Mother: 'the first stair', Stair: 'one step for each generation', Bell: 'a sound that calls the drowned', Tide: 'the sea coming home', Return: 'the way back is down' }[site.glyph];
-    this.ui.subtitle(`${site.name} · glyph ${s.glyphs.length} of 12`, `You lay your hand on the stone and the sign of ${site.glyph} lights under it: ${meaning}.`, 9);
-    this.quests.check(); this.save();
-  }
-  tideDoor() {
-    const st = this.quests.stageOf('m7');
-    if (this.flags.underOpen) { this.goUnder(); return; }
-    if (st && st.door === 'tidedoor') {
-      this.ui.card(['You hold Susannah\'s shell to the round stone. Salt answers salt.', 'The stone turns like a key in a lock that has waited ten thousand years, and a cold breath comes up from below, smelling of kelp and wet rock.'], () => { this.flags.underOpen = true; this.quests.event('door', 'tidedoor'); this.goUnder(); });
-    } else this.ui.subtitle('The round door', 'A round stone door, carved with steps and waves. It does not move. It is waiting for something from the sea.');
-  }
-  hatch() {
-    const st = this.quests.stageOf('m8'), s = this.state, u = this.under.userData;
-    if (st && st.door === 'hatch') { this.ui.card(['Rafa\'s old keycard does nothing. Your hand on the wheel does. It turns.', 'Behind the grey stone there is a room made up like a parlor: red walls, three chairs, a lamp that cannot be turned off. No mirror. No window.', 'Three people look up at you. The door behind you stays open.'], () => { this.quests.event('door', 'hatch'); this.player.teleport(u.roomEntry[0] + 1, u.roomEntry[2], u.roomEntry[1]); }); return; }
-    if (s.quests.m8 && (s.quests.m8.stage > 2 || s.quests.m8.done)) { this.player.teleport(u.roomEntry[0] + 1, u.roomEntry[2], u.roomEntry[1]); return; }
-    this.ui.subtitle('The grey stone', 'Poured concrete and cable, stopped into the mouth of the Tide Door. A steel hatch is set into it. The Hollows are thick here.');
-  }
-  rest(l) {
-    const s = this.state;
-    if (l.id && !s.libs.includes(l.id)) { s.libs.push(l.id); this.ui.toast(`${l.name} opened. You can travel here from the map.`, 'quest'); }
-    s.hp = this.maxHP(); s.breath = this.maxBreath();
-    const lost = s.lost.map((v, i) => v === 1 ? i : -1).filter(i => i >= 0);
-    if (lost.length && !l.hotel) { lost.forEach(i => s.lost[i] = 2); s.lostReturned += lost.length; this.gainXP(25 * lost.length); s.light += lost.length >= 3 ? 1 : 0; this.ui.toast(`You leave ${lost.length} lost thing${lost.length > 1 ? 's' : ''} at the Lost & Found.`, 'good'); }
-    this.save(); this.audio.chime();
-    this.ui.toast('Rested and saved. Open the map to travel.', 'good');
-    if (l.hotel) { s.hour = s.hour < 12 ? 19 : 7.5; if (s.hour === 7.5) s.day++; }
+  takePage(pg) {
+    const s = this.state; s.pages.push(pg.id);
+    this.ui.card([`<em>${pg.title}</em>\nA page from Aurelio's notebook, blown into a corner.`, `<i>${pg.text}</i>`]);
+    if (s.pages.length >= PAGES.length) this.unlock('cuaderno'); else this.ui.toast(`Aurelio's pages: ${s.pages.length} of ${PAGES.length}`, 'good');
+    this.save();
   }
 
-  /* ---------------- per-frame ---------------- */
+  /* ---------------- the loop ---------------- */
   _globalKeys(e) {
     if (!this.started) return;
     const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
-    if (e.code === 'KeyU' && !this.paused) { this.player.rescue(); this.ui.toast('You find your footing on the street.', 'good'); }
+    if (e.code === 'KeyU' && !this.paused) { this.rescue(); this.ui.toast('You find your footing on the street.', 'good'); }
   }
-  shake(a) { if (!this.settings.reduced) this.shakeA = Math.max(this.shakeA, a); }
-  flash() { if (this.settings.reduced) return; const f = $('flash'); f.classList.add('on'); setTimeout(() => f.classList.remove('on'), 60); }
   frame(now) {
     requestAnimationFrame(t => this.frame(t));
     const dt = Math.min(0.05, (now - this.lastT) / 1000); this.lastT = now;
@@ -671,248 +545,167 @@ class Game {
     this.t += dt;
     try { this.update(dt); } catch (e) { console.error(e); }
     this.render(dt);
-    this.input.endFrame();
-    this._perf(dt);
+    this.input.endFrame(); this._perf(dt);
   }
   _perf(dt) {
     this.pfT = (this.pfT || 0) + dt; this.pfN = (this.pfN || 0) + 1;
     if (this.pfT > 2) { const fps = this.pfN / this.pfT; this.pfT = 0; this.pfN = 0; const old = this.pr;
       if (fps < 40) this.pr = Math.max(0.6, this.pr - 0.15); else if (fps > 56) this.pr = Math.min(this.maxPR, this.pr + 0.1);
       if (Math.abs(old - this.pr) > 0.01) { this.renderer.setPixelRatio(this.pr); this.onResize(); } }
-    this.fps = this.fps || 60;
   }
   update(dt) {
-    const g = this, s = this.state, p = this.player, inp = this.input;
+    const s = this.state, p = this.player, inp = this.input, V = this.vehicles;
     inp.pollGamepad(dt);
-    // menus and panels
     if (inp.pressed('menu')) { if (this.talk) this.endTalk(); else if (this.ui.menuOpen) this.ui.closeMenu(); else if (!this.ui.cardOpen) this.ui.openMenu(); }
     if (inp.pressed('map') && !this.talk && !this.ui.cardOpen) { if (this.ui.menuOpen && this.ui.tab === 'map') this.ui.closeMenu(); else this.ui.openMenu('map'); }
     if (this.paused && !this.talk) { this.ui.update(0); return; }
-    if (inp.pressed('journal')) { this.ui.openMenu('journal'); return; }
-    if (inp.pressed('inventory')) { this.ui.openMenu('inventory'); return; }
-    if (inp.pressed('character')) { this.ui.openMenu('character'); return; }
-    // time and weather
-    const ts = +this.settings.timeScale;
-    if (!p.interior && !this.talk) { s.hour += dt * ts / 90; if (s.hour >= 24) { s.hour -= 24; s.day++; } }
-    const h = s.hour, fogBase = h < 5 ? 0.55 : h < 10.5 ? 0.8 - (h - 5) * 0.08 : h < 16 ? 0.28 : h < 20 ? 0.3 + (h - 16) * 0.12 : 0.7;
-    const west = Math.max(0, Math.min(1, (-p.x - 1000) / 5000));
-    const target = Math.min(1, fogBase * (0.6 + west * 0.7) + (s.ending === 'shade' ? 0.3 : 0));
-    this.fogBank += (target - this.fogBank) * Math.min(1, dt * 0.2);
-    if (!p.interior) setTimeOfDay(h, this.fogBank); else this.underEnv();
-    U.uTime.value = this.t;
+    if (inp.pressed('case')) { this.ui.openMenu('case'); return; }
+    // time
+    const ts = +this.settings.timeScale, h0 = s.hour;
+    if (!this.talk) { s.hour += dt * ts / 90; if (s.hour >= 24) { s.hour -= 24; s.day++; } }
+    if (Math.floor(s.hour) !== Math.floor(h0) && s.hour >= 7 && s.hour < 22 && Math.hypot(p.x - PLACES.parroquia.x, p.z - PLACES.parroquia.z) < 1600) { const n = Math.floor(s.hour) % 12 || 12; this.audio.bells(Math.min(n, 6)); if (Math.floor(s.hour) === 12 && Math.hypot(p.x - PLACES.jardin.x, p.z - PLACES.jardin.z) < 60) this.unlock('campanas'); }
+    if (s.hour > 2.9 && s.hour < 3.3) this.unlock('noctambulo');
+    const h = s.hour, haze = h < 6 ? 0.3 : h < 10 ? 0.3 - (h - 6) * 0.05 : h < 17 ? 0.1 : h < 20 ? 0.1 + (h - 17) * 0.04 : 0.25;
+    setTimeOfDay(h, haze); U.uTime.value = this.t;
     if (this.talk) {
-      // keep facing the speaker, gently
-      const n = this.talk.npc, want = Math.atan2(-(n.x - p.x), -(n.z - p.z));
-      let d = want - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); p.yaw += d * Math.min(1, dt * 4); p.pitch *= 0.9;
-      n.facing = Math.atan2(p.x - n.x, p.z - n.z);
+      const n = this.talk.npc;
+      if (n.mesh) { const want = Math.atan2(-(n.x - p.x), -(n.z - p.z)); let d = want - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); p.yaw += d * Math.min(1, dt * 4); p.pitch *= 0.9; n.facing = Math.atan2(p.x - n.x, p.z - n.z); }
     } else {
-      // actions
-      if (inp.pressed('bike')) { if (p.interior || this.combat.duel) this.ui.toast('No room for a bicycle here.'); else if (p.jet) this.ui.toast('Land first (G or 🚀), then take the bicycle.'); else { p.bike = !p.bike; this.ui.toast(p.bike ? 'On the bicycle. Press B (🚲) to get off.' : 'On foot.'); } }
       if (inp.pressed('jet')) {
-        if (p.interior) this.ui.toast('No sky down here.');
-        else if (this.combat.duel) this.ui.toast('Not in the middle of a duel.');
-        else {
-          const r = p.toggleJet();
-          if (r === 'on') { this.ui.toast(this.touchUI() ? 'Jetpack on. ⤒ climbs, ⤓ drops, push the stick past its edge to boost. 🚀 again to land.' : 'Jetpack on. Space climbs, Z or Ctrl drops, Shift boosts, and you fly where you look. G again to land.'); this.audio.jetStart(); }
-          else if (r === 'landing') this.ui.toast('Coming down to land…');
-          else this.ui.toast('On foot.');
-        }
+        if (V.driving) this.ui.toast('Get out of the car first (E).');
+        else if (!s.jetpack) this.ui.toast('You don\'t have a jetpack. Yet. (Tía Cuca is on the Jardín.)');
+        else { const r = p.toggleJet(); if (r === 'on') { this.audio.jetStart(); this.unlock('vuelo'); this.ui.toast(this.touchUI() ? '⤒ climbs, ⤓ drops, ⚡ boosts. Fly where you look. 🚀 to land.' : 'Space climbs, Z drops, hold Shift to boost. Fly where you look. G to land.'); } else if (r === 'landing') this.ui.toast('Coming down to land…'); }
       }
-      if (inp.pressed('heal')) { const f = ['sourdough', 'pandulce', 'coffee'].find(k => s.inv[k]); if (f) this.useItem(f); else this.ui.toast('Nothing to eat. The Ferry Building has bread.', 'warn'); }
-      for (let i = 1; i <= 6; i++) if (inp.pressed('weapon' + i)) { const w = WEAPON_ORDER[i - 1]; if (s.weapons.includes(w)) this.wield(w); }
-      if (inp.pressed('weaponNext') || inp.pressed('weaponPrev')) { const own = WEAPON_ORDER.filter(w => s.weapons.includes(w)); if (own.length) this.wield(own[(own.indexOf(s.weapon) + (inp.peek('weaponPrev') ? -1 : 1) + own.length) % own.length]); }
-      p.update(dt, inp, { blocking: this.combat.blocking });
+      if (inp.pressed('horn') && V.driving) this.audio.hornCar();
+      if (V.driving) {
+        V.update(dt, inp, this.traffic, this.audio);
+        const c = V.driving; p.x = c.x; p.z = c.z; p.y = c.y; p.speed = Math.abs(c.speed); p.onGround = true;
+        this.unlock('volante'); s.odo += Math.abs(c.speed) * dt;
+        if (s.odo > 10000) this.unlock('kilometros'); if (V.maxAir > 1.5) this.unlock('salto');
+      } else {
+        V.update(dt, inp, null, this.audio);
+        const wasGround = p.onGround;
+        p.update(dt, inp, {});
+        if (p.jet) { s.flown += p.speed * dt; if (p.speed > 111) this.unlock('supersonico'); if (p.y - this.city.heightAt(p.x, p.z) > 1000) this.unlock('alto'); }
+        if (!wasGround && p.onGround && p.y - this.city.heightAt(p.x, p.z) > 3.5) this.unlock('azotea');
+      }
       const it = this.interactables(); this.ui.prompt(it);
       if (it && inp.pressed('interact')) it.run();
-      this.combat.update(dt, this.t);
     }
-    // regen
-    s.breath = Math.min(this.maxBreath(), s.breath + dt * 4);
-    if (!this.combat.duel && !this.combat.enemies.some(e => Math.hypot(e.x - p.x, e.z - p.z) < 12)) s.hp = Math.min(this.maxHP(), s.hp + dt * 1.5);
-    this.wardT = Math.max(0, this.wardT - dt);
-    // world reacts
-    this._murmurs(); this._questSpawns(); this._duels(); this._npcs(dt); this._walkers(dt); this._markersUpdate();
-    // arriving somewhere
-    if (!p.interior && !this.talk) for (const id of this.quests.active()) { const st = this.quests.stageOf(id); if (st && st.reach && st.reach !== 'tidehall') { const q = PLACES[st.reach], [x, z] = toXZ(q.lat, q.lon); if (Math.hypot(x - p.x, z - p.z) < 25) this.quests.event('reach', st.reach); } }
-    if (p.interior) { const hall = this.under.userData.hall; if (Math.hypot(hall[0] - p.x, hall[2] - p.z) < 18) this.quests.event('reach', 'tidehall'); }
-    if (s.customWP && Math.hypot(s.customWP.x - p.x, s.customWP.z - p.z) < 12) { s.customWP = null; this.ui.toast('You have arrived.'); }
+    // the world reacts
+    this._chase(dt); this._timer(dt); this._race(dt);
+    this._npcs(dt); this._walkers(dt); this._places(); this._markersUpdate();
     // streaming
-    if (!p.interior) {
-      const agl = p.y - Math.max(0, this.city.heightAt(p.x, p.z));
-      this.detail.userData.update(p.x, p.z, agl, this.uNight()); this.traffic.update(dt, p, this.uNight());
-      this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera); this.landmarks.userData.update(this.t); this.embarcadero.userData.update(this.t, dt, p.x, p.z); }
-    // audio bed
-    const sea = p.interior ? 0 : Math.max(0, 1 - this.distToWater() / 300) * Math.max(0, 1 - (p.y - this.city.heightAt(p.x, p.z)) / 120);
+    const agl = p.y - Math.max(0, this.city.heightAt(p.x, p.z));
+    this.detail.userData.update(p.x, p.z, agl, this.uNight()); this.traffic.update(dt, V.driving ? { x: p.x, z: p.z, y: p.y, jet: false, onGround: true, canStand: () => null } : p, this.uNight());
+    this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera); this.landmarks.userData.update(this.t, this.uNight());
+    // sound and speed readouts
+    this.audio.update(dt, { t: this.t, sea: 0, height: Math.max(0, agl), fog: 0, night: this.uNight() > 0.5, under: false, noHorn: true });
     this.audio.jet(p.jet ? p.thrust : 0);
-    this.ui.jetInfo(p.jet ? { alt: p.y, agl: p.y - Math.max(0, this.city.heightAt(p.x, p.z)), speed: p.speed, landing: p.jetLanding } : null);
-    document.body.classList.toggle('jet', !!p.jet);
-    this.audio.update(dt, { t: this.t, sea, height: p.y, fog: this.fogBank, night: this.uNight() > 0.5, under: !!p.interior });
-    if (p.speed > 0.5 && p.onGround && !p.bike) { this.stepT = (this.stepT || 0) + dt * p.speed; if (this.stepT > 1.4) { this.stepT = 0; this.audio.step(p.interior ? 'stone' : 'street'); } }
-    // autosave
-    this.saveT = (this.saveT || 0) + dt; if (this.saveT > 45) { this.saveT = 0; this.save(); }
+    const kmh = Math.round((V.driving ? Math.abs(V.driving.speed) : p.speed) * 3.6);
+    this.ui.speedo(V.driving ? `${kmh} km/h` : p.jet ? `${p.jetLanding ? 'LANDING · ' : ''}ALT ${Math.round(agl)} m · ${kmh} km/h` : null);
+    document.body.classList.toggle('jet', !!p.jet); document.body.classList.toggle('car', !!V.driving);
+    if (p.speed > 0.5 && p.onGround && !p.jet && !V.driving) { this.stepT = (this.stepT || 0) + dt * p.speed; if (this.stepT > 1.4) { this.stepT = 0; this.audio.step('street'); } }
+    this.saveT = (this.saveT || 0) + dt; if (this.saveT > 30) { this.saveT = 0; this.save(); }
     this.ui.update(dt);
   }
-  distToWater() {
-    if (this._wT && this.t - this._wT < 1) return this._wD; this._wT = this.t;
-    const p = this.player; let d = 400;
-    for (let a = 0; a < 8; a++) for (const r of [40, 120, 250]) { if (!this.city.isLand(p.x + Math.cos(a * 0.785) * r, p.z + Math.sin(a * 0.785) * r)) { d = Math.min(d, r); break; } }
-    return (this._wD = d);
-  }
-  underEnv() {
-    U.uSunDir.value.set(0.2, 0.9, 0.1).normalize(); U.uSunColor.value.setRGB(0.25, 0.4, 0.42); U.uAmbient.value.setRGB(0.22, 0.34, 0.36);
-    U.uGroundBounce.value.setRGB(0.08, 0.1, 0.12); U.uFogColor.value.setRGB(0.03, 0.06, 0.08); U.uFogDensity.value = 0.02; U.uNight.value = 0.6; U.uFogBank.value = 0;
-  }
-  _murmurs() {
-    const s = this.state, p = this.player; if (p.interior) return;
-    for (const m of this.marks) if (m.kind === 'murmur' && !s.murmurs[m.i] && Math.hypot(m.x - p.x, m.z - p.z) < 9) {
-      s.murmurs[m.i] = 1; const mm = MURMURS[m.i]; this.ui.subtitle(mm.who, `“${mm.text}”`, 8); this.audio.murmur(); this.gainXP(8); this.quests.check();
-    }
-  }
-  _questSpawns() {
-    const s = this.state, p = this.player;
-    for (const id of this.quests.active()) {
-      const st = this.quests.stageOf(id); if (!st || !st.hollows) continue;
-      const tgt = this.targetFor(id, st); if (!tgt) continue;
-      const inside = st.hollows.place === 'tidehall';
-      if (inside !== !!p.interior) continue;
-      if (Math.hypot(tgt.x - p.x, tgt.z - p.z) > 70) continue;
-      const alive = this.combat.enemies.filter(e => e.quest === id).length, need = st.hollows.n - (s.kills[id] || 0) - alive;
-      for (let k = 0; k < need; k++) {
-        const a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 10;
-        let x = tgt.x + Math.cos(a) * r, z = tgt.z + Math.sin(a) * r;
-        if (inside) { const b = this.under.userData.hall; x = b[0] + 4 + Math.random() * 20; z = b[2] + (Math.random() - 0.5) * 20; }
-        this.combat.spawnHollow(x, z, { quest: id });
-      }
-    }
-  }
-  _duels() {
-    if (this.combat.duel || this.talk) return; const p = this.player;
-    for (const id of this.quests.active()) { const st = this.quests.stageOf(id); if (!st || !st.duel) continue; const n = this.npcs.find(q => q.id === st.duel); if (n && Math.hypot(n.x - p.x, n.z - p.z) < 9) this.combat.startDuel(n); }
+  _places() {
+    const s = this.state, p = this.player; if (this.placeT && this.t - this.placeT < 0.5) return; this.placeT = this.t;
+    for (const id of LANDMARK_IDS) { const q = PLACES[id]; if (!s.visited.includes(id) && Math.hypot(q.x - p.x, q.z - p.z) < q.r + 8) { s.visited.push(id); this.ui.toast('Postcard: ' + q.name, 'good'); if (LANDMARK_IDS.filter(k => s.visited.includes(k)).length >= 12) this.unlock('postales'); } }
+    for (const [id, q] of Object.entries(PLACES)) if (Math.hypot(q.x - p.x, q.z - p.z) < q.r + 6) this.story.event('reach', id);
+    if (Math.hypot(PLACES.cumbre.x - p.x, PLACES.cumbre.z - p.z) < 25 && (p.onGround || this.vehicles.driving)) this.unlock('cumbre');
+    if (s.customWP && Math.hypot(s.customWP.x - p.x, s.customWP.z - p.z) < 14) { s.customWP = null; this.ui.toast('You have arrived.'); }
   }
   _npcs(dt) {
     const p = this.player;
     for (const n of this.npcs) {
       if (!n.visible) continue;
-      const d = Math.hypot(n.x - p.x, n.z - p.z), vis = n.inRoom ? !!p.interior : (!p.interior && d < 220);
-      n.mesh.visible = vis; if (!vis) continue;
-      if (!n.hostile && !n.inRoom && d > 12) { n.x += (n.hx - n.x) * dt * 0.5; n.z += (n.hz - n.z) * dt * 0.5; }
-      if (!n.hostile && d < 10 && !this.talk) n.facing = Math.atan2(p.x - n.x, p.z - n.z);
-      if (n.inRoom) n.facing = Math.atan2(this.under.userData.room[0] - n.x, this.under.userData.room[2] - n.z);
-      n.y = n.inRoom ? n.y : (p.interior ? n.y : this.findFloor(n.x, n.z, n.y));
-      n.mesh.position.set(n.x, n.y, n.z);
+      const d = Math.hypot(n.x - p.x, n.z - p.z), vis = d < 260; n.mesh.visible = vis; if (!vis) continue;
+      if (d < 10 && !this.talk) n.facing = Math.atan2(p.x - n.x, p.z - n.z);
+      n.y = this.findFloor(n.x, n.z, n.y); n.mesh.position.set(n.x, n.y, n.z);
       let a = n.facing - n.mesh.rotation.y; a = Math.atan2(Math.sin(a), Math.cos(a)); n.mesh.rotation.y += a * Math.min(1, dt * 5);
-      n.mesh.userData.animate(dt, n.hostile ? 1.2 : 0, this.t);
-      if (n.inRoom) n.mesh.position.y = n.y + 0.02;
+      n.mesh.userData.animate(dt, 0, this.t);
     }
   }
-  findFloor(x, z, y) { return this.player.floorAt.call({ city: this.city, interior: null }, x, z, y).f; }
+  findFloor(x, z, y) { return this.player.floorAt.call({ city: this.city, interior: null }, x, z, y, false).f; }
   _walkers(dt) {
-    const p = this.player; if (p.interior) return;
-    const cap = this.settings.quality === 'low' ? 6 : this.settings.quality === 'medium' ? 12 : 18, want = Math.round(cap * (1 - this.uNight() * 0.6));
+    const p = this.player, q = this.settings.quality, cap = q === 'low' ? 6 : q === 'medium' ? 12 : 16, want = Math.round(cap * (1 - this.uNight() * 0.5));
     this.walkT = (this.walkT || 0) - dt;
-    if (this.walkers.length < want && this.walkT < 0) {
-      this.walkT = 0.7;
-      const sts = this.nearStreets(p.x, p.z, 150);
+    if (this.walkers.length < want && this.walkT < 0 && p.y - this.city.heightAt(p.x, p.z) < 60) {
+      this.walkT = 0.6;
+      const sts = this.nearStreets(p.x, p.z, 150).filter(s => s.kind === 0 || s.kind === 4);
       if (sts.length) {
         const st = sts[Math.floor(Math.random() * sts.length)], i = Math.floor(Math.random() * (st.pts.length - 1));
-        const [ax, az] = st.pts[i], [bx, bz] = st.pts[i + 1], d0 = Math.hypot(ax - p.x, az - p.z);
-        if (d0 > 50 && d0 < 170) {
-          const side = Math.random() < 0.5 ? -1 : 1, def = makeCitizen((Math.random() * 2 ** 31) | 0, this.city.district(ax, az));
-          const mesh = makePerson(Object.assign({}, def.look, { ghost: def.dead && !!this.flags.slept })); this.scene.add(mesh);
-          this.walkers.push({ mesh, def, st, i, t: 0, dir: 1, side, speed: (1.05 + Math.random() * 0.5) * (def.age > 70 ? 0.7 : 1) });
+        const [ax, az] = st.pts[i], d0 = Math.hypot(ax - p.x, az - p.z);
+        if (d0 > 40 && d0 < 150) {
+          const def = makeCitizen((Math.random() * 2 ** 31) | 0, barrio(ax, az)), mesh = makePerson(def.look); this.scene.add(mesh);
+          this.walkers.push({ mesh, def, st, i, t: 0, dir: 1, side: Math.random() < 0.5 ? -1 : 1, speed: (1.0 + Math.random() * 0.5) * (def.age > 70 ? 0.7 : 1) });
         }
       }
     }
-    // on the Embarcadero, people stroll the promenade and the sidewalk
-    const q = wfLocal(p.x, p.z);
-    if (q && !q.end && q.s > -140 && this.walkers.length < want + 6 && (this.walkT2 = (this.walkT2 || 0) - dt) < 0) {
-      this.walkT2 = 0.5;
-      const t = q.t + (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 100), s = [26, 30, 34, -23.5][Math.floor(Math.random() * 4)];
-      if (t > 10 && t < WF.length - 10) {
-        const def = makeCitizen((Math.random() * 2 ** 31) | 0, t < RINCON_T ? 'South of Market' : 'Financial District');
-        const mesh = makePerson(Object.assign({}, def.look, { ghost: def.dead && !!this.flags.slept })); this.scene.add(mesh);
-        this.walkers.push({ mesh, def, wf: true, t, s: s + (Math.random() - 0.5) * 2, dir: Math.random() < 0.5 ? -1 : 1, speed: 1.1 + Math.random() * 0.5 });
-      }
-    }
     for (const w of this.walkers) {
-      // someone you're talking to, or about to: they stop and turn to you
       const mp = w.mesh.position, dP = Math.hypot(mp.x - p.x, mp.z - p.z);
-      if (w.talk || (dP < 2.4 && !p.jet) || (w.paused && dP < 3.6 && !p.jet)) {
-        w.paused = true;
-        const want = w.talk ? w.talk.facing : Math.atan2(p.x - mp.x, p.z - mp.z);
-        let a = want - w.mesh.rotation.y; a = Math.atan2(Math.sin(a), Math.cos(a)); w.mesh.rotation.y += a * Math.min(1, dt * 5);
-        w.mesh.userData.animate(dt, 0, this.t);
-        continue;
+      if (w.talk || (dP < 2.4 && !p.jet && !this.vehicles.driving) || (w.paused && dP < 3.6 && !p.jet)) {
+        w.paused = true; const wantA = w.talk ? w.talk.facing : Math.atan2(p.x - mp.x, p.z - mp.z);
+        let a = wantA - w.mesh.rotation.y; a = Math.atan2(Math.sin(a), Math.cos(a)); w.mesh.rotation.y += a * Math.min(1, dt * 5); w.mesh.userData.animate(dt, 0, this.t); continue;
       }
       w.paused = false;
-      if (w.wf) {
-        w.t += w.dir * w.speed * dt; const [x, z, ang] = wfPoint(w.t, w.s);
-        w.mesh.position.set(x, XS.deckY + 0.15, z); w.mesh.rotation.y = -ang + Math.PI / 2 + (w.dir < 0 ? Math.PI : 0);
-        w.mesh.userData.animate(dt, w.speed, this.t);
-        if (Math.hypot(x - p.x, z - p.z) > 240 || w.t < 5 || w.t > WF.length - 5) w.gone = true;
-        continue;
-      }
+      // a car bearing down on them: step aside
       const pts = w.st.pts, a = pts[w.i], b = pts[w.i + w.dir] || a, L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       w.t += dt * w.speed / L;
       if (w.t >= 1) { w.t = 0; w.i += w.dir; if (w.i + w.dir < 0 || w.i + w.dir >= pts.length) { w.dir *= -1; w.side *= -1; } continue; }
-      const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, off = w.st.width / 2 - 1.5;
+      const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, off = w.st.kind === 0 ? w.st.width / 2 - 0.8 : 0.6;
       const x = a[0] + (b[0] - a[0]) * w.t - uz * off * w.side, z = a[1] + (b[1] - a[1]) * w.t + ux * off * w.side;
-      w.mesh.position.set(x, this.city.heightAt(x, z) + 0.3, z); w.mesh.rotation.y = Math.atan2(ux, uz);
+      mp.set(x, this.city.heightAt(x, z) + (w.st.kind === 0 ? 0.22 : 0.05), z); w.mesh.rotation.y = Math.atan2(ux, uz);
       w.mesh.userData.animate(dt, w.speed, this.t);
-      if (Math.hypot(x - p.x, z - p.z) > 220) w.gone = true;
+      if (dP > 200) w.gone = true;
     }
     for (const w of this.walkers) if (w.gone && !w.talk) this.scene.remove(w.mesh);
     this.walkers = this.walkers.filter(w => !w.gone || w.talk);
   }
   _markersUpdate() {
-    const p = this.player;
-    for (const m of this.marks) {
-      const d = Math.hypot(m.x - p.x, m.z - p.z), v = this.markVisible(m) && d < 350;
-      m.sprite.visible = v; if (!v) continue;
-      m.sprite.position.y = m.y + 1.2 + Math.sin(this.t * 2 + m.x) * 0.15;
-      m.sprite.material.opacity = Math.min(1, 0.45 + 30 / Math.max(d, 1)) * (m.kind === 'murmur' ? 0.6 + 0.4 * Math.sin(this.t * 3 + m.z) : 1);
-    }
+    const p = this.player, s = this.state;
+    for (const m of this.pageMarks) { const d = Math.hypot(m.pg.x - p.x, m.pg.z - p.z), v = !s.pages.includes(m.pg.id) && d < 300; m.sp.visible = v; if (v) { m.sp.position.y = m.pg.y + 1.1 + Math.sin(this.t * 2 + m.pg.id) * 0.15; m.sp.material.opacity = 0.6 + 0.4 * Math.sin(this.t * 3 + m.pg.id); } }
+    const ins = this.story.inspectable(), sp = ins && (this.spots[ins.spot] || (PLACES[ins.spot] && [PLACES[ins.spot].x, this.city.heightAt(PLACES[ins.spot].x, PLACES[ins.spot].z), PLACES[ins.spot].z]));
+    this.inspectMark.visible = !!sp; if (sp) { this.inspectMark.position.set(sp[0], sp[1] + 1.6 + Math.sin(this.t * 2.5) * 0.2, sp[2]); }
     const wp = this.waypoint();
-    this.beacon.visible = !!wp && !this.talk && Math.hypot(wp.x - p.x, wp.z - p.z) > 25;
-    if (wp) { const y = p.interior ? p.y - 10 : Math.max(0, this.city.heightAt(wp.x, wp.z)); this.beacon.position.set(wp.x, y, wp.z); this.beacon.material.opacity = 0.12 + 0.06 * Math.sin(this.t * 2); }
+    this.beacon.visible = !!wp && !this.talk && Math.hypot(wp.x - p.x, wp.z - p.z) > 30;
+    if (wp) { this.beacon.position.set(wp.x, this.city.heightAt(wp.x, wp.z), wp.z); this.beacon.material.opacity = 0.12 + 0.06 * Math.sin(this.t * 2); }
   }
   render(dt) {
-    const p = this.player, cam = this.camera, s = this.state, R = this.renderer;
-    const shake = this.shakeA * 0.03; this.shakeA = Math.max(0, this.shakeA - dt * 2);
-    cam.position.set(p.x + (Math.random() - 0.5) * shake, p.eye(this.settings.reduced) + (Math.random() - 0.5) * shake, p.z);
-    cam.rotation.set(p.pitch, p.yaw, 0);
-    // flying: the view widens a little with speed, and you feel the air
-    const fov = 68 + (p.jet ? Math.min(16, Math.hypot(p.vx, p.vz) / 5) : 0);
-    // high up, push the near plane out so distant streets and roofs keep their depth precision
-    const near = p.interior ? 0.2 : Math.max(0.2, Math.min(6, (cam.position.y - Math.max(0, this.city.heightAt(p.x, p.z)) - 3) * 0.03));
+    const p = this.player, cam = this.camera, R = this.renderer, V = this.vehicles;
+    if (V.driving) V.camera(cam, this.input, dt);
+    else {
+      cam.position.set(p.x, p.eye(this.settings.reduced), p.z); cam.rotation.set(p.pitch, p.yaw, 0);
+      if (p.jet && !this.settings.reduced) { const w = Math.min(1, Math.hypot(p.vx, p.vz) / 150) * 0.004; cam.rotation.x += (Math.random() - 0.5) * w; cam.rotation.z = (Math.random() - 0.5) * w; }
+    }
+    const spd = V.driving ? Math.abs(V.driving.speed) : p.jet ? Math.hypot(p.vx, p.vz) : 0;
+    const fov = 68 + (this.settings.reduced ? 0 : Math.min(22, spd / (V.driving ? 3 : 7)));
+    const agl = cam.position.y - Math.max(0, this.city.heightAt(cam.position.x, cam.position.z));
+    const near = Math.max(0.2, Math.min(8, (agl - 3) * 0.03));
     if (Math.abs(cam.fov - fov) > 0.05 || Math.abs(cam.near - near) > 0.02) { cam.fov += (fov - cam.fov) * Math.min(1, dt * 3); cam.near = near; cam.updateProjectionMatrix(); }
-    if (p.jet && !this.settings.reduced) { const w = Math.min(1, Math.hypot(p.vx, p.vz) / 70) * 0.004; cam.rotation.x += (Math.random() - 0.5) * w; cam.rotation.z = (Math.random() - 0.5) * w; }
-    U.uCamPos.value.copy(cam.position);
-    this.sky.position.copy(cam.position);
-    // storybook lights follow the painted sky
+    if (this.grade) this.grade.uniforms.uSpeed.value = this.settings.reduced ? 0 : Math.min(1, Math.max(0, spd - 25) / 90);
+    U.uCamPos.value.copy(cam.position); this.sky.position.copy(cam.position);
     this.sun.position.copy(cam.position).addScaledVector(U.uSunDir.value, 500); this.sun.target.position.copy(cam.position);
     this.sun.color.copy(U.uSunColor.value); this.sun.intensity = 2.4 * (1 - U.uNight.value * 0.8);
     this.hemi.color.copy(U.uAmbient.value).multiplyScalar(2.3); this.hemi.groundColor.copy(U.uGroundBounce.value).multiplyScalar(2.0);
     this.hsun.color.copy(this.sun.color); this.hsun.intensity = this.sun.intensity; this.hsun.position.set(U.uSunDir.value.x, U.uSunDir.value.y, U.uSunDir.value.z);
     this.hhemi.color.copy(this.hemi.color); this.hhemi.groundColor.copy(this.hemi.groundColor);
-    R.setClearColor(p.interior ? 0x05080a : U.uFogColor.value, 1);
-    if (this.shadows && !p.interior) {
-      // centre the shadow map a little ahead of where you look, so more of what you see is covered
-      const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), c = this.shadowCenter || (this.shadowCenter = new THREE.Vector3());
+    R.setClearColor(U.uFogColor.value, 1);
+    if (this.shadows) {
+      const fx = -Math.sin(this.viewYaw()), fz = -Math.cos(this.viewYaw()), c = this.shadowCenter || (this.shadowCenter = new THREE.Vector3());
       c.set(p.x + fx * this.shadows.R * 0.45, p.y, p.z + fz * this.shadows.R * 0.45);
-      this.shadows.update(this.scene, c, U.uSunDir.value, [this.sky, this.water, this.streets, this.backdrop, this.markerGroup, this.beacon, this.terrain]);
+      this.shadows.update(this.scene, c, U.uSunDir.value, [this.sky, this.streets, this.streams, this.markerGroup, this.beacon, this.terrain, this.raceGroup()].filter(Boolean));
     } else U.uShadowOn.value = 0;
-    if (this.composer) { this.bloom.strength = 0.28 + U.uNight.value * 0.5; this.composer.render(dt); }
+    if (this.composer) { this.bloom.strength = 0.26 + U.uNight.value * 0.5; this.composer.render(dt); }
     else { R.setRenderTarget(null); R.clear(); R.render(this.scene, cam); }
-    // hands: their own pass, never clipped by walls
-    this.hands.userData.setWeapon(s.weapons.length ? s.weapon : null);
-    this.hands.visible = this.started && !this.talk;
-    this.hands.userData.update({ t: this.t, swing: this.combat.swingT, block: this.combat.blocking, cast: this.combat.castT, speed: p.speed, bike: p.bike, light: Math.max(-1, Math.min(1, s.light / 4)) * (this.flags.slept ? 1 : 0.3), reduced: this.settings.reduced });
+    this.hands.userData.setWeapon(null);
+    this.hands.visible = false;   // empty-handed first person: nothing to hold up
+    this.hands.userData.update({ t: this.t, swing: 0, block: false, cast: 0, speed: p.speed, bike: false, light: 0, reduced: this.settings.reduced });
     R.clearDepth(); R.render(this.handsScene, this.handsCam);
   }
 }
 
 const game = new Game();
-window.__undertow = game; game.__THREE = THREE;   // for testing
-// installed app: work offline once visited
+window.__anil = window.__undertow = game; game.__THREE = THREE;   // for testing
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.claude) navigator.serviceWorker.register('sw.js').catch(() => {});

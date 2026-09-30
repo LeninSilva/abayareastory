@@ -29,7 +29,7 @@ export class Audio {
     this.windF.frequency.setTargetAtTime(300 + Math.sin(env.t * 0.21) * 150 + env.height, now, 1);
     this.surfG.gain.setTargetAtTime(env.sea * 0.12 * (0.7 + 0.3 * Math.sin(env.t * 0.5)), now, 0.5);
     this.nextHorn -= dt;
-    if (this.nextHorn < 0 && env.fog > 0.3) { this.horn(); this.nextHorn = 40 + Math.random() * 50; }
+    if (!env.noHorn && this.nextHorn < 0 && env.fog > 0.3) { this.horn(); this.nextHorn = 40 + Math.random() * 50; }
     this.nextChord -= dt;
     if (this.nextChord < 0) { this.chord(env.night, env.under); this.nextChord = 9 + Math.random() * 5; }
   }
@@ -67,6 +67,25 @@ export class Audio {
     this.jetF.frequency.setTargetAtTime(300 + level * 1500, now, 0.2);
     this.jetO.frequency.setTargetAtTime(40 + level * 40, now, 0.2);
   }
+  // a car engine: a growl that climbs with speed
+  engine(rev, load) {
+    if (!this.ctx) return; const c = this.ctx, now = c.currentTime;
+    if (!this.engG) {
+      if (rev <= 0 && load <= 0) return;
+      const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 40; const o2 = c.createOscillator(); o2.type = 'square'; o2.frequency.value = 80;
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 300; f.Q.value = 2;
+      this.engG = c.createGain(); this.engG.gain.value = 0; o.connect(f); const g2 = c.createGain(); g2.gain.value = .3; o2.connect(g2); g2.connect(f); f.connect(this.engG); this.engG.connect(this.fxBus); o.start(); o2.start();
+      this.engO = o; this.engO2 = o2; this.engF = f;
+    }
+    const on = rev > 0 || load > 0;
+    this.engG.gain.setTargetAtTime(on ? 0.06 + load * 0.05 : 0, now, 0.1);
+    const f = 38 + rev * 150 * (1 - 0.35 * ((rev * 4) % 1)); // gear changes
+    this.engO.frequency.setTargetAtTime(f, now, 0.08); this.engO2.frequency.setTargetAtTime(f * 2.01, now, 0.08); this.engF.frequency.setTargetAtTime(250 + rev * 900, now, 0.1);
+  }
+  crash(k) { this.noiseHit(0.35, 300, 0.3 * k + 0.1, 0.8); this.tone(55, 0.3, 'square', 0.12 * k); }
+  hornCar() { this.tone(415, 0.5, 'square', 0.06); this.tone(523, 0.5, 'square', 0.05); }
+  // the bells of San Francisco: the hour, struck on a bronze bell
+  bells(n) { for (let i = 0; i < n; i++) setTimeout(() => { [196, 392, 466, 587].forEach((f, k) => this.tone(f, 3.5, 'sine', 0.06 / (1 + k * 0.6), this.fxBus, 0.005, true)); }, i * 1700); }
   jetStart() { this.noiseHit(0.5, 600, 0.25, 0.6); this.tone(60, 0.5, 'sawtooth', 0.08); }
   step(surface) { this.noiseHit(0.08, surface === 'stone' ? 1800 : 900, 0.06, 2); }
   swing() { this.noiseHit(0.18, 2400, 0.08, 0.7); }

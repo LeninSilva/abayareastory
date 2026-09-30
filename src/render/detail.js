@@ -8,7 +8,7 @@ import { landmarkMaterial } from './shaders.js';
 import { boxInstances, BASE_DROP } from './buildings.js';
 import { LAMP_SP, LAMP_PH, LAMP_MINW, LAMP_REACH } from './ground.js';
 
-const SW = 3.2;
+const SW = 1.6;
 const hash = (a, b = 0, c = 0) => { let h = (a * 374761393 + b * 668265263 + c * 2147483647) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 const CAR_COLORS = [0xe8e8e6, 0xe8e8e6, 0x1a1a1c, 0x1a1a1c, 0x9aa0a6, 0x9aa0a6, 0x5a6068, 0x23324a, 0x7a1c1c, 0x2d4a3a, 0xc8b89a, 0x3a6a8a, 0xb03020, 0x4a4a52];
 
@@ -111,7 +111,7 @@ export function makeDetail(city, renderer, quality) {
   const bars = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 32; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 3); g.fillRect(0, 29, 64, 3); for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 2, 32); const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; return t; })();
   const rail = landmarkMaterial({ color: 0x2b2b2e, map: bars, alphaTest: 0.5, side: THREE.DoubleSide, metalness: 0.4, roughness: 0.6 });
   const canvasMat = landmarkMaterial({ color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide });
-  const lampPole = landmarkMaterial({ color: 0x6a6e70, metalness: 0.6, roughness: 0.45 });
+  const lampPole = landmarkMaterial({ color: 0x9a968e, roughness: 0.85 });   // concrete utility poles
   const lampGlow = new THREE.MeshBasicMaterial({ color: 0xfff1d6, fog: false });
   // instanced parts with a fixed capacity
   const inst = (geo, mat, cap, color) => { const m = new THREE.InstancedMesh(geo, mat, cap); m.count = 0; m.frustumCulled = false; if (color) m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); group.add(m); return m; };
@@ -122,9 +122,10 @@ export function makeDetail(city, renderer, quality) {
     plat: inst(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0), iron, 3000),               // fire escape landings and ladders
     rail: inst(new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0), rail, 3000),
     awning: inst(new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5), canvasMat, 3000, true),
-    pole: inst(mergeGeometries([new THREE.CylinderGeometry(0.07, 0.12, 8.4, 8).translate(0, 4.2, 0), new THREE.CylinderGeometry(0.2, 0.24, 0.5, 8).translate(0, 0.25, 0), new THREE.CylinderGeometry(0.045, 0.045, 1.95, 6).rotateZ(Math.PI / 2 - 0.08).translate(0.97, 8.5, 0)].map(strip)), lampPole, 2500),
+    pole: inst(mergeGeometries([new THREE.CylinderGeometry(0.1, 0.17, 9.2, 8).translate(0, 4.6, 0), new THREE.BoxGeometry(0.1, 0.1, 1.4).translate(0, 8.9, 0), new THREE.CylinderGeometry(0.04, 0.04, 1.95, 6).rotateZ(Math.PI / 2 - 0.08).translate(0.97, 8.2, 0)].map(strip)), lampPole, 2500),
     head: inst(mergeGeometries([new THREE.BoxGeometry(0.7, 0.16, 0.34).translate(0, 0, 0)].map(strip)), lampPole, 2500),
-    glow: inst(new THREE.BoxGeometry(0.56, 0.03, 0.26), lampGlow, 2500)
+    glow: inst(new THREE.BoxGeometry(0.56, 0.03, 0.26), lampGlow, 2500),
+    dish: inst(mergeGeometries([new THREE.SphereGeometry(0.38, 12, 6, 0, Math.PI * 2, 0, 0.9).rotateX(-Math.PI / 2 - 0.5), new THREE.CylinderGeometry(0.03, 0.03, 0.9, 5).translate(0, -0.45, 0)].map(strip)), prop, 1500)
   };
   const bays = boxInstances(new Array(CAP / 4).fill(0).map(() => ({ x: 0, y: -9999, z: 0, w: 1, h: 1, d: 1, ang: 0, style: 1, seed: 0, houses: 1, kind: 1 })));
   bays.count = 0; bays.frustumCulled = false; group.add(bays);
@@ -145,67 +146,55 @@ export function makeDetail(city, renderer, quality) {
   const CELL = 60, bgrid = new Map();
   city.buildings.forEach((b, i) => { const k = Math.floor(b.x / CELL) * 100000 + Math.floor(b.z / CELL); let a = bgrid.get(k); if (!a) bgrid.set(k, a = []); a.push(i); });
   const bcache = new Map(), hits = [];
+  // styles: 40 centro, 41 barrio, 42 obra negra, 43 comercio, 44 bodega, 45 escuela
   function dressBuilding(i) {
     const b = city.buildings[i], st = b.styleId, ca = Math.cos(b.ang), sa = Math.sin(b.ang), seed = b.seed / 255;
     const W = (lx, lz) => [b.x + lx * ca - lz * sa, b.z + lx * sa + lz * ca];
-    // the street side: the face whose outside lies in a street
     let side = 0, best = -1;
-    for (const sg of [1, -1]) { const [x, z] = W(0, sg * (b.d / 2 + 5)); for (const h of city.streetsAt(x, z, hits)) { const depth = h.half - Math.abs(h.d); if (depth > best) { best = depth; side = sg; } } }
-    const out = { bays: [], blocks: [], tanks: [], plats: [], rails: [], awnings: [] };
-    const inset = 1 - 0.012 * (0.3 + seed), fz = b.d / 2 * inset;
+    for (const sg of [1, -1]) { const [x, z] = W(0, sg * (b.d / 2 + 3)); for (const h of city.streetsAt(x, z, hits)) { const depth = h.half - Math.abs(h.d); if (depth > best) { best = depth; side = sg; } } }
+    const out = { bays: [], blocks: [], tanks: [], plats: [], rails: [], awnings: [], dishes: [] };
+    const fz = b.d / 2 * (1 - 0.01 * (0.3 + seed));
     const R = k => hash(i, k, 7);
-    const houses = Math.max(1, Math.min(b.houses, Math.floor(b.w / 5.5))), hw = b.w / houses;
-    const fh = (st >= 12 && st !== 16 && st !== 17) ? 3.9 : (st === 13 || st === 14) ? 3.8 : 3.15;
+    const houses = Math.max(1, Math.min(b.houses, Math.floor(b.w / 5))), hw = b.w / houses;
+    const fh = st === 40 || st === 45 ? 3.4 : st === 44 ? 5 : 3;
     const top = b.y + b.h;
-    const trim = st <= 2 ? 0xefe8d8 : st === 10 ? 0xd8cfbf : st === 11 ? 0xf0e6d0 : (st === 13 || st === 14) ? 0xcbc4b4 : st === 12 ? 0x8a7a6a : 0xdcd6c8;
     if (side) {
-      // cornice along the street face, with a deeper cap
-      if (st !== 5 && st !== 6 && st !== 7 && st !== 16) {
-        const [x, z] = W(0, side * (fz + 0.18));
-        out.blocks.push([x, top - 0.62, z, b.ang, b.w + 0.3, 0.62, 0.5, trim]);
-        const [x2, z2] = W(0, side * (fz + 0.3));
-        out.blocks.push([x2, top - 0.14, z2, b.ang, b.w + 0.5, 0.14, 0.72, trim]);
+      // a cantera cornice along the centro's fronts
+      if (st === 40) { const [x, z] = W(0, side * (fz + 0.15)); out.blocks.push([x, top - 0.55, z, b.ang, b.w + 0.2, 0.55, 0.4, 0xbfa294]); }
+      // iron balconies upstairs in the centro
+      if (st === 40 && b.floors >= 2) for (let k = 0; k < houses; k++) {
+        const cols = Math.max(1, Math.floor(hw / 3.4));
+        for (let c = 0; c < cols; c++) {
+          if (R(30 + k * 7 + c) < 0.35) continue;
+          const lx = -b.w / 2 + k * hw + (c + 0.5) * hw / cols, y = b.y + fh + 0.02, bw = hw / cols * 0.55;
+          const [x, z] = W(lx, side * (fz + 0.35)), [rx, rz] = W(lx, side * (fz + 0.68));
+          out.plats.push([x, y, z, b.ang, bw + 0.3, 0.1, 0.7]);
+          out.rails.push([rx, y + 0.1, rz, b.ang, bw + 0.3, 1.0]);
+        }
       }
-      // bay windows on the painted houses (and some Mission and mansion fronts)
-      if ((st === 1 || st === 2 || (st === 11 && R(1) < 0.5) || (st === 4 && R(1) < 0.6)) && b.h > fh + 3.5) {
+      // lonas: canvas awnings over the shops
+      if ((st === 43 || (st === 40 && R(4) < 0.5)) && b.h > 3) {
         for (let k = 0; k < houses; k++) {
-          const bw = (st === 4 ? 0.3 : 0.46) * hw, lx = -b.w / 2 + (k + 0.35) * hw, [x, z] = W(lx, side * (fz + 0.42));
-          out.bays.push({ x, y: b.y + fh, z, w: bw, h: b.h - fh - 0.95, d: 0.85, ang: b.ang, style: st, seed, houses: 1, hOff: k, yOff: BASE_DROP + fh, fullH: b.h + BASE_DROP, kind: 1 });
-        }
-      }
-      // fire escapes on the brick and apartment blocks
-      if ((st === 8 || st === 9 || st === 10 || st === 12) && R(2) < 0.55 && b.h > 9) {
-        const floors = Math.floor(b.h / fh), lx = (R(3) - 0.5) * (b.w - 5), wEsc = Math.min(3.2, b.w * 0.4);
-        for (let f = 1; f < floors; f++) {
-          const y = b.y + f * fh, [x, z] = W(lx, side * (fz + 0.55)), [rx, rz] = W(lx, side * (fz + 1.08));
-          out.plats.push([x, y, z, b.ang, wEsc, 0.06, 1.1]);
-          out.rails.push([rx, y, rz, b.ang, wEsc, 1.0]);
-          if (f + 1 < floors) { const [lx2, lz2] = W(lx + wEsc * 0.3, side * (fz + 0.8)); out.plats.push([lx2, y + 0.05, lz2, b.ang, 0.4, fh * 1.02, 0.06, 0.62]); }
-        }
-      }
-      // awnings over the shops
-      if ((st === 9 || st === 10 || st === 11 || (st === 13 && R(4) < 0.5) || (st === 14 && R(4) < 0.3)) && b.h > 6) {
-        const cols = Math.max(1, Math.round(b.w / 7));
-        for (let k = 0; k < cols; k++) {
-          if (R(10 + k) < 0.3) continue;
-          const cw = b.w / cols, lx = -b.w / 2 + (k + 0.5) * cw, [x, z] = W(lx, side * fz);
-          const c = st === 10 ? [0xa02818, 0x1e5a3c, 0xc8a030][Math.floor(R(20 + k) * 3)] : [0x7a1e1e, 0x1e3a5a, 0x2e4a2e, 0x5a4a3a, 0xa05a1e, 0x1a1a1a][Math.floor(R(20 + k) * 6)];
-          out.awnings.push([x, b.y + 3.15 * 0.74 + 0.25, z, b.ang + (side < 0 ? Math.PI : 0), cw * 0.86, 0.06, 1.4, c]);
+          if (R(10 + k) < 0.4) continue;
+          const lx = -b.w / 2 + (k + 0.5) * hw, [x, z] = W(lx, side * fz);
+          const c = [0x1e5aa0, 0xc02820, 0x2e7a3a, 0xd8a020, 0xe8e0d0, 0x7a2a6a][Math.floor(R(20 + k) * 6)];
+          out.awnings.push([x, b.y + 2.35, z, b.ang + (side < 0 ? Math.PI : 0), hw * 0.8, 0.05, 1.3, c]);
         }
       }
     }
-    // roofs: machinery downtown, tanks on the old brick, chimneys on the houses
-    const roofPt = (u, w) => W((u - 0.5) * (b.w - 2 - w), (R(u * 91) - 0.5) * (b.d - 4));
-    if (st === 8 || st === 12 || st === 13 || st === 14 || st === 15) {
-      const n = 1 + Math.floor(R(5) * 3);
-      for (let k = 0; k < n; k++) { const w = 1.2 + R(30 + k) * 1.8, [x, z] = roofPt(R(40 + k), w); out.blocks.push([x, top, z, b.ang, w, 0.9 + R(50 + k) * 1.2, w * (0.6 + R(60 + k) * 0.6), 0x8e9092]); }
-      if (R(6) < 0.5 && b.h > 14) { const [x, z] = roofPt(0.3 + R(7) * 0.4, 4); out.blocks.push([x, top, z, b.ang, 3.4, 3.0, 4.2, trim]); }
+    // the azotea: black tinacos on stands, rebar waiting for the next floor, satellite dishes
+    for (let k = 0; k < houses; k++) {
+      const lx = -b.w / 2 + (k + 0.5) * hw;
+      if (st !== 44 && st !== 45 && R(40 + k) < 0.82) {
+        const [x, z] = W(lx + (R(50 + k) - 0.5) * hw * 0.5, (R(60 + k) - 0.5) * (b.d - 3));
+        out.tanks.push([x, top, z, R(70 + k) < 0.85 ? 0x1a1a1c : 0x3a5a8a]);
+      }
+      if ((st === 42 || (st === 41 && R(80 + k) < 0.3)) && b.floors < 3) {
+        for (const [u, v] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) { const [x, z] = W(lx + u * (hw / 2 - 0.2), v * (b.d / 2 - 0.2)); out.plats.push([x, top, z, b.ang, 0.03, 0.9 + R(90 + k + u) * 0.8, 0.03]); }
+      }
+      if (st !== 44 && R(100 + k) < 0.22) { const [x, z] = W(lx + hw * 0.3, side * (b.d / 2 - 0.6)); out.dishes.push([x, top + 0.9, z, b.ang + (side < 0 ? Math.PI : 0)]); }
     }
-    if ((st === 9 || st === 10 || st === 12 || st === 8) && R(8) < 0.3 && b.h > 10) { const [x, z] = roofPt(0.2 + R(9) * 0.6, 3); out.tanks.push([x, top, z, 2.6 + R(11)]); }
-    if (st === 1 || st === 2 || st === 11 || st === 4) {
-      const n = st === 4 ? 2 : 1 + Math.floor(R(12) * 2);
-      for (let k = 0; k < n; k++) { const [x, z] = W((R(70 + k) - 0.5) * (b.w - 1.5), (R(80 + k) - 0.5) * (b.d - 3)); out.blocks.push([x, top, z, b.ang, 0.55, 1.1 + R(90 + k) * 0.6, 0.8, 0x8a4a3a]); }
-    }
+    if (st === 44) for (let k = 0; k < 2; k++) { const [x, z] = W((R(110 + k) - 0.5) * (b.w - 3), (R(120 + k) - 0.5) * (b.d - 3)); out.blocks.push([x, top, z, b.ang, 1.4, 0.9, 1.4, 0x8e9092]); }
     return out;
   }
 
@@ -216,7 +205,7 @@ export function makeDetail(city, renderer, quality) {
   const scache = new Map();
   function dressStreet(si) {
     const st = city.streets[si], out = { lamps: [], cars: [] };
-    if (st.width < LAMP_MINW) return out;
+    if (st.width < LAMP_MINW || st.kind !== 0) return out;
     const roadHalf = st.width / 2 - SW, pts = st.pts;
     const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
     const L = cum[cum.length - 1];
@@ -229,11 +218,11 @@ export function makeDetail(city, renderer, quality) {
       if (others(x, z, 0) || !city.isLand(x, z) || isReserved(x, z, 2)) continue;
       out.lamps.push([x, city.heightAt(x, z) + 0.3, z, Math.atan2(tx * side, -tz * side), roadHalf + 0.45 - (roadHalf - LAMP_REACH)]);
     }
-    if (roadHalf >= 5.4) {
+    if (roadHalf >= 2.8) {
       seg = 0;
-      for (let a = 6, n = 0; a < L - 6; a += 6.3, n++) for (const side of [-1, 1]) {
-        if (hash(si, n, side + 5) > 0.62) continue;
-        const [px, pz, tx, tz] = at(a), o = side * (roadHalf - 1.15), x = px + tz * o, z = pz - tx * o;
+      for (let a = 6, n = 0; a < L - 6; a += 5.6, n++) for (const side of roadHalf >= 5 ? [-1, 1] : [1]) {
+        if (hash(si, n, side + 5) > 0.55) continue;
+        const [px, pz, tx, tz] = at(a), o = side * (roadHalf - 1.05), x = px + tz * o, z = pz - tx * o;
         if (others(x, z, 6) || !city.isLand(x, z) || isReserved(x, z, 5)) continue;
         const dir = side > 0 ? 1 : -1, ang = Math.atan2(tz * dir, tx * dir);
         const y0 = city.heightAt(x - tx * dir * 2, z - tz * dir * 2), y1 = city.heightAt(x + tx * dir * 2, z + tz * dir * 2);
@@ -246,6 +235,9 @@ export function makeDetail(city, renderer, quality) {
 
   /* ---- rebuild around the player ---- */
   const liveColl = new Map();   // key → collider
+  const taken = new Set(), live = [], wires = [];
+  const wireGeo = new THREE.BufferGeometry(), wireLines = new THREE.LineSegments(wireGeo, new THREE.LineBasicMaterial({ color: 0x1a1a1a, transparent: true, opacity: 0.8 }));
+  wireLines.frustumCulled = false; group.add(wireLines);
   let cx = 1e9, cz = 1e9;
   function rebuild(px, pz) {
     cx = px; cz = pz;
@@ -259,10 +251,11 @@ export function makeDetail(city, renderer, quality) {
         let d = bcache.get(bi); if (!d) bcache.set(bi, d = dressBuilding(bi));
         for (const it of d.bays) bayItems.push(it);
         for (const [x, y, z, ang, w, h, dd, c] of d.blocks) put(P.block, x, y, z, ang, w, h, dd, c);
-        for (const [x, y, z, h] of d.tanks) { put(P.legs, x, y, z, 0, 1, 1.2, 1); put(P.tank, x, y + 1.2, z, 0, 2.6, h, 2.6, 0x6a5038); }
+        for (const [x, y, z, c] of d.tanks) { put(P.legs, x, y, z, 0, 1.4, 0.5, 1.4); put(P.tank, x, y + 0.5, z, 0, 1.1, 1.25, 1.1, c); }
         for (const [x, y, z, ang, w, h, dd, tilt] of d.plats) put(P.plat, x, y, z, ang, w, h, dd, undefined, tilt || 0);
         for (const [x, y, z, ang, w, h] of d.rails) put(P.rail, x, y, z, ang, w, h);
-        for (const [x, y, z, ang, w, h, dd, c] of d.awnings) put(P.awning, x, y, z, ang, w, h, dd, c, 0.32);
+        for (const [x, y, z, ang, w, h, dd, c] of d.awnings) put(P.awning, x, y, z, ang, w, h, dd, c, 0.3);
+        for (const [x, y, z, ang] of d.dishes) put(P.dish, x, y, z, ang, 1, 1, 1);
       }
     }
     // bays go through the facade shader
@@ -277,7 +270,7 @@ export function makeDetail(city, renderer, quality) {
     // streets near here
     const sis = new Set(), SC = city.segCell;
     for (let j = Math.floor((pz - RADIUS) / SC); j <= Math.floor((pz + RADIUS) / SC); j++) for (let i = Math.floor((px - RADIUS) / SC); i <= Math.floor((px + RADIUS) / SC); i++) { const a = city.segGrid.get(i * 100000 + j); if (a) for (let n = 0; n < a.length; n += 2) sis.add(a[n]); }
-    cars.begin();
+    cars.begin(); live.length = 0; wires.length = 0;
     const keep = new Set();
     for (const si of sis) {
       let d = scache.get(si); if (!d) scache.set(si, d = dressStreet(si));
@@ -285,18 +278,27 @@ export function makeDetail(city, renderer, quality) {
         if ((x - px) ** 2 + (z - pz) ** 2 > r2) return;
         put(P.pole, x, y, z, ang, 1, 1, 1);
         const hx = x + Math.cos(ang) * (arm + 0.2), hz = z + Math.sin(ang) * (arm + 0.2);
-        put(P.head, hx, y + 8.55, hz, ang, 1, 1, 1); put(P.glow, hx, y + 8.46, hz, ang, 1, 1, 1);
+        put(P.head, hx, y + 8.25, hz, ang, 1, 1, 1); put(P.glow, hx, y + 8.16, hz, ang, 1, 1, 1);
+        wires.push([x, y + 8.9, z, si, k]);
         const key = 'l' + si + ':' + k; keep.add(key); if (!liveColl.has(key)) liveColl.set(key, city.colliders.addCircle(x, z, 0.16, y - 1, y + 8.6, 'lamp'));
       });
       d.cars.forEach(([x, y, z, ang, pitch, kind, c], k) => {
         if ((x - px) ** 2 + (z - pz) ** 2 > r2) return;
-        cars.add(x, y, z, ang, pitch, kind, c);
-        const key = 'c' + si + ':' + k; keep.add(key);
+        const key = 'c' + si + ':' + k; if (taken.has(key)) return;
+        cars.add(x, y, z, ang, pitch, kind, c); live.push({ key, x, y, z, ang, pitch, kind, color: c }); keep.add(key);
         if (!liveColl.has(key)) { const K = cars.kinds[kind]; liveColl.set(key, city.colliders.addBox(x, z, K.L, K.W, ang, y - 1, y + (kind === 2 ? 2.2 : 1.6), 'car')); }
       });
     }
     for (const [key, c] of liveColl) if (!keep.has(key)) { city.colliders.remove(c); liveColl.delete(key); }
     cars.commit();
+    // overhead wires between every other pole (the ones on the same side of the street)
+    const wp = [];
+    for (let i = 0; i < wires.length; i++) for (let j = i + 1; j < Math.min(wires.length, i + 4); j++) {
+      const a = wires[i], b = wires[j]; if (a[3] !== b[3] || b[4] !== a[4] + 2) continue;
+      const L = Math.hypot(b[0] - a[0], b[2] - a[2]), N = 6;
+      for (let t = 0; t < N; t++) for (const u of [t / N, (t + 1) / N]) wp.push(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u - Math.sin(Math.PI * u) * L * 0.02, a[2] + (b[2] - a[2]) * u);
+    }
+    wireGeo.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3)); wireGeo.computeBoundingSphere();
     for (const m of Object.values(P)) { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
   group.userData.update = (px, pz, agl, night) => {
@@ -306,6 +308,10 @@ export function makeDetail(city, renderer, quality) {
     if (Math.hypot(px - cx, pz - cz) > RADIUS * 0.2) rebuild(px, pz);
   };
   group.userData.rebuild = rebuild;
+  /** The parked car nearest (x, z) within r, or null. */
+  group.userData.nearestCar = (x, z, r) => { let best = null, bd = r * r; for (const c of live) { const d = (c.x - x) ** 2 + (c.z - z) ** 2; if (d < bd) { bd = d; best = c; } } return best; };
+  /** Somebody drove this one away: stop drawing it where it was parked. */
+  group.userData.take = key => { taken.add(key); const c = liveColl.get(key); if (c) { city.colliders.remove(c); liveColl.delete(key); } cx = 1e9; };
   /** Keep these spots free of cars and lamps: [[x, z], ...]. Clears what was already placed. */
   group.userData.reserve = pts => {
     for (const [x, z] of pts) { const k = Math.floor(x / RC) * 100000 + Math.floor(z / RC); let a = reserved.get(k); if (!a) reserved.set(k, a = []); a.push([x, z]); }

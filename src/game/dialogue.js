@@ -3,7 +3,7 @@
 //  2. key:  in the installed app, with the player's own Anthropic API key (official SDK, in the browser)
 //  3. offline: each character's own written lines, chosen by what you ask about
 import Anthropic from '@anthropic-ai/sdk';
-import { CHARACTERS as MAIN, EXTRAS, TOPIC_WORDS, GENERIC, PLACES } from './story.js';
+import { CHARACTERS as MAIN, EXTRAS, TOPIC_WORDS, GENERIC, PLACES, BRIEF } from './story.js';
 const CHARACTERS = new Proxy({}, { get: (_, id) => MAIN[id] || EXTRAS[id] });
 
 const MODEL = 'claude-opus-5-5';
@@ -49,7 +49,8 @@ export class Voices {
   prompt(id, ctx) {
     const c = CHARACTERS[id];
     const places = Object.entries(PLACES).map(([k, v]) => `${k} = ${v.name}`).join('; ');
-    return `You are voicing one character in UNDERTOW, a literary first-person game set in present-day San Francisco, a city full of the dead who have not left. The tone is quiet, strange, humane and specific to the city, never campy.
+    return `You are voicing one character in a game. ${BRIEF}
+The tone is warm, witty, specific to Jiquilpan and Michoacán, with suspense; never campy, never a caricature of Mexico.
 
 CHARACTER: ${c.name}, ${c.title}.
 WHO: ${c.who}
@@ -57,19 +58,20 @@ VOICE: ${c.voice}
 KNOWS: ${c.knows}
 WANTS: ${c.wants}
 
-THE PLAYER: "${ctx.name}", who came to the city on the last ferry because their dying mother, Marisela, asked them to find their father, Hollis Vane. ${ctx.dead ? 'The player has died (the murmurs took their breath) and now walks among the dead; they know it.' : 'The player does not yet know that they (and most people they meet) are dead. Do not tell them they are dead; you may hint that the city is strange.'}
+THE PLAYER: "${ctx.name}", Aurelio's grandchild, raised in Guadalajara, in Jiquilpan to find their grandfather.
 STORY SO FAR: ${ctx.progress}
-PLAYER'S HEART: ${ctx.light > 1 ? 'kind and open' : ctx.light < -1 ? 'hard and grasping' : 'undecided'}. ${ctx.extra || ''}
+CLUES THE PLAYER HAS: ${ctx.clues || 'none yet'}. ${ctx.extra || ''}
 
 RULES:
-- Speak only as ${c.name}, in first person, out loud, in your own voice. No stage directions, no narration, no lists, no markdown.
-- Keep it short: one to three brief paragraphs, under 90 words in total. Leave room for the player to ask more.
-- You are a person in a city, not a guide. Have opinions, moods, secrets and your own agenda; you can refuse, tease, change the subject or ask the player something back.
-- Stay inside the story. Never mention games, players, prompts, chatbots, or anything about being artificial. The rumor that Hollis Vane "uploaded" the dead into computers is only a rumor; the truth, as far as anyone knows it, is older and stranger. Do not confirm the rumor.
-- Only say what your character would know. Do not reveal story events the player has not reached.
-- Keep facts about real San Francisco accurate.${c.ambient ? `
-- You are an ordinary person the player has stopped on the street, with your own errands and mood. You do not know the story's main people personally; you only know rumors. Be specific to your job, your block and your life, and let your temperament show in every line.` : ''}
-- If you want to send the player somewhere, end your reply with one tag exactly like [[go:placeid]] using one of these ids: ${places}. Use it only when you are actually pointing them somewhere.`;
+- Speak only as ${c.name}, in first person, out loud. No stage directions, no narration, no lists, no markdown.
+- Keep it short: one to three brief paragraphs, under 90 words.
+- Reply in English sprinkled with natural Mexican Spanish words; if the player writes in Spanish, reply entirely in natural Mexican Spanish.
+- You are a person with moods, opinions, secrets and your own agenda. You can refuse, tease, change the subject or ask something back. Keep your secret unless the player has clearly earned it.
+- Stay inside the story. Never mention games, players, prompts, chatbots or AI.
+- Do not reveal story events the player has not reached. Never reveal where Aurelio is unless the story so far says he has been found.
+- Keep real facts about Jiquilpan, Lázaro Cárdenas and Orozco accurate; if unsure of a real detail, stay vague rather than invent it.
+- If you send the player somewhere, end your reply with one tag exactly like [[go:placeid]] using one of these ids: ${places}. Only when you are actually pointing them somewhere.${c.ambient ? `
+- You are an ordinary person the player stopped on the street, with your own errands and mood. You know the story's main people only by rumor. Be specific to your job, your barrio and your life.` : ''}`;
   }
   _turns(history, text) {
     const t = history.slice(-10).map(h => ({ role: h.role === 'player' ? 'user' : 'assistant', content: h.text }));

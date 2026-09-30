@@ -1,7 +1,7 @@
 // First-person walker: terrain, bridge decks, stairs and solids; collision that always resolves;
 // and more than one way out if anything ever holds you.
-import { deckHeight } from '../render/landmarks.js';
 
+const deckHeight = () => -Infinity;   // no bridge decks in this town
 const R = 0.34, EYE = 1.62, STEP = 0.65, GRAV = 18;
 
 export class Player {
@@ -39,7 +39,7 @@ export class Player {
       const deck = deckHeight(x, z) > -Infinity && Math.abs(deckHeight(x, z) - y) < 3;
       const solid = this.city.colliders.floorAt(x, z, y, STEP).floor > -Infinity;
       if (!land && !deck && !solid) return null;
-      if (Math.abs(x) > this.city.half - 60 || Math.abs(z) > this.city.half - 60) return null;
+      const lim = this.city.walkHalf || this.city.half; if (Math.abs(x) > lim - 60 || Math.abs(z) > lim - 60) return null;
     }
     if (f > y + STEP) return null;
     return f;
@@ -129,21 +129,24 @@ export class Player {
      Buildings still stop you from the side; their roofs are somewhere to land. */
   _fly(dt, input) {
     const m = input.move(), boost = input.held('sprint'), up = input.held('jump'), down = input.held('descend');
-    const H = boost ? 72 : 24, V = boost ? 34 : 14;
+    // fast: cruise at 140 km/h; hold boost and it winds up to nearly 600 km/h
+    this.boostT = boost && m.y > 0.2 ? Math.min(4, (this.boostT || 0) + dt) : Math.max(0, (this.boostT || 0) - dt * 3);
+    const H = boost ? 45 + Math.min(1, this.boostT / 3.5) ** 1.5 * 115 : 38, V = boost ? 55 : 20;
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw), rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const floor0 = this.flyFloor(this.x, this.z, this.y), agl = this.y - floor0;
     let tvx = (fx * m.y * cp + rx * m.x) * H, tvz = (fz * m.y * cp + rz * m.x) * H;
     let tvy = (m.y > 0 ? m.y * sp * H * 0.8 : 0) + (up ? V : 0) - (down ? V * (agl > 60 ? 2 : 1) : 0);
     if (this.jetLanding) { tvy = -Math.min(40, 5 + agl * 0.6); if (up) this.jetLanding = false; }
-    const acc = boost ? 1.6 : 2.4;
+    const acc = boost ? 1.2 : 2.2;
     this.vx += (tvx - this.vx) * Math.min(1, acc * dt); this.vz += (tvz - this.vz) * Math.min(1, acc * dt);
     this.vy += (tvy - this.vy) * Math.min(1, 3 * dt);
-    this.thrust = Math.min(1, 0.35 + Math.hypot(this.vx, this.vz) / 80 + Math.max(0, this.vy) / 30 + (boost ? 0.3 : 0));
+    this.thrust = Math.min(1, 0.35 + Math.hypot(this.vx, this.vz) / 160 + Math.max(0, this.vy) / 50 + (boost ? 0.3 : 0));
     const sx = this.x, sz = this.z;
-    const dist = Math.hypot(this.vx, this.vz) * dt, n = Math.max(1, Math.ceil(dist / 0.5));
+    const stepLen = Math.max(0.5, Math.min(8, (agl - 25) * 0.25));   // high above the roofs, bigger steps are safe
+    const dist = Math.hypot(this.vx, this.vz) * dt, n = Math.max(1, Math.ceil(dist / stepLen));
     for (let i = 0; i < n; i++) this._flyStep(this.vx * dt / n, this.vz * dt / n);
-    const y0 = this.y; this.y = Math.min(1600, this.y + this.vy * dt);
+    const y0 = this.y; this.y = Math.min(2600, this.y + this.vy * dt);
     { const [cx, cz] = this.city.colliders.resolve(this.x, this.z, R, this.y + 0.1, this.y + 1.75); this.x = cx; this.z = cz; }   // never come down inside anything
     const f = this.flyFloor(this.x, this.z, Math.max(y0, this.y));
     if (this.y <= f) {
@@ -162,7 +165,7 @@ export class Player {
     if (this.onGround && this.canLand(this.x, this.z)) this.lastSafe = [this.x, this.y, this.z];
   }
   _flyStep(dx, dz) {
-    const lim = this.city.half - 80;
+    const lim = (this.city.flyHalf || this.city.half) - 80;
     const tryMove = (nx, nz) => {
       if (Math.abs(nx) > lim || Math.abs(nz) > lim) return false;
       const [cx, cz] = this.city.colliders.resolve(nx, nz, R, this.y + 0.1, this.y + 1.75);

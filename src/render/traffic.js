@@ -1,7 +1,7 @@
 // Traffic: cars driving the real streets around you, in the right-hand lane, stopping for you and for each other.
 import { CarKit } from './detail.js';
 
-const SW = 3.2;
+const SW = 1.6;
 const COLORS = [0xe8e8e6, 0x1a1a1c, 0x9aa0a6, 0x5a6068, 0x23324a, 0x7a1c1c, 0xe8e8e6, 0x2d4a3a, 0xd8c030, 0x3a6a8a];
 
 export class Traffic {
@@ -12,14 +12,14 @@ export class Traffic {
     this.cars = []; this.t = 0;
   }
   _spawn(px, pz) {
-    const sts = this.near(px, pz, 220).filter(s => s.width / 2 - SW >= 3.5 && s.pts.length > 1);
+    const sts = this.near(px, pz, 220).filter(s => s.kind === 0 && s.width / 2 - SW >= 2.6 && s.pts.length > 1);
     if (!sts.length) return;
     const st = sts[Math.floor(Math.random() * sts.length)], i = Math.floor(Math.random() * (st.pts.length - 1));
     const [ax, az] = st.pts[i], d0 = Math.hypot(ax - px, az - pz);
     if (d0 < 70 || d0 > 230) return;
-    const roadHalf = st.width / 2 - SW, parking = roadHalf >= 5.4;
+    const roadHalf = st.width / 2 - SW, parking = roadHalf >= 5;
     const kind = Math.random() < 0.55 ? 0 : Math.random() < 0.8 ? 1 : 2;
-    this.cars.push({ st, i, u: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, lane: Math.max(1.6, roadHalf - (parking ? 4.0 : 1.9)), v: 6, cruise: 8 + Math.random() * 5, kind, color: COLORS[Math.floor(Math.random() * COLORS.length)], x: ax, z: az, ang: null });
+    this.cars.push({ st, i, u: Math.random(), dir: Math.random() < 0.5 ? 1 : -1, lane: roadHalf < 4.2 ? 0 : Math.max(1.5, roadHalf - (parking ? 3.2 : 1.7)), v: 6, cruise: 8 + Math.random() * 5, kind, color: COLORS[Math.floor(Math.random() * COLORS.length)], x: ax, z: az, ang: null });
   }
   update(dt, player, night) {
     const px = player.x, pz = player.z;

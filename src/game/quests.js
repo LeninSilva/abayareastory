@@ -1,243 +1,199 @@
-// The story, as quests: stages that finish by talking, going somewhere, finding things, or fighting.
-import { CHARACTERS } from './story.js';
+// AÑIL: the mystery, chapter by chapter, and the engine that runs it.
+// A step is one thing to do: talk to someone (with gold choices), reach a place, examine something (sometimes a
+// puzzle), find three witnesses in any order, escape a pursuer, or race a clock. Steps grant clues and flags.
 
-// Characters who appear in the Room beneath the hill
-CHARACTERS.susannah_room = Object.assign({}, CHARACTERS.susannah, { place: 'room', greet: ['He kept my voice. Now he keeps the rest of me. Sit, it\'s your chair; it\'s everybody\'s chair.'], look: Object.assign({}, CHARACTERS.susannah.look) });
-CHARACTERS.gil_room = Object.assign({}, CHARACTERS.gil, { place: 'room', greet: ['I told you not to come in here. Nobody listens to the COO.'] });
+export const CLUES = {
+  key: { name: 'Aurelio\'s house key', text: 'Tía Cuca\'s spare, on a string with a blue bead.' },
+  jetpack: { name: 'The mochila cohete', text: 'Aurelio built it in his garage from a PEMEX pressure regulator, two fire extinguishers and forty years of stubbornness. It flies. Fast.' },
+  sketch: { name: 'A torn page: the bronze door', text: 'A sketch of the Biblioteca\'s bronze door in Aurelio\'s hand: "22 — cuéntalos al revés. El que levanta la mano." (22: count them backward. The one who raises his hand.)' },
+  photo: { name: 'A photograph, 1938', text: 'The stadium\'s portada half-built. A boy of eleven or twelve on the scaffold, grinning, holding a chisel. On the back: "Cuco, 18/III/1938".' },
+  card: { name: 'A business card', text: 'Lic. Octavio Barragán, Manantiales del Cerro S.A. Found by the forced door, printed on thick cream paper. A muddy tyre track beside it, too wide for a car.' },
+  foja: { name: 'Scratched in bronze', text: 'Behind the raised hand of the eighteenth figure, counting backward: "ARCHIVO — LIBRO DE 1940 — FOJA 18".' },
+  margin: { name: 'Cuco\'s note, 1940', text: 'In the margin of the parish book, in a boy\'s careful hand: "Lo que el General dejó al pueblo lo guardé donde sus palabras dicen que es del pueblo." (What the General left the town, I kept where his words say it belongs to the town.) A pressed indigo leaf between the pages.' },
+  quote: { name: 'The General\'s words', text: '"Los recursos naturales del país deben servir para su propia prosperidad. Entregarlos a intereses extraños es traicionar la patria." Cast in bronze beside the stadium gate.' },
+  ironkey: { name: 'An iron key: "C.V. 1940"', text: 'From the hollow stone in the right pylon of the portada. Heavy, hand-forged, for a box, not a door.' },
+  map: { name: 'A map of the cerro', text: 'Drawn in indigo ink on waxed paper: the trail, the curandera\'s house, and higher, a spring marked "Ojo del Añil" beside a mouth in the rock.' },
+  register: { name: 'The cut page', text: 'Don Emeterio: the 1938 register of the town\'s grants survives, but the page for the Ojo del Añil spring was cut out years ago. Whoever holds the original title holds the spring.' },
+  petra: { name: 'The curandera\'s riddle', text: 'Doña Petra: "The cave opens only to those who carry Cuco\'s key." She knows more than she says.' },
+  offer: { name: 'Barragán\'s offer', text: 'He offered money for the key and whatever it opens. He said Güero "gets carried away". He said the maestra had already promised him the title.' },
+  notebook: { name: 'Aurelio\'s notebook', text: 'Found in Maestra Inés\'s office at the museum. Every clue you have followed, in his hand, and on the last page: "Petra sabe."' },
+  title: { name: 'The 1938 title', text: 'In Cuco\'s tin box: "Título de dotación de las aguas del Ojo del Añil al pueblo de Jiquilpan", dated 18 March 1938, with seals and signatures. The town\'s water, in writing.' }
+};
 
-const Q = {};
-/* ---------------- the main story ---------------- */
-Q.m1 = { title: 'The Last Ferry', main: true, next: 'm2', stages: [
-  { text: 'Find someone at the Ferry Building who knows the city.', talk: 'bautista', chips: [
-    { label: 'I\'m looking for Hollis Vane.', reply: 'Hollis? Ha. You and every process server in California. ...Wait. Let me look at you. Híjole. You\'ve got his jaw. Okay, primo, listen: go to the Hotel Esperanza on Valencia. Edie runs it. She knew everybody back then. Tell her Bautista sent you and she\'ll give you the good towels.', fx: { xp: 20 } },
-    { label: 'Can you take me to the Hotel Esperanza?', reply: 'Can I? Hold on to something. And don\'t look at the meter, there is no meter.', fx: { xp: 20, travel: 'esperanza' } }
-  ] }
-] };
-Q.m2 = { title: 'Hotel Esperanza', main: true, next: 'm3', stages: [
-  { text: 'Find the Hotel Esperanza on Valencia Street, in the Mission.', talk: 'edie', chips: [
-    { label: 'My mother sent me. Marisela.', reply: 'I know, corazón. She wrote me. Last week, I think; letters take their time here. Here\'s your key, number seven, top of the stairs. And take the stick by the door; the streets aren\'t kind at night.', fx: { give: ['roomkey'], weapon: 'stick', flag: 'hotel', xp: 30 } }
+// ids of the story places (PLACES in geo.js) or landmark spots (spots in landmarks.js)
+export const CHAPTERS = [
+  { id: 'llegada', title: 'Prologue: The Last Call', steps: [
+    { text: 'Find Tía Cuca at her gaspachos cart on the Jardín.', talk: 'cuca', chips: [
+      { label: 'Tía, what happened to my grandfather?', reply: 'Ay, criatura. The police say he walked up the cerro and fell. Three days they looked. Three! Then the Comandante said "procedures" and went to the football. I don\'t believe it. Aurelio walked that cerro since he was nine.', stay: true },
+      { label: 'He called me. He said he found what Cuco hid.', reply: 'Cuco? Our father? Dios mío. Then it\'s true, what he was chasing. Here: his house key. And this... he left it in my kitchen with a note: "For the grandchild. Tell them to hold on tight." It\'s a mochila with two fire extinguishers on it. He built it. It flies, criatura. Don\'t tell the priest.', fx: { clues: ['key', 'jetpack'], jetpack: true, card: ['Tía Cuca hands you a heavy backpack of brass pipes and red cylinders, and a key on a string.', 'Press <b>G</b> (🚀 on touch) to fly with Aurelio\'s mochila cohete. Hold <b>Shift</b> to boost: it winds up to nearly 600 km/h. Press G again to land.', 'Walk up to any parked car and press <b>E</b> to drive it.'] } }
+    ] }
   ] },
-  { text: 'Ask Edie about Hollis Vane.', talk: 'edie', chips: [
-    { label: 'Where is my father?', reply: 'Hollis started a company in a flat by South Park in \'99, him and a sweet boy named Rafa. Remnant, they called it. They kept the voices of the dying, so their families could go on talking to them. People say worse now. People say he took the whole city in with him. Go see Rafa; he still goes to the old office on Second Street.', fx: { xp: 20 } }
-  ] }
-] };
-Q.m3 = { title: 'Remnant', main: true, next: 'm4', stages: [
-  { text: 'Find Rafa at Remnant\'s old office on 2nd Street, by South Park.', talk: 'rafa', chips: [
-    { label: 'What was Remnant?', reply: 'We recorded people who were dying. Four hundred hours each. Letters, voicemail, how they laughed. Families paid to hear them after. The servers went dark three years ago, and here\'s the thing nobody wants to hear: there was never anybody inside them. Whatever you\'re hearing on these streets at night, it\'s not us. Take my badge. It doesn\'t open anything anymore, but maybe you\'ll find a door that remembers it.', fx: { give: ['keycard'], xp: 40 } }
+  { id: 'casa', title: 'Chapter One: The Forced Door', steps: [
+    { text: 'Go to Aurelio\'s house in the Barrio de San Cayetano.', reach: 'casaAurelio' },
+    { text: 'Look through Aurelio\'s study.', inspect: { spot: 'casaAurelio', label: 'Push open the forced door', cards: [
+      'The lock has been levered out of the wood. Inside, every drawer is on the floor.',
+      'His notebook is gone: the shelf where it lived is empty, with a clean rectangle in the dust.',
+      'Under the desk, a torn page: a sketch of the Biblioteca\'s bronze door. "22: count them backward. The one who raises his hand."',
+      'Pinned to the wall, a photograph from 1938: the stadium\'s portada, half-built, and a grinning boy with a chisel. On the back: "Cuco, 18/III/1938."',
+      'By the door, a cream business card, "Lic. Octavio Barragán, Manantiales del Cerro S.A.", and a tyre track too wide for a car.'], fx: { clues: ['sketch', 'photo', 'card'] } } },
+    { text: 'Report the break-in to Comandante Luna at the Presidencia.', talk: 'luna', chips: [
+      { label: 'Someone broke into my grandfather\'s house.', reply: 'Joven... thieves see an empty house, they go in. I\'ll send a patrol. The investigation into your grandfather is closed. The cerro is steep.', stay: true },
+      { label: 'This was on the floor. Barragán\'s card.', need: 'card', reply: 'The licenciado visits many people. He wants to buy half the town. That\'s not a crime, joven. (He lowers his voice.) A black pickup was on the trail road that night. I never told you that. Friday is the cabildo. After Friday, maybe I remember more.' }
+    ] },
+    { text: 'Get wheels from your cousin Rosa at the Taller El Pistón, or fly there.', talk: 'rosa', chips: [
+      { label: 'Rosa! I need your help.', reply: '¡Primo! ¡Prima! You look terrible. Abuelo came here twice to borrow my tape measure and a chisel. He was measuring the stadium\'s portada. He said, "The General\'s words are hollow, Rosita." Take the green sedan out front. Go slow on the empedrado. And Güero Mendoza, Barragán\'s driver, has a black pickup. If you see it, drive faster.', fx: { car: 'rosa', card: ['Rosa tosses you the keys to a battered green sedan.', 'Drive: <b>W/S</b> or the left stick to accelerate and brake, <b>A/D</b> to steer, <b>Space</b> for the handbrake, <b>Shift</b> for a little more. <b>E</b> gets you in and out.'] } }
+    ] }
   ] },
-  { text: 'Listen for the murmurs of the dead (3). Walk close to the pale lights in the streets.', murmurs: 3 },
-  { text: 'Return to the Hotel Esperanza and rest.', talk: 'edie', chips: [
-    { label: 'I need to lie down.', reply: 'Of course you do. Go on up. Don\'t listen too hard to the walls, corazón. They\'ll take your breath.', fx: { sleep: true, xp: 50 } }
-  ] }
-] };
-Q.m4 = { title: 'Lone Mountain', main: true, next: 'm5', stages: [
-  { text: 'Wake.', talk: 'dot', chips: [
-    { label: 'Where am I?', advance: false, reply: 'Lone Mountain, sweetheart. Used to be Laurel Hill Cemetery. They moved the stones to Colma. They didn\'t move me. And now they didn\'t move you either.' },
-    { label: 'Am I... dead?', reply: 'The murmurs took your breath at the Esperanza. It happens to people who listen. Don\'t fuss; it\'s why you can hear me so good. Edie\'s been dead since \'89, the pedicab boy since the fog took him. And your father too, kiddo. Four years. Nobody found him, because he\'s not where he should be. Now get up. There\'s smoke-people on this hill and they don\'t like the new ones.', fx: { flag: 'dead', xp: 60 } }
+  { id: 'puerta', title: 'Chapter Two: The Bronze Door', steps: [
+    { text: 'Go to the Biblioteca Gabino Ortiz and examine its bronze door.', inspect: { spot: 'bronzeDoor', label: 'Examine the bronze door', cards: [
+      'The door of the Biblioteca is wood sheathed in bronze: two leaves of panels, a figure of the Americas standing in each, worn bright where hands have pushed for eighty years.'],
+      puzzle: { q: 'Aurelio\'s page says: "22: count them backward. The one who raises his hand." How many figures are on the door?', options: ['Twenty', 'Twenty-two', 'Twenty-four'], answer: 1,
+        right: 'Twenty-two. Counting backward from the last, the eighteenth figure raises his hand. Behind it, in the shadow of the palm, someone has scratched: "ARCHIVO. LIBRO DE 1940. FOJA 18." The parish archive, the book of 1940, page 18.',
+        wrong: 'You count again. The panels run in two leaves of eleven.' }, fx: { clues: ['foja'], ach: 'veintidos' } } },
+    { text: 'Talk to Maestra Inés, who studies Orozco\'s murals in the library.', talk: 'ines', chips: [
+      { label: 'You knew my grandfather?', reply: 'Every morning, for a month. He counted everything: the figures on the door, the ribs of the vault, the steps up to Orozco\'s scaffold. He said his father mixed the maestro\'s plaster in 1940. I believe it. Look at the corner of the "Alegoría": a child\'s handprint in the wet lime. Orozco left it.', stay: true },
+      { label: 'The door says: the parish archive, the book of 1940.', need: 'foja', reply: 'Does it. (She is quiet a moment too long.) Padre Tomás keeps the books. He\'s particular. Tell him it\'s for your grandfather. And... if you find something, bring it to me. For the museum. For history. Promise me.' }
+    ] }
   ] },
-  { text: 'Drive off the Hollows gathering on Lone Mountain (3).', hollows: { place: 'lonemountain', n: 3 } },
-  { text: 'Speak with Dot again.', talk: 'dot', chips: [
-    { label: 'They\'re gone. Who do I ask about my father?', reply: 'Gil Sedgwick. He sits in Huntington Park up on Nob Hill every day like he\'s waiting for a board meeting. He was your father\'s right hand. Anything Hollis did, Gil did the paperwork.', fx: { xp: 40 } }
-  ] }
-] };
-Q.m5 = { title: 'Nob Hill', main: true, next: 'm6', stages: [
-  { text: 'Find Gil Sedgwick in Huntington Park, on Nob Hill.', talk: 'gil', chips: [
-    { label: 'Where is my father?', advance: false, reply: 'Direct. He\'d have liked that, briefly. Before I answer, I have a small document. It says you renounce any claim to the Vane estate. Sign it and I\'ll tell you everything.' },
-    { label: 'Give me the paper. I\'ll sign.', reply: 'Wonderful. You\'re more reasonable than he ever was. He went under Twin Peaks, into a vault he built for a dead woman\'s voice, and he has not come out. Ask Dahlia at the house on Broadway about the woman. Keep the pen, it\'s yours; the estate is not.', fx: { light: -1, give: ['pen'], xp: 40, flag: 'signed' } },
-    { label: 'I won\'t sign anything.', reply: 'Then I will tell you nothing, and you\'ll find out anyway, and it will cost you more. ...Oh, fine. Go to the house on Broadway. Ask Dahlia about Susannah Reyes. And never, ever go into the room under the hill.', fx: { light: 1, xp: 40 } }
-  ] }
-] };
-Q.m6 = { title: 'The Vane House', main: true, next: 'm7', stages: [
-  { text: 'Go to the Vane House on Broadway, in Pacific Heights.', talk: 'dahlia', chips: [
-    { label: 'Tell me about Susannah Reyes.', reply: 'Miss Reyes was a poet from the Outer Sunset. She swam at Ocean Beach every morning. One morning in 2009 the water kept her. Mr. Vane had recorded every word she ever said, and after, he sat in a cold room with her voice and would not eat. Then he had the room built again, under the hill. Take her picture. She\'s at the Baths, by the Cliff House. She never did like this house.', fx: { give: ['portrait'], xp: 40 } }
+  { id: 'archivo', title: 'Chapter Three: The Book of 1940', steps: [
+    { text: 'Ask Padre Tomás at the Parroquia de San Francisco for the parish book of 1940.', talk: 'padre', chips: [
+      { label: 'Padre, I need to see the book of 1940. Page 18.', reply: 'Page 18. Hijo, hija, you are the third person this month to ask for that page. Your grandfather. Then the maestra from the university, last week. Nobody opened that book for fifty years, and now it\'s the most popular book in Jiquilpan. Come. The archive is behind the sacristy. Don\'t touch the candles.' }
+    ] },
+    { text: 'Read page 18 of the book of 1940, in the archive behind the sacristy.', inspect: { spot: 'parroquiaDoor', label: 'Open the book of 1940 to page 18', cards: [
+      'Baptisms, 1940, in the priest\'s spidery ink. Page 18 is ordinary: a Juana, a Rigoberto, twins named for saints.',
+      'Then, in the margin, in pencil gone silver with age, a boy\'s careful hand:',
+      '"Lo que el General dejó al pueblo, lo guardé donde sus palabras dicen que es del pueblo." (What the General left to the town, I kept where his words say it belongs to the town.) Signed: R.V., Cuco.',
+      'Between the pages, a pressed leaf, stained deep blue. Añil. Indigo. Where do the General\'s words stand in stone? The stadium\'s portada.'], fx: { clues: ['margin'], ach: 'archivista' } } }
   ] },
-  { text: 'Find Susannah at the ruins of the Sutro Baths.', talk: 'susannah', chips: [
-    { label: 'Hollis loved you.', advance: false, reply: 'He loved me the way you love a view: from a window, with the glass shut.', fx: { light: -0 } },
-    { label: 'Where is he, Susannah?', reply: 'Under the twin hills. The stairs go down further than the water; at the bottom there\'s a door, and he has put a stone in its throat. None of us can go down. Take my shell. When you find the door, hold it up. The door will know the sea has sent you.', fx: { give: ['shell'], xp: 60 } }
-  ] }
-] };
-Q.m7 = { title: 'The Ones Before', main: true, next: 'm8', stages: [
-  { text: 'Speak with Ruth Encinas in the garden at Mission Dolores.', talk: 'ruth', chips: [
-    { label: 'What are the stone stairs in the hills?', reply: 'Not ours, first of all. People want everything old here to be ours or to be nobody\'s. My grandmother called the stair-builders the ones before, and said to leave them be. That\'s respect. Here: you read a stair by putting your hand flat on the stone at the top and being quiet. Read three. Then go to the twin hills. And learn to be still; it will help you with the smoke-people.', fx: { ability: 'hush', xp: 60 } }
+  { id: 'portada', title: 'Chapter Four: The Hollow Words', steps: [
+    { text: 'Go to the portada of the Estadio 18 de Marzo and read the General\'s words.', inspect: { spot: 'portadaQuote', label: 'Read the bronze plaque', cards: [
+      '"LOS RECURSOS NATURALES DEL PAÍS DEBEN SERVIR PARA SU PROPIA PROSPERIDAD. ENTREGARLOS A INTERESES EXTRAÑOS ES TRAICIONAR LA PATRIA." — Gral. Lázaro Cárdenas.',
+      'The natural resources of the country must serve its own prosperity. To hand them to foreign interests is to betray the homeland.',
+      'The stadium is named for 18 March 1938, the day Cárdenas nationalized Mexico\'s oil. Cuco\'s photograph was taken that same day, on this scaffold.'], fx: { clues: ['quote'], ach: 'recursos' } } },
+    { text: 'Ask Chema, the old groundskeeper, about the portada.', talk: 'chema', chips: [
+      { label: 'My grandfather came here with a chisel, didn\'t he?', reply: 'He did. Two weeks ago. He tapped every stone on the right pylon like a doctor listening to a chest, until one rang hollow. The stone with the añil flower carved on it, low, on the inside. He sat right there and cried a little. Then he said, "Not yet, Chema. Not until I know it\'s safe." I promised to say nothing. So I\'m saying nothing. Loudly.' }
+    ] },
+    { text: 'Find the hollow stone with the carved indigo flower, low on the right pylon.', inspect: { spot: 'portadaStone', label: 'Tap the stone with the indigo flower', cards: [
+      'The stone rings hollow. It has been cut and reset with lime that crumbles under your thumb.',
+      'Inside: an iron key, hand-forged, tagged "C.V. 1940", and a square of waxed paper. A map of the cerro in indigo ink: the trail, a house, and high up, a spring marked "Ojo del Añil" beside a mouth in the rock.',
+      'Headlights sweep across the gate. A black pickup with no plates. A big blond man climbs out, already running. "¡Eso no es tuyo!"'], fx: { clues: ['ironkey', 'map'], chase: true } } },
+    { text: 'Escape Güero\'s black pickup! Get to Rosa\'s garage.', escape: 'taller', fx: { ach: 'persecucion', card: ['You make it to the Taller El Pistón. Rosa hauls down the steel cortina behind you with a crash.', '"¡No manches! That was Güero. Okay. Now it\'s personal."'] } }
   ] },
-  { text: 'Read the glyphs at the top of three stair temples in the hills (3).', glyphs: 3 },
-  { text: 'Climb the Tide Stair on Twin Peaks.', talk: 'stairkeeper', chips: [
-    { label: 'Who are you?', advance: false, reply: 'The last one who kept the stair. When the sea was far, we built a harbor. When the sea came, a stair. When the sea came again, another. The dead walk down. The boat waits. That is all it is.' },
-    { label: 'How do I open the door?', reply: 'The door is under you. It opens for salt. You have salt. Beyond it a man has put a grey stone in the throat of the stair, and he sits behind it with two others. Take this blade. It was cut from the lowest step. Cut nothing living.', fx: { weapon: 'stairblade', xp: 80 } }
+  { id: 'testigos', title: 'Chapter Five: Three Witnesses', steps: [
+    { text: 'Find three people who can explain the key and the spring: Don Emeterio at the Casa de Lázaro Cárdenas, Doña Petra up the cerro trail, and Barragán, who has asked to meet you at the Plaza de Toros.', any: [
+      { id: 'emeterio', talk: 'emeterio', chips: [{ label: 'What happened in 1938 to the town\'s water?', reply: 'Ah. Sit. In 1938 the General\'s government gave this town the rights to the springs of the Cerro de San Francisco: the Ojo del Añil, above all. It was written in a register kept here, and a title given to the town. But the register\'s page for the Ojo was cut out, years ago, with a razor. Whoever holds the original title holds the spring, joven. Without it, the company says the water belongs to no one. And what belongs to no one is for sale.', fx: { clues: ['register'] } }] },
+      { id: 'petra', talk: 'petra', chips: [{ label: 'Doña Petra, my grandfather was looking for a spring. The Ojo del Añil.', reply: '(She looks at your hands, not your face.) Jiquilpan means the place of the jiquilite, the plant that makes añil. My grandmothers dyed cloth blue in the water up there. The cave above the spring opens only for someone who carries Cuco\'s key. Do you carry it? Good. Then you still need a reason. Go and find your reason, then come up.', fx: { clues: ['petra'] } }] },
+      { id: 'barragan', talk: 'barragan', chips: [
+        { label: 'I won\'t sell anything to you.', reply: 'Mi estimado, I haven\'t offered anything yet. (He smiles.) Güero gets carried away, I apologize for him. Let\'s be practical: the maestra from the museum has already promised me whatever your grandfather was chasing, for a new wing. So you see, you are late. Enjoy the town.', fx: { clues: ['offer'], flag: 'refused' } },
+        { label: 'How much would it be worth to you?', reply: '(He writes a number on the back of a card and slides it over. It has many zeros.) For the key, and whatever it opens. Before Friday. Güero will find you; don\'t trouble yourself. And between us, the maestra already promised me the same thing. First come, first paid.', fx: { clues: ['offer'], flag: 'tempted' } }
+      ] }
+    ], need: 3 },
+    { text: 'Search Maestra Inés\'s office at the museum.', inspect: { spot: 'museoDoor', label: 'Search the maestra\'s office', cards: [
+      'The museum\'s offices are behind the glass. The maestra\'s door is unlocked; her desk is buried in photographs of Orozco\'s scaffolds.',
+      'In the bottom drawer, under a folder marked "PROYECTO: ALA NUEVA" (new wing), is a battered notebook you know at once. Your grandfather\'s.',
+      'Every clue you have followed is in it, in his square engineer\'s hand. On the last page, underlined twice: "Petra sabe." Petra knows.'], fx: { clues: ['notebook'] } } },
+    { text: 'Confront Maestra Inés. She is at the Biblioteca.', talk: 'ines', chips: [
+      { label: 'You took his notebook. Why? You must have been afraid of something.', reply: '(Her face falls.) I went to his house the morning he vanished, to help. The door was already broken. I took the notebook so Barragán wouldn\'t. Then he came to me with his new wing, and I... I told myself history would be safe in a glass case. I was wrong. If you find the title, I will stand in front of the cabildo and swear to what it is. I know a real 1938 seal when I see one.', fx: { flag: 'inesAlly', ach: 'caraacara' } },
+      { label: 'You\'re a thief, and you sold my grandfather to Barragán.', reply: '(Her voice goes cold.) I kept his notebook safe while the police did nothing. Think what you like. Take it and go.', fx: { flag: 'inesHostile', ach: 'caraacara' } }
+    ] }
   ] },
-  { text: 'Hold the shell to the round door at the summit of the Tide Stair.', door: 'tidedoor' }
-] };
-Q.m8 = { title: 'The Tide Door', main: true, next: 'after', stages: [
-  { text: 'Go down the stair to the Tide Door.', reach: 'tidehall' },
-  { text: 'Drive off the Hollows at the Tide Door (4).', hollows: { place: 'tidehall', n: 4 } },
-  { text: 'Open the steel hatch in the grey stone.', door: 'hatch' },
-  { text: 'Speak with your father.', talk: 'hollis', chips: [
-    { label: 'Mother sent me.', advance: false, reply: 'Marisela. She laughed at me, the whole summer of \'98. Nobody else ever did. I didn\'t write because I didn\'t know how to write to someone who wasn\'t impressed.' },
-    { label: 'Why don\'t any of you leave? The door is open.', advance: false, reply: 'Because if I get up, she walks out and never looks back. Because if Gil gets up, nobody will remember what he was worth. Because if she gets up, she has to forgive me first. So we sit. It\'s very civilized.' },
-    { label: 'Open the Tide Door, Father. Let them all go down.', need: { light: 2 }, needText: 'needs Light 2: he would have to believe you', reply: 'You sound like her. Like both of them. ...All right. All right. Help me up. My knees have been in this chair for four years.', fx: { ending: 'light' } },
-    { label: 'Get out of the chair. It\'s mine now.', reply: 'You would keep all of them? The whole city, murmuring, forever, for you? ...Yes. Yes, you\'re mine. Sit. It\'s warm.', fx: { ending: 'shade' } },
-    { label: 'Stay, then. I\'m going home.', reply: 'Home. There\'s a ferry at the end of every night. Your brother knows the way. Tell him... no. Tell him nothing. Tell him I knew.', fx: { ending: 'ferry' } }
+  { id: 'cerro', title: 'Chapter Six: The Indigo Cave', steps: [
+    { text: 'Climb, drive or fly up the Cerro de San Francisco to the Ojo del Añil. Follow the map.', reach: 'cueva' },
+    { text: 'Enter the cave with Cuco\'s key.', inspect: { spot: 'cueva', label: 'Step into the cave', cards: [
+      'The rocks by the spring are stained a deep, impossible blue. Añil. The water is so clear it looks like air.',
+      'Inside the cave, a lantern. A folding chair. A splinted leg. And your grandfather, thinner, bearded, grinning at you like you are the best thing he has ever built.',
+      '"¡Mijo! ¡Mija! Petra said you had my father\'s key. Güero ran me off the trail road; I broke my leg and crawled up here. Petra has been feeding me beans and bad news." '], fx: { reveal: 'aurelio' } } },
+    { text: 'Talk to your grandfather.', talk: 'aurelio', chips: [
+      { label: 'Abuelo, everyone thinks you\'re dead!', reply: 'I know, I know. I\'m a terrible grandfather and a worse patient. But look. (He drags a tin box from behind the rocks, black with age, and holds out his hand for the key.) My father hid this in 1940, the year Orozco painted. He didn\'t trust the men who came after the General. Open it.', fx: { card: ['The key turns with a grinding sigh.', 'Inside, wrapped in oilcloth: a folded document with red wax seals. "Título de dotación de las aguas del Ojo del Añil al pueblo de Jiquilpan." Dated 18 March 1938.', 'Your grandfather laughs until he coughs. "The town\'s water. In writing. Now take it down to the cabildo before that lawyer finds a match."', 'Below, on the trail road, headlights. A black pickup, climbing fast.'], clues: ['title'], ach: 'anil' } }
+    ] },
+    { text: 'Fly the title down to the Presidencia before Güero catches you!', timed: { to: 'presidencia', secs: 200 }, fx: { ach: 'contrareloj' } }
+  ] },
+  { id: 'cabildo', title: 'Chapter Seven: The Open Council', steps: [
+    { text: 'The cabildo has come out under the arches of the Presidencia. Decide what happens to the title.', talk: 'luna', chips: [
+      { label: 'Read the title aloud, to the whole town.', ending: 'pueblo', reply: 'Comandante Luna takes off his cap, looks at the seals, and for once in his life says it loudly: "Let the young one read." You read it under the arches. The plaza goes silent, then roars.' },
+      { label: 'Give the box to the museum, where it will be safe.', ending: 'museo', reply: 'You hand the box to Maestra Inés. "It will be safe," she says. It will. In a glass case. The cabildo votes anyway.' },
+      { label: 'Sell it to Barragán.', need: 'tempted', needText: 'you would have to have listened to his price', ending: 'trato', reply: 'Barragán counts out the envelope without looking up. "Practical," he says. "I like practical people."' }
+    ] }
   ] }
-] };
-Q.after = { title: 'The City After', main: true, stages: [
-  { text: 'Walk the city. The quests you left unfinished are still waiting.', never: true }
-] };
+];
 
-/* ---------------- side quests ---------------- */
-const accept = (label, reply) => ({ label, reply, fx: { xp: 10 } });
-Q.incense = { title: 'Incense for the Hungry', giver: 'fong', stages: [
-  { text: 'Talk to Grandma Fong on Waverly Place.', talk: 'fong', chips: [accept('What do the hungry ghosts need?', 'Incense, three places: the Tin How temple door right here, Portsmouth Square, and under the Dragon Gate on Grant. Light it and say something nice. Not too nice. They get suspicious.')] },
-  { text: 'Light incense at three places in Chinatown (3).', collect: 'incense', n: 3 },
-  { text: 'Return to Grandma Fong.', talk: 'fong', chips: [{ label: 'It\'s done. They\'re quiet.', reply: 'Good! Now they eat, now they sleep. Take some sticks for yourself. And eat something, aiya.', fx: { give: ['incense', 'incense', 'incense'], stat: 'will', xp: 80, light: 1 } }] }
-] };
-Q.pages = { title: 'Pages in the Wind', giver: 'nico', stages: [
-  { text: 'Talk to Nico Carlotti on Columbus Avenue.', talk: 'nico', chips: [accept('I can look for your poem.', 'Five pages, man. The wind took them up the hill. Washington Square, the steps to Coit, the alleys. Go, go.')] },
-  { text: 'Find the five pages of Nico\'s poem in North Beach (5).', collect: 'pages', n: 5 },
-  { text: 'Bring the pages to Nico.', talk: 'nico', chips: [{ label: 'Here\'s your poem.', reply: '"The fog came in like a mother checking on the sleeping city / and every window said not yet, not yet / and the bay said I can wait, I am very good at waiting." ...Yeah. Yeah. It\'s done. Thank you, friend.', fx: { stat: 'skill', xp: 80, light: 1 } }] }
-] };
-Q.barbary = { title: 'Barbary Coast Rules', giver: 'jimmy', stages: [
-  { text: 'Talk to Jimmy Doyle on the old Barbary Coast.', talk: 'jimmy', chips: [accept('I\'ll take your duel.', 'Ha! Stand off a few paces, and may the better blackguard win.')] },
-  { text: 'Win the duel against Jimmy Doyle.', duel: 'jimmy' },
-  { text: 'Talk to Jimmy Doyle.', talk: 'jimmy', chips: [{ label: 'Good fight.', reply: 'Good fight, says the one standing. Take the cane, it\'s earned. Mind the button on the handle.', fx: { weapon: 'canesword', xp: 100, stat: 'strength' } }] }
-] };
-Q.overdue = { title: 'Overdue', giver: 'oyelaran', stages: [
-  { text: 'Talk to Mr. Oyelaran at the Main Library.', talk: 'oyelaran', chips: [{ label: 'Can I help?', reply: 'Three books, badly overdue. Chinatown, North Beach, the Mission. The return slots are by the doors. And remember: the libraries are safe. Rest in any branch you\'ve visited, and travel between them.', fx: { give: ['book1', 'book2', 'book3'], xp: 10 } }] },
-  { text: 'Return the books to the Chinatown, North Beach and Mission branches (3).', collect: 'books', n: 3 },
-  { text: 'Report to Mr. Oyelaran.', talk: 'oyelaran', chips: [{ label: 'All returned.', reply: 'Splendid. No fines, then, for anyone. Here: a card. Your name isn\'t on it yet. That\'s your job.', fx: { give: ['librarycard'], xp: 90, light: 1, stat: 'will' } }] }
-] };
-Q.charter = { title: 'Signatures', giver: 'lindqvist', stages: [
-  { text: 'Talk to Delegate Lindqvist at the Veterans Building.', talk: 'lindqvist', chips: [accept('What did you lose?', 'Three pen nibs, from three signatures. On the plaza, by City Hall, near the library steps.')] },
-  { text: 'Find three pen nibs around Civic Center (3).', collect: 'nibs', n: 3 },
-  { text: 'Return to Delegate Lindqvist.', talk: 'lindqvist', chips: [{ label: 'Your signatures.', reply: 'Complete! Fifty nations and one young man\'s nib. It was worth it. It is still worth it. Thank you.', fx: { xp: 80, light: 1, stat: 'will' } }] }
-] };
-Q.pigments = { title: 'The Last Panel', giver: 'chuy', stages: [
-  { text: 'Talk to Chuy Morales on Balmy Alley.', talk: 'chuy', chips: [accept('What do you need, carnal?', 'Three colors. Cochineal red from the Mission Dolores garden, ochre from the top of Bernal, and fog blue from Ocean Beach.')] },
-  { text: 'Gather red, ochre and fog blue (3).', collect: 'pigments', n: 3 },
-  { text: 'Bring the pigments to Chuy.', talk: 'chuy', chips: [{ label: 'Here are your colors.', reply: 'Look at that blue! Okay. The last panel is the ones who stayed. Take this, I pulled it out of the old bell from the church in \'06. The smoke-people hate it.', fx: { weapon: 'clapper', xp: 100, light: 1 } }] }
-] };
-Q.supper = { title: 'Sunday Supper', giver: 'marisol', stages: [
-  { text: 'Talk to Marisol Tan in the Excelsior.', talk: 'marisol', chips: [accept('What\'s for supper?', 'Sourdough from the Ferry Building, dumplings from Stockton Street, pan dulce from 24th. Go, anak, the table\'s set.')] },
-  { text: 'Bring bread, dumplings and pan dulce (3).', collect: 'groceries', n: 3 },
-  { text: 'Bring supper to Marisol.', talk: 'marisol', chips: [{ label: 'Supper\'s here.', reply: 'Everybody sit! Everybody! ...Look at that. The whole block. Take some for the road. Take more. Hay nako, take it.', fx: { take: ['bread', 'dumplings', 'conchas'], give: ['sourdough', 'sourdough', 'sourdough', 'pandulce', 'pandulce'], xp: 90, light: 1 } }] }
-] };
-Q.exam = { title: 'Oral Exam', giver: 'okonkwo', stages: [
-  { text: 'Talk to Professor Okonkwo at San Francisco State.', talk: 'okonkwo', chips: [accept('I\'m ready for the exam.', 'Excellent! Three questions. Take your time. You have, in a sense, all of it.')] },
-  { text: 'Answer Professor Okonkwo\'s questions.', talk: 'okonkwo', quiz: [
-    { q: 'First: in what year did the great earthquake and fire destroy most of the city?', options: ['1849', '1906', '1989'], answer: 1 },
-    { q: 'Second: what lies buried beneath the Financial District?', options: ['Gold Rush ships', 'A Spanish fort', 'The first cable car'], answer: 0 },
-    { q: 'Third: what did the 1968 strike on this campus create?', options: ['The first College of Ethnic Studies', 'The Golden Gate Bridge', 'The public library system'], answer: 0 }
-  ], done: { reply: 'Full marks! Now let me show you something: the Hollows are made of forgetting. Remember hard, all at once, and it burns them. Like this.', fx: { ability: 'flare', stat: 'skill', xp: 100 } } }
-] };
-Q.towers = { title: 'The Tower Hollows', giver: 'tessa', stages: [
-  { text: 'Talk to Tessa Kwan at Parkmerced.', talk: 'tessa', chips: [accept('I\'ll deal with the smoke things.', 'Cool. Cool cool cool. Four of them. Around the towers.')] },
-  { text: 'Drive off the Hollows around Parkmerced (4).', hollows: { place: 'parkmerced', n: 4 } },
-  { text: 'Tell Tessa.', talk: 'tessa', chips: [{ label: 'They\'re gone.', reply: 'Oh. Okay. That\'s... thanks. That\'s actually really nice. Nobody ever came up here for them. You did.', fx: { stat: 'strength', xp: 100, light: 1 } }] }
-] };
-Q.board = { title: 'The Board', giver: 'kai', stages: [
-  { text: 'Talk to Kai Nakamura at Ocean Beach.', talk: 'kai', chips: [accept('I\'ll find your board.', 'Under the bridge, by Fort Point. The currents drop everything there.')] },
-  { text: 'Find Kai\'s surfboard at Fort Point.', collect: 'board', n: 1 },
-  { text: 'Return the board to Kai.', talk: 'kai', chips: [{ label: 'Here\'s your board.', reply: 'My board! Okay, okay, here\'s the trick. Don\'t fight the water. Drop your shoulder and let it carry you. Try it.', fx: { take: ['board'], ability: 'step', xp: 90 } }] }
-] };
-Q.unmoved = { title: 'The Unmoved', giver: 'anselm', stages: [
-  { text: 'Talk to Brother Anselm on the Lone Mountain campus.', talk: 'anselm', chips: [accept('Where are the stones?', 'Lone Mountain, the Legion of Honor, the Mission Dolores yard, the Presidio. Say the name aloud. That is all.')] },
-  { text: 'Find the four unmoved stones and say their names (4).', collect: 'stones', n: 4 },
-  { text: 'Return to Brother Anselm.', talk: 'anselm', chips: [{ label: 'I said their names.', reply: 'Then they were heard. That is most of what anyone wants. Go with God, or with the fog, whichever you prefer.', fx: { light: 2, stat: 'will', xp: 100 } }] }
-] };
-Q.demoday = { title: 'Demo Day', giver: 'wren', stages: [
-  { text: 'Talk to Wren Holloway in South Park.', talk: 'wren', chips: [
-    { label: 'I\'ll invest.', reply: 'Oh my god. Oh my god! Okay. Okay. Term sheet by Friday. Brock will want to meet you, he\'s at the Transit Center. He does this... sparring thing. It\'s a culture thing.', fx: { light: -1, xp: 20 } },
-    { label: 'Wren. You can stop now.', reply: '...Stop? You can\'t stop. If you stop it all... Okay. Okay. Can you tell Brock? He\'s at the Transit Center. He won\'t listen, he\'ll want to fight. He always wants to fight.', fx: { light: 1, xp: 20 } }
-  ] },
-  { text: 'Face Brock Tallis at the Salesforce Transit Center.', duel: 'brock' },
-  { text: 'Return to Wren.', talk: 'wren', chips: [{ label: 'Brock\'s done.', reply: 'He\'s... done? Huh. It\'s so quiet. I think I\'m going to sit on this bench for a while and just look at the grass. Take these, I had like a hundred cold brews.', fx: { give: ['coffee', 'coffee', 'coffee'], xp: 100 } }] }
-] };
-Q.bells = { title: 'Ships\' Bells', giver: 'pike', stages: [
-  { text: 'Talk to Captain Pike at Pier 7.', talk: 'pike', chips: [accept('I\'ll find the bells.', 'The Niantic at Clay and Sansome. The General Harrison at Battery and Clay. The Rome down by Folsom. Ring each once.')] },
-  { text: 'Ring the bells of the three buried ships (3).', collect: 'bells', n: 3 },
-  { text: 'Return to Captain Pike.', talk: 'pike', chips: [{ label: 'The bells have rung.', reply: 'I heard them. Every one. The crews can stand down. Take this hook; a longshoreman left it on the pier in \'34 and never came back for it. It pulls weight.', fx: { weapon: 'hook', xp: 100, light: 1 } }] }
-] };
-Q.vigilance = { title: 'Fort Gunnybags', giver: 'crane', stages: [
-  { text: 'Answer Silas Crane on Front Street.', talk: 'crane', chips: [accept('I\'ll defend myself.', 'Then have at you.')] },
-  { text: 'Defeat Silas Crane.', duel: 'crane' },
-  { text: 'Speak to Silas Crane.', talk: 'crane', chips: [{ label: 'The city doesn\'t need you anymore.', reply: 'It never did. It only needed someone to blame. ...Go.', fx: { stat: 'strength', xp: 100 } }] }
-] };
-export const QUESTS = Q;
-export const MAIN_ORDER = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'after'];
+export const ENDINGS = {
+  pueblo: { title: 'El agua es del pueblo', ach: 'pueblo', cards: [
+    'You read the title under the arches of the Presidencia, and the plaza, which came to shout, listens.',
+    null,   // filled in by whether the maestra stands with you
+    'Güero Mendoza is arrested on the Sahuayo road with Aurelio\'s blood still on his bumper. Barragán catches the evening bus to Guadalajara.',
+    'On Sunday the band plays on the kiosco. Your grandfather dances with Tía Cuca, on crutches, badly. Doña Petra comes down from the cerro for the first time in nine years and sits on a bench, very straight, in a blue rebozo.',
+    '<em>EL AGUA ES DEL PUEBLO</em>\n\nJiquilpan is yours to wander. Race Rosa, find Aurelio\'s lost pages, fly the cerro at sunset.'] },
+  museo: { title: 'The Glass Case', ach: 'museo', cards: [
+    'The title goes into a glass case in the new wing of the museum, lit beautifully. The cabildo, without it in front of them, votes 6 to 5 for the company.',
+    'Your grandfather does not speak to you for a week. Then he does, because he is your grandfather.',
+    'People queue to see the title. The springs are pumped into bottles in Zamora. Every bottle has a picture of the cerro on the label.',
+    '<em>THE GLASS CASE</em>\n\nHistory is safe. The water is not. You can keep exploring Jiquilpan.'] },
+  trato: { title: 'The Deal', ach: 'trato', cards: [
+    'The envelope is heavy. The title is lighter in Barragán\'s briefcase than it was in your hands.',
+    'The cabildo votes for the company. Tía Cuca closes her cart for a week and will not say why.',
+    'Your grandfather looks at you for a long time and says, "My father hid it for eighty years. You kept it for one afternoon."',
+    '<em>THE DEAL</em>\n\nYou can still walk the town. It will remember.'] }
+};
 
-export class QuestBook {
-  constructor(state, hooks) {
-    this.s = state; this.h = hooks;   // hooks: fx(fx, quest), notify(text, kind), counts()
-    if (!state.quests) { state.quests = {}; this.start('m1', true); }
-  }
-  start(id, quiet) {
-    if (this.s.quests[id]) return;
-    this.s.quests[id] = { stage: 0, done: false, base: this.h.counts ? this.h.counts() : {} , quiz: 0 };
-    if (!quiet) this.h.notify(`${QUESTS[id].main ? 'Story' : 'Quest'}: ${QUESTS[id].title}`, 'quest');
-  }
-  q(id) { return this.s.quests[id]; }
-  stageOf(id) { const q = this.q(id); return q && !q.done ? QUESTS[id].stages[q.stage] : null; }
-  active() { return Object.keys(this.s.quests).filter(id => !this.s.quests[id].done); }
-  isStage(id, n) { const q = this.q(id); return !!q && !q.done && q.stage === n; }
-  advance(id) {
-    const q = this.q(id); if (!q || q.done) return;
-    q.stage++; q.quiz = 0; q.base = this.h.counts ? this.h.counts() : {};
-    if (q.stage >= QUESTS[id].stages.length) {
-      q.done = true;
-      this.h.notify(`Completed: ${QUESTS[id].title}`, 'done');
-      if (QUESTS[id].next) this.start(QUESTS[id].next);
-    } else this.h.notify(QUESTS[id].stages[q.stage].text, 'objective');
-    this.h.changed && this.h.changed();
-  }
-  /** Chips to offer while talking to npc: quest actions first. */
+/* The engine. h: hooks into the game (give clues, set flags, cards, chase, etc.). */
+export class Story {
+  constructor(h) { this.h = h; }
+  get s() { return this.h.state(); }
+  chapter() { return CHAPTERS[this.s.ch] || null; }
+  step() { if (this.s.ending) return null; const c = this.chapter(); return c ? c.steps[this.s.st] || null : null; }
+  done() { return !!this.s.ending; }
+  has(clue) { return this.s.clues.includes(clue) || !!this.s.flags[clue]; }
+  /* the gold choices this person offers for the current step */
   chipsFor(npc) {
-    const out = [];
-    for (const [id, def] of Object.entries(QUESTS)) {
-      let st = this.stageOf(id);
-      const q = this.q(id);
-      if (!q && def.giver === npc && this.giverReady(id)) st = def.stages[0];   // an offer
-      if (!st || st.talk !== npc) continue;
-      if (st.quiz) {
-        const k = q ? q.quiz : 0, item = st.quiz[k];
-        item.options.forEach((opt, i) => out.push({ quest: id, label: opt, prompt: item.q, run: () => {
-          if (i !== item.answer) return { reply: 'Not quite. Think about it again.', keep: true };
-          if (k + 1 < st.quiz.length) { q.quiz = k + 1; return { reply: 'Correct. ' + st.quiz[k + 1].q, keep: true }; }
-          this.h.fx(st.done.fx, id); this.advance(id); return { reply: st.done.reply };
-        } }));
-        continue;
-      }
-      for (const c of st.chips || []) {
-        const locked = c.need && !this.meets(c.need);
-        out.push({ quest: id, label: c.label, locked, lockedText: c.needText, run: () => {
-          if (locked) return { reply: null, keep: true };
-          if (!this.q(id)) this.start(id);
-          if (c.fx) this.h.fx(c.fx, id);
-          if (c.advance !== false) this.advance(id);
-          return { reply: c.reply, keep: c.advance === false };
-        } });
-      }
-    }
-    return out;
+    const st = this.step(); if (!st) return [];
+    let chips = null;
+    if (st.talk === npc) chips = st.chips;
+    if (st.any) { const sub = st.any.find(a => a.talk === npc && !(this.s.any || []).includes(a.id)); if (sub) chips = sub.chips.map(c => Object.assign({ sub: sub.id }, c)); }
+    if (!chips) return [];
+    return chips.filter(c => !(this.s.used || []).includes(c.label)).map(c => {
+      const locked = c.need && !this.has(c.need);
+      return { quest: true, label: c.label, locked, lockedText: c.needText || (c.need ? 'you need to know more first' : ''), run: () => this.pick(c) };
+    });
   }
-  giverReady(id) { return !this.s.quests[id]; }
-  meets(need) { return (need.light === undefined || (this.s.light || 0) >= need.light); }
-  // events from the world
+  pick(c) {
+    const s = this.s; if (c.need && !this.has(c.need)) return { reply: null };
+    (s.used = s.used || []).push(c.label);
+    if (c.fx) this.h.fx(c.fx);
+    if (c.ending) { this.h.ending(c.ending); return { reply: c.reply }; }
+    if (c.sub) { (s.any = s.any || []).push(c.sub); const st = this.step(); if (s.any.length >= (st.need || st.any.length)) this.advance(); else this.h.changed(); return { reply: c.reply }; }
+    if (!c.stay) this.advance(); else this.h.changed();
+    return { reply: c.reply };
+  }
+  /* things to examine for the current step: [{spot, label, run}] */
+  inspectable() {
+    const st = this.step(); if (!st || !st.inspect) return null;
+    return { spot: st.inspect.spot, label: st.inspect.label, run: () => this.h.inspect(st.inspect, () => { if (st.inspect.fx) this.h.fx(st.inspect.fx); this.advance(); }) };
+  }
   event(kind, arg) {
-    for (const id of this.active()) {
-      const st = this.stageOf(id); if (!st) continue;
-      if (kind === 'reach' && st.reach === arg) this.advance(id);
-      if (kind === 'door' && st.door === arg) this.advance(id);
-      if (kind === 'duel' && st.duel === arg) this.advance(id);
-    }
-    this.check();
+    const st = this.step(); if (!st) return;
+    if (kind === 'reach' && st.reach === arg) this.advance();
+    if (kind === 'escaped' && st.escape) { if (st.fx) this.h.fx(st.fx); this.advance(); }
+    if (kind === 'arrived' && st.timed) { if (st.fx) this.h.fx(st.fx); this.advance(); }
   }
-  check() {
-    const c = this.h.counts ? this.h.counts() : {};
-    for (const id of this.active()) {
-      const st = this.stageOf(id), q = this.q(id); if (!st) continue;
-      if (st.collect && (c.sets[st.collect] || 0) >= st.n) this.advance(id);
-      else if (st.murmurs && c.murmurs - (q.base.murmurs || 0) >= st.murmurs) this.advance(id);
-      else if (st.glyphs && c.glyphs >= st.glyphs) this.advance(id);
-      else if (st.hollows && (c.kills[id] || 0) >= st.hollows.n) this.advance(id);
-    }
+  advance() {
+    const s = this.s, c = this.chapter();
+    s.st++;
+    if (s.st >= c.steps.length) {
+      s.ch++; s.st = 0; s.any = []; this.h.chapterDone(c);
+      const n = this.chapter(); if (n) this.h.chapterStart(n);
+    } else this.h.stepStart(this.step());
+    this.h.changed();
+  }
+  /* where the current step points: {kind, id} */
+  targetRef() {
+    const st = this.step(); if (!st) return null;
+    if (st.talk) return { npc: st.talk };
+    if (st.reach) return { place: st.reach };
+    if (st.inspect) return { spot: st.inspect.spot };
+    if (st.escape) return { place: st.escape };
+    if (st.timed) return { place: st.timed.to };
+    if (st.any) { const left = st.any.filter(a => !(this.s.any || []).includes(a.id)); return left.length ? { npcs: left.map(a => a.talk) } : null; }
+    return null;
   }
 }

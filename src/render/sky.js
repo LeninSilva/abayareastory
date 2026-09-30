@@ -56,12 +56,12 @@ export function setTimeOfDay(hour, fogBank) {
   mix(1, U.uSunColor); mix(2, U.uSkyTop); mix(3, U.uSkyHorizon); mix(4, U.uFogColor); mix(5, U.uAmbient);
   U.uNight.value = a[6] + (b[6] - a[6]) * s;
   U.uGroundBounce.value.copy(U.uAmbient.value).multiplyScalar(0.55).lerp(new THREE.Color(0.35, 0.28, 0.2), 0.4);
-  // the sun (or the moon, at night) arcs over the bay; azimuth swings from east to west
+  // the sun (or the moon, at night) crosses from east to west
   const day = (hour - 6) / 12, el = Math.sin(Math.PI * day), az = Math.PI * (day - 0.5);
   const night = U.uNight.value;
   const sunEl = night > 0.6 ? 0.55 : Math.max(0.06, el * 0.95);
   const sunAz = night > 0.6 ? az + Math.PI : az;
-  U.uSunDir.value.set(Math.sin(sunAz) * Math.cos(Math.asin(sunEl)), sunEl, -Math.cos(sunAz) * 0.6 * Math.cos(Math.asin(sunEl))).normalize();
+  U.uSunDir.value.set(-Math.sin(sunAz) * Math.cos(Math.asin(sunEl)), sunEl, Math.cos(sunAz) * 0.35 * Math.cos(Math.asin(sunEl))).normalize();   // rises in the east, sets in the west, passes a little to the south
   if (night > 0.6) U.uSunColor.value.multiplyScalar(0.55);
   U.uFogBank.value = fogBank;
   U.uFogDensity.value = 0.00008 + fogBank * 0.00026 + night * 0.00004;

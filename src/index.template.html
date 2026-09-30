@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>Undertow</title>
-<meta name="description" content="A first-person story in the real San Francisco, where the dead have not left.">
-<meta name="theme-color" content="#1b2130">
+<title>Añil</title>
+<meta name="description" content="A mystery in Jiquilpan de Juárez, Michoacán. Fly, drive, and follow the clues.">
+<meta name="theme-color" content="#1c2a4a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -14,13 +14,13 @@
 <style>/*CSS*/</style>
 </head>
 <body>
-<canvas id="view" tabindex="0" aria-label="The city, seen through your eyes"></canvas>
+<canvas id="view" tabindex="0" aria-label="Jiquilpan, seen through your eyes"></canvas>
 
 <!-- title -->
 <section id="title" class="screen show">
   <div class="title-inner">
-    <h1>UNDERTOW</h1>
-    <p class="tag">A story of San Francisco, and of the people who never left it.</p>
+    <h1>AÑIL</h1>
+    <p class="tag">A mystery in Jiquilpan de Juárez, Michoacán.<br><span style="opacity:.75">Your grandfather found what his father hid in 1940. Then he vanished on the cerro.</span></p>
     <label class="field">Your name <input id="name-input" maxlength="24" autocomplete="off" placeholder="Your name"></label>
     <div class="row">
       <button id="btn-new" class="primary">Begin</button>
@@ -30,12 +30,12 @@
       <button id="btn-title-settings">Settings</button>
       <button id="btn-about">About</button>
     </div>
-    <p class="hint" id="title-hint">Move with WASD or the left side of the screen. Look with the mouse or the right side. Press E to talk, G to fly.</p>
+    <p class="hint" id="title-hint">Move with WASD or the left side of the screen. Look with the mouse or the right side. E to talk, examine or drive. G to fly.</p>
   </div>
 </section>
 
 <!-- loading -->
-<section id="loading" class="screen"><div class="load-inner"><p id="load-text">Unfolding the city…</p><div class="bar"><i id="load-bar"></i></div></div></section>
+<section id="loading" class="screen"><div class="load-inner"><p id="load-text">Unfolding the town…</p><div class="bar"><i id="load-bar"></i></div></div></section>
 
 <!-- cutscene / story cards -->
 <section id="card" class="screen" role="dialog" aria-live="polite"><div class="card-inner"><p id="card-text"></p><button id="card-next" class="primary">Continue</button></div></section>
@@ -46,16 +46,10 @@
   <div id="objective" role="status"></div>
   <div id="place"><span id="place-name"></span><span id="clock"></span></div>
   <canvas id="minimap" width="180" height="180" aria-hidden="true"></canvas>
-  <div id="bars">
-    <div class="bar hp"><i id="hp-bar"></i></div>
-    <div class="bar br"><i id="br-bar"></i></div>
-    <div class="bar st"><i id="st-bar"></i></div>
-    <div id="lvl"></div>
-  </div>
-  <div id="foe" hidden><span id="foe-name"></span><div class="bar"><i id="foe-bar"></i></div></div>
   <div id="cross"></div>
   <div id="prompt" hidden></div>
   <div id="jetinfo" hidden aria-live="off"></div>
+  <div id="raceinfo" hidden aria-live="polite"></div>
   <div id="subtitle" hidden></div>
   <div id="toasts" aria-live="polite"></div>
   <button id="stuck" hidden>Stuck? Tap here (or press U) to step free</button>
@@ -68,16 +62,13 @@
   <div id="touch-layer"></div>
   <div id="stick-base"><div id="stick-knob"></div></div>
   <div id="tbtns">
-    <button data-action="attack" class="tb big" aria-label="Strike">⚔</button>
-    <button data-action="block" class="tb" aria-label="Block">🛡</button>
-    <button data-action="interact" class="tb act" id="tb-interact" aria-label="Talk or use">E</button>
-    <button data-action="jump" class="tb" aria-label="Jump, or climb with the jetpack">⤒</button>
+    <button data-action="interact" class="tb big act" id="tb-interact" aria-label="Talk, examine, get in or out of a car">E</button>
+    <button data-action="jump" class="tb" aria-label="Jump, climb with the jetpack, or handbrake">⤒</button>
     <button data-action="descend" class="tb jetonly" aria-label="Fly down">⤓</button>
-    <button data-action="ability" class="tb" aria-label="Ability">✦</button>
-    <button data-action="cycle" class="tb sm" aria-label="Change ability">↻</button>
-    <button data-action="bike" class="tb sm" aria-label="Bicycle">🚲</button>
+    <button data-action="sprint" class="tb" aria-label="Run, boost">⚡</button>
+    <button data-action="horn" class="tb sm caronly" aria-label="Horn">📯</button>
     <button data-action="jet" class="tb sm" aria-label="Jetpack: fly, or land">🚀</button>
-    <button data-action="heal" class="tb sm" aria-label="Eat">🍞</button>
+    <button data-action="case" class="tb sm" aria-label="Case file">📁</button>
     <button data-action="map" class="tb sm" aria-label="Map">🗺</button>
   </div>
 </div>
@@ -94,15 +85,14 @@
 <!-- menu -->
 <section id="menu" hidden role="dialog" aria-label="Menu">
   <nav id="tabs">
-    <button data-tab="map">Map</button><button data-tab="journal">Journal</button><button data-tab="inventory">Things</button>
-    <button data-tab="character">You</button><button data-tab="notes">Field Notes</button><button data-tab="settings">Settings</button>
+    <button data-tab="map">Map</button><button data-tab="case">Case file</button><button data-tab="goals">Goals</button>
+    <button data-tab="notes">Field Notes</button><button data-tab="settings">Settings</button>
     <button id="menu-close" class="close" aria-label="Back to the city">Resume ✕</button>
   </nav>
   <div id="panel">
     <div data-panel="map"><div id="map-wrap"><canvas id="map"></canvas><div id="map-tools"><button id="map-in" aria-label="Zoom in">＋</button><button id="map-out" aria-label="Zoom out">－</button><button id="map-me" aria-label="Center on me">◎</button><button id="map-clear">Clear marker</button></div><div id="map-info"></div></div></div>
-    <div data-panel="journal"></div>
-    <div data-panel="inventory"></div>
-    <div data-panel="character"></div>
+    <div data-panel="case"></div>
+    <div data-panel="goals"></div>
     <div data-panel="notes"></div>
     <div data-panel="settings"></div>
   </div>
