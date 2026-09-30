@@ -1,7 +1,7 @@
 {
   "name": "undertow",
   "version": "1.0.0",
-  "description": "A top-down adventure told in the first person, set in a San Francisco that is almost the one you know. It's installable on Android as a web app.",
+  "description": "A first-person story in the real San Francisco, where the dead have not left. Installable on Android as a web app.",
   "main": "index.js",
   "scripts": {
     "data": "sh tools/fetch-data.sh && node tools/build-data.mjs raw",
