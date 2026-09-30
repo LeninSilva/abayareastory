@@ -75,7 +75,8 @@ class Game {
     root.dataset.text = s.text; root.dataset.contrast = s.contrast; document.body.classList.toggle('reduced', !!s.reduced);
     this.input.sensitivity = +s.sensitivity; this.input.invertY = !!s.invertY;
     this.audio.vol = { master: +s.master, music: +s.music, fx: +s.fx }; this.audio.apply();
-    if (this.started) this.ui.showHUD(!this.paused || this.talk);
+    document.body.classList.toggle('touch', this.touchUI());
+    if (this.started) this.ui.showHUD(true);
     if (this.renderer) this.maxPR = this.qualityPR();
   }
   touchUI() { return this.settings.touch === 'on' || (this.settings.touch === 'auto' && (this.input.touchMode || mobile)); }
@@ -89,7 +90,7 @@ class Game {
     catch (e) { console.error(e); $('load-text').textContent = 'The city would not load: ' + e.message + '. Check your connection and reload.'; return; }
     $('loading').classList.remove('show');
     this.newState(save);
-    this.started = true; this.ui.showHUD(true);
+    this.started = true; document.body.classList.toggle('touch', this.touchUI()); this.ui.showHUD(true);
     this.placeNPCs();
     if (save) {
       this.enterInterior(save.interior && this.flags.underOpen);

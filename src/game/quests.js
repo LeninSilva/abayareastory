@@ -74,7 +74,7 @@ Q.m8 = { title: 'The Tide Door', main: true, next: 'after', stages: [
   { text: 'Speak with your father.', talk: 'hollis', chips: [
     { label: 'Mother sent me.', advance: false, reply: 'Marisela. She laughed at me, the whole summer of \'98. Nobody else ever did. I didn\'t write because I didn\'t know how to write to someone who wasn\'t impressed.' },
     { label: 'Why don\'t any of you leave? The door is open.', advance: false, reply: 'Because if I get up, she walks out and never looks back. Because if Gil gets up, nobody will remember what he was worth. Because if she gets up, she has to forgive me first. So we sit. It\'s very civilized.' },
-    { label: 'Open the Tide Door, Father. Let them all go down.', need: { light: 2 }, needText: 'He would have to believe you. (Light 2 or more)', reply: 'You sound like her. Like both of them. ...All right. All right. Help me up. My knees have been in this chair for four years.', fx: { ending: 'light' } },
+    { label: 'Open the Tide Door, Father. Let them all go down.', need: { light: 2 }, needText: 'needs Light 2: he would have to believe you', reply: 'You sound like her. Like both of them. ...All right. All right. Help me up. My knees have been in this chair for four years.', fx: { ending: 'light' } },
     { label: 'Get out of the chair. It\'s mine now.', reply: 'You would keep all of them? The whole city, murmuring, forever, for you? ...Yes. Yes, you\'re mine. Sit. It\'s warm.', fx: { ending: 'shade' } },
     { label: 'Stay, then. I\'m going home.', reply: 'Home. There\'s a ferry at the end of every night. Your brother knows the way. Tell him... no. Tell him nothing. Tell him I knew.', fx: { ending: 'ferry' } }
   ] }

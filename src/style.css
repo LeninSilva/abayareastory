@@ -37,7 +37,7 @@ input[type=range] { min-height: 0; padding: 0; accent-color: var(--gold); width:
 #card-text em { color: var(--gold); }
 
 /* HUD */
-#hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+#hud { position: fixed; inset: 0; pointer-events: none; z-index: 14; }
 #hud button { pointer-events: auto; }
 #compass { position: absolute; top: calc(10px + var(--safe-t)); left: 50%; transform: translateX(-50%); width: min(460px, 62vw); height: 30px; overflow: hidden; border-radius: 16px; background: linear-gradient(90deg, transparent, rgba(10,12,20,0.55) 15%, rgba(10,12,20,0.55) 85%, transparent); }
 #compass-strip { position: absolute; top: 0; height: 100%; left: 50%; white-space: nowrap; }
@@ -141,3 +141,8 @@ body.touch #cross { display: none; }
   #menu footer button { min-height: 38px; padding: 0.3em 0.7em; }
   #tbtns { transform: scale(0.82); transform-origin: bottom right; }
 }
+#map-tools button { min-height: 40px; padding: 0.3em 0.7em; }
+@media (max-height: 480px) { #map-tools button { min-height: 34px; padding: 0.15em 0.55em; font-size: 0.8em; } }
+/* on touch screens the button cluster owns the right side; the menu button moves to the top left */
+body.touch #btn-pause.corner { right: auto; left: 12px; top: calc(58px + var(--safe-t)); z-index: 13; }
+@media (max-width: 640px) { body.touch #btn-pause.corner { top: calc(12px + var(--safe-t)); } }

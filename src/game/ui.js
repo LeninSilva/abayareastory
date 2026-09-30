@@ -133,7 +133,7 @@ export class UI {
     const box = $('dlg-chips'); box.innerHTML = '';
     for (const ch of list) {
       const b = document.createElement('button'); b.type = 'button';
-      b.textContent = ch.label + (ch.locked && ch.lockedText ? ` (${ch.lockedText})` : '');
+      b.textContent = ch.label + (ch.locked && ch.lockedText ? ` · ${ch.lockedText}` : '');
       if (ch.quest) b.classList.add('quest'); if (ch.locked) { b.classList.add('locked'); b.setAttribute('aria-disabled', 'true'); }
       b.addEventListener('click', () => ch.onClick());
       box.appendChild(b);
