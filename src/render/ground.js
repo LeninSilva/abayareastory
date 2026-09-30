@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { U, GLSL_COMMON } from './shaders.js';
 import { DISTRICT_STYLE, PARKS, toXZ } from '../geo.js';
 
+// street lamps and frontage paving (shared with the close-up street furniture in detail.js)
+export const LAMP_SP = 32, LAMP_PH = 8, LAMP_MINW = 12, LAMP_REACH = 1.2, FRONTAGE = 3.5;
+const SIDEWALK = 3.2;
 const FINISH = /* glsl */`
   #include <tonemapping_fragment>
   #include <colorspace_fragment>`;
@@ -166,7 +169,19 @@ export function makeStreets(city, skip) {
     vertexShader: /* glsl */`attribute vec4 aInfo; varying vec3 vW; varying vec4 vInfo; varying vec3 vN;
     void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; vInfo = aInfo; vN = normal; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: GLSL_COMMON + /* glsl */`
-varying vec3 vW; varying vec4 vInfo; varying vec3 vN;   // x: across 0..1, y: metres along, z: kind + crosswalk/2, w: street width
+varying vec3 vW; varying vec4 vInfo; varying vec3 vN;   // x: across 0..1 on the road (metres from the centre on sidewalks), y: metres along, z: kind + crosswalk/2, w: street width
+// the street lamps: one every ${LAMP_SP} m along each street, alternating sides; their light falls in pools
+vec3 lampPools(float along, float off, float w){
+  if (w < ${LAMP_MINW}. || uNight < .05) return vec3(0.);
+  float k0 = floor((along - ${LAMP_PH}.) / ${LAMP_SP}.), acc = 0.;
+  for (int i = 0; i < 3; i++) {
+    float k = k0 + float(i) - 1.;
+    float la = k * ${LAMP_SP}. + ${LAMP_PH}., side = mod(k, 2.) < .5 ? -1. : 1.;
+    vec2 d = vec2(along - la, off - side * (w * .5 - ${SIDEWALK} - ${LAMP_REACH}));
+    acc += exp(-dot(d, d) / 60.) + .25 * exp(-dot(d, d) / 400.);
+  }
+  return vec3(1., .78, .52) * acc * 1.6 * uNight;
+}
 void main(){
   float kind = floor(vInfo.z + .25), a = vInfo.x, along = vInfo.y;
   float cross = clamp((vInfo.z - kind) * 2., 0., 1.);
@@ -196,6 +211,8 @@ void main(){
     col = vec3(.70,.69,.66) * (.9 + .1 * nz);
   }
   vec3 lit = lightItS(col, n, 1., shadowAt(vW, n));
+  float off = kind < .5 ? vInfo.x : (vInfo.x - .5) * (vInfo.w - ${2 * SIDEWALK});
+  if (kind < 1.5) lit += col * lampPools(along, off, floor(vInfo.w + .5));
   gl_FragColor = vec4(fogIt(lit, vW), 1.);` + FINISH + '\n}'
   });
   const CH = 1500, buckets = new Map();
@@ -235,7 +252,7 @@ void main(){
     const half = s.width / 2, roadHalf = half - SW;
     const B = bucket(pts[0].x, pts[0].z);
     // one strip between offsets o0..o1 (metres from the centre line, + to the right) at a height, with a per-point keep test
-    const strip = (o0, o1, lift, kind, keep, cw) => {
+    const strip = (o0, o1, lift, kind, keep, cw, metric) => {
       let prev = -1;
       for (let i = 0; i < pts.length; i++) {
         const p = pts[i];
@@ -243,7 +260,7 @@ void main(){
         for (const [o, u] of [[o0, 0], [o1, 1]]) {
           const x = p.x + p.tz * o, z = p.z - p.tx * o;
           B.pos.push(x, Math.max(city.heightAt(x, z), p.y - 0.5) + lift, z); B.nor.push(0, 1, 0);
-          B.info.push(u, p.along, kind + (cw ? cw(p) : 0) * 0.5, s.width);
+          B.info.push(metric ? o : u, p.along, kind + (cw ? cw(p) : 0) * 0.5, s.width);
         }
         if (prev >= 0 && keep(pts[i - 1]) && keep(p)) B.idx.push(prev, base, prev + 1, prev + 1, base, base + 1);
         prev = base;
@@ -263,8 +280,23 @@ void main(){
     const roadKeep = p => !p.skip && !p.c.yield_;
     const walkKeep = p => !p.skip && !p.c.inRoad;
     strip(-roadHalf, roadHalf, ROAD, 1, roadKeep, p => (p.c.inWalk && !p.c.inRoad ? 1 : 0));
-    strip(-half, -roadHalf, WALK, 0, walkKeep);
-    strip(roadHalf, half, WALK, 0, walkKeep);
+    strip(-half, -roadHalf, WALK, 0, walkKeep, null, true);
+    strip(roadHalf, half, WALK, 0, walkKeep, null, true);
+    // frontage: paving from the back of the sidewalk to the building line, wherever there's room and no other street
+    for (const side of [-1, 1]) {
+      let prev = -1;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i], base = B.pos.length / 3;
+        let e = FRONTAGE; const ox = p.x + p.tz * side * (half + e), oz = p.z - p.tx * side * (half + e);
+        if (city.streetsAt(ox, oz, hits).some(h => h.si !== si) || !city.isLand(ox, oz)) e = 0;
+        for (const o of [side * half, side * (half + e)]) {
+          const x = p.x + p.tz * o, z = p.z - p.tx * o;
+          B.pos.push(x, Math.max(city.heightAt(x, z), p.y - 0.5) + WALK - 0.015, z); B.nor.push(0, 1, 0); B.info.push(o, p.along, 0, s.width);
+        }
+        if (prev >= 0 && walkKeep(pts[i - 1]) && walkKeep(p)) { if (side > 0) B.idx.push(prev, base, prev + 1, prev + 1, base, base + 1); else B.idx.push(prev, prev + 1, base, prev + 1, base + 1, base); }
+        prev = base;
+      }
+    }
     curb(-roadHalf, walkKeep); curb(roadHalf, walkKeep);
   }
   for (const B of buckets.values()) {

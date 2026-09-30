@@ -52,6 +52,22 @@ export class Audio {
     const r = roots[this.chordI++ % roots.length], ints = [1, 1.5, 2, 2.4, 3];
     ints.forEach((k, i) => this.tone(r * k, 10, i % 2 ? 'triangle' : 'sine', 0.035 / (1 + i * 0.3), this.musicBus, 2.5, true));
   }
+  // the jetpack: a roar of filtered noise with a low hum under it, following thrust
+  jet(level) {
+    if (!this.ctx) return; const c = this.ctx, now = c.currentTime;
+    if (!this.jetG) {
+      if (level <= 0) return;
+      const s = c.createBufferSource(); s.buffer = this.noise; s.loop = true;
+      this.jetF = c.createBiquadFilter(); this.jetF.type = 'lowpass'; this.jetF.frequency.value = 400; this.jetF.Q.value = 0.8;
+      this.jetG = c.createGain(); this.jetG.gain.value = 0; s.connect(this.jetF); this.jetF.connect(this.jetG); this.jetG.connect(this.fxBus); s.start();
+      const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 48; this.jetO = o; const og = c.createGain(); og.gain.value = 0.18; const of = c.createBiquadFilter(); of.type = 'lowpass'; of.frequency.value = 160;
+      o.connect(of); of.connect(og); og.connect(this.jetF); o.start();
+    }
+    this.jetG.gain.setTargetAtTime(level * 0.16, now, 0.15);
+    this.jetF.frequency.setTargetAtTime(300 + level * 1500, now, 0.2);
+    this.jetO.frequency.setTargetAtTime(40 + level * 40, now, 0.2);
+  }
+  jetStart() { this.noiseHit(0.5, 600, 0.25, 0.6); this.tone(60, 0.5, 'sawtooth', 0.08); }
   step(surface) { this.noiseHit(0.08, surface === 'stone' ? 1800 : 900, 0.06, 2); }
   swing() { this.noiseHit(0.18, 2400, 0.08, 0.7); }
   hit() { this.noiseHit(0.12, 500, 0.25, 1); this.tone(90, 0.2, 'sine', 0.2); }

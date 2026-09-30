@@ -28,8 +28,20 @@ You can play it in a browser or install it on Android as an app: open the page i
   - Numbered pier bulkheads, from Pier 40 to Pier 35. Pier 7 and Pier 14 can be walked out over the bay.
   - The Ferry Building plaza, Rincon Park with Cupid's Span (the bow and arrow), the Vaillancourt Fountain and the Hyatt Regency.
   - A continuous frontage of buildings on the inland side, and gulls over the water.
+- **Up close, the street is built around you as you walk:**
+  - Bay windows that really step out from the Victorians and Edwardians, cornices, chimneys, rooftop machinery and wooden water tanks.
+  - Iron fire escapes on the brick blocks, and canvas awnings over the shops.
+  - Cobra-head street lamps whose light falls in pools on the pavement at night.
+  - Parked cars along the curbs, tilted to the hills, and traffic that drives the right-hand lane and stops for you.
+- **Buildings:**
+  - Floors are counted from the street, so shops, doors and garages meet the sidewalk, and the foundations show where a hill falls away.
+  - Every window has a room behind it, drawn in depth: walls, floors, rugs, curtains and blinds, and lamps at night. Shops have shelves and counters, and signs over the glass.
+  - Clapboard siding on the wooden houses, brick, cut stone and stucco up close; glass that reflects the sky more at a glancing angle.
+  - Roofs in pale membrane, white, old tar or gravel, with solar panels on some Sunset roofs.
 - **Rendering:**
   - real-time sun shadows;
+  - ambient occlusion (on medium and high quality), so walls, cars and cornices sit in their own soft shadow;
+  - fog integrated through the air, so the city below stays clear from above and the far hills fade blue;
   - bloom, so lit windows, lamps and the sun on the water glow;
   - multisampled HDR with filmic tone mapping and a light grade;
   - water with layered swell and chop, sky reflections, sun glitter and surf on the shallows.
@@ -40,10 +52,12 @@ You can play it in a browser or install it on Android as an app: open the page i
 ## How it plays
 
 - **First person throughout.**
-  - Keyboard and mouse: WASD to walk, the mouse to look, Shift to sprint, Space to jump, **E** to talk or use, left click to strike, right click or R to block, F for an ability, B for the bicycle, M for the map, Esc for the menu.
+  - Keyboard and mouse: WASD to walk, the mouse to look, Shift to sprint, Space to jump, **E** to talk or use, left click to strike, right click or R to block, F for an ability, B for the bicycle, G for the jetpack, M for the map, Esc for the menu.
   - Touch: the left thumb walks and the right thumb looks, with buttons on the right.
   - Gamepads are supported.
+- **A jetpack.** Press **G** (🚀 on touch) to take off. Space climbs, Z or Ctrl drops, Shift boosts to about 250 km/h, and moving forward flies where you look. Land on any street or flat roof: press G again and it sets you down, or tells you if there's nowhere to land (over the bay, say). Step off a roof and it catches you.
 - **Talk to anyone, in your own words.** Every character has their own voice, history, secrets and agenda, and can point you somewhere new. Gold chips move the story forward. You can type anything else.
+- **Everyone on the sidewalk is someone.** Walk up to any passer-by and press E. Each is generated from their neighborhood: a name, an age, a job, how long they've lived there, a temperament, something they want, something they're hiding, and what they make of the rumors about Hollis Vane. They know true things about their part of the city. Sixteen regulars keep the same corner every day, like the saxophone player at the Powell Street turnaround or the chess players in Portsmouth Square. They answer through the same voices as everyone else.
   - In the claude.ai app, characters answer live through your own Claude account, after you approve it.
   - In the installed app, you can add your own Anthropic API key under Settings → Voices. Requests go straight from your device to Anthropic with Claude's server-side refusal fallback turned on: if a reply is declined, it is retried on a fallback model.
   - Without either, everyone speaks from their own written lines, chosen by what you ask about.
@@ -102,7 +116,8 @@ Serve the folder with any static server. GitHub Pages deploys it from this branc
 - `src/geo.js`: projection, district styles, landmarks, towers, parks, libraries
 - `tools/build-data.mjs`: turns the raw data into the compact city file
 - `src/render/`: sky, terrain, water, streets, buildings, trees, landmarks and bridges, ruins, people
-- `src/game/`: input, player, combat, story, quests, lore, dialogue voices, audio, UI
+- `src/render/detail.js` and `src/render/traffic.js`: the close-up street (bays, cornices, fire escapes, awnings, lamps, parked cars) and the traffic
+- `src/game/`: input, player (walking and the jetpack), combat, story, citizens (the people on the sidewalks), quests, lore, dialogue voices, audio, UI
 
 ## Data and credits
 

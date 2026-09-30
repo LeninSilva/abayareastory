@@ -63,10 +63,14 @@ vec3 lightItS(vec3 albedo, vec3 n, float ao, float sh){
 }
 vec3 lightIt(vec3 albedo, vec3 n, float ao){ return lightItS(albedo, n, ao, 1.); }
 // distance fog, thicker near the water (the marine layer), coloured by the sky toward the sun
+// the fog is integrated along the ray through two layers: the marine layer near the water, and a thinner
+// haze that thins with height; so from the air, the city below is clear and the far hills fade blue
+float layerAvg(float y0, float y1, float H){ y0 = max(y0, 0.); y1 = max(y1, 0.); float dy = y1 - y0;
+  return abs(dy) < 1. ? exp(-y0 / H) : H * (exp(-y0 / H) - exp(-y1 / H)) / dy; }
 vec3 fogIt(vec3 col, vec3 wpos){
   vec3 d = wpos - uCamPos; float dist = length(d);
-  float hf = exp(-max(wpos.y, 0.) / uFogHeight);
-  float f = 1. - exp(-pow(dist * uFogDensity * (1. + hf * (1.5 + uFogBank * 3.)), 1.35));
+  float haze = layerAvg(uCamPos.y, wpos.y, 700.), marine = layerAvg(uCamPos.y, wpos.y, uFogHeight);
+  float f = 1. - exp(-pow(dist * uFogDensity * (haze + marine * (1.5 + uFogBank * 3.)), 1.35));
   float sunward = pow(max(dot(normalize(d), uSunDir), 0.), 6.);
   vec3 fc = mix(uFogColor, uSunColor * 1.05, sunward * .45 * (1. - uNight));
   return mix(col, fc, clamp(f, 0., 1.));
@@ -83,8 +87,9 @@ export function landmarkMaterial(opts) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWPos;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#ifdef USE_INSTANCING\nvWPos = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\n#endif');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vWPos; uniform vec3 uCamPos, uFogColor, uSunDir, uSunColor; uniform float uFogDensity, uFogHeight, uNight, uFogBank;
-vec3 fogIt(vec3 col, vec3 wpos){ vec3 d = wpos - uCamPos; float dist = length(d); float hf = exp(-max(wpos.y, 0.) / uFogHeight);
- float f = 1. - exp(-pow(dist * uFogDensity * (1. + hf * (1.5 + uFogBank * 3.)), 1.35)); float sunward = pow(max(dot(normalize(d), uSunDir), 0.), 6.);
+float layerAvg(float y0, float y1, float H){ y0 = max(y0, 0.); y1 = max(y1, 0.); float dy = y1 - y0; return abs(dy) < 1. ? exp(-y0 / H) : H * (exp(-y0 / H) - exp(-y1 / H)) / dy; }
+vec3 fogIt(vec3 col, vec3 wpos){ vec3 d = wpos - uCamPos; float dist = length(d);
+ float f = 1. - exp(-pow(dist * uFogDensity * (layerAvg(uCamPos.y, wpos.y, 700.) + layerAvg(uCamPos.y, wpos.y, uFogHeight) * (1.5 + uFogBank * 3.)), 1.35)); float sunward = pow(max(dot(normalize(d), uSunDir), 0.), 6.);
  vec3 fc = mix(uFogColor, uSunColor * 1.05, sunward * .45 * (1. - uNight)); return mix(col, fc, clamp(f, 0., 1.)); }
 uniform sampler2D uShadowMap; uniform mat4 uShadowMat; uniform float uShadowOn, uShadowTexel, uShadowBias;
 float shadowW(vec3 w){ if (uShadowOn < .5) return 1.; vec4 p = uShadowMat * vec4(w, 1.); vec3 c = p.xyz / p.w * .5 + .5;

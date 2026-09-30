@@ -11,16 +11,21 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { WF, XS, FERRY, wfLocal, wfPoint, inCorridor } from './waterfront.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { WF, XS, FERRY, RINCON, wfLocal, wfPoint, inCorridor } from './waterfront.js';
+const RINCON_T = RINCON.t1;
 import { makeBuildings } from './render/buildings.js';
 import { makeTrees } from './render/trees.js';
+import { makeDetail } from './render/detail.js';
+import { Traffic } from './render/traffic.js';
 import { makeLandmarks, makeBridges } from './render/landmarks.js';
 import { makeRuins, makeUnderworld, glyphTexture } from './render/ruins.js';
 import { makePerson, makeHands, WEAPONS } from './render/people.js';
 import { toXZ, toLatLon, LIBRARIES, LANDMARKS, DISTRICT_STYLE, STYLES } from './geo.js';
 import { Input } from './game/input.js';
 import { Player } from './game/player.js';
-import { CHARACTERS, PLACES } from './game/story.js';
+import { CHARACTERS, PLACES, EXTRAS } from './game/story.js';
+import { makeCitizen, REGULARS } from './game/citizens.js';
 import { QUESTS, QuestBook, MAIN_ORDER } from './game/quests.js';
 import { ITEMS, MURMURS, LOST, PICKUP_SETS, PROVISIONS } from './game/lore.js';
 import { Voices, parseTags } from './game/dialogue.js';
@@ -139,11 +144,11 @@ class Game {
     });
     for (const site of this.ruins.userData.sites) this.ruins.userData.setAwake(site.id, s.glyphs.includes(site.id) || s.ending === 'light');
     this.combat.enemies.forEach(e => e.dead = true);
-    this.player.interior = null; this.player.bike = false; this.player.distance = s.walked || 0;
+    this.player.interior = null; this.player.bike = false; this.player.jet = false; this.player.distance = s.walked || 0;
   }
   save() {
     if (!this.started) return; const s = this.state, p = this.player;
-    s.pos = [p.x, p.y, p.z]; s.yaw = p.yaw; s.interior = !!p.interior; s.walked = p.distance;
+    s.pos = p.jet && p.lastSafe ? p.lastSafe.slice() : [p.x, p.y, p.z]; s.yaw = p.yaw; s.interior = !!p.interior; s.walked = p.distance;
     store.set(SAVE_KEY, s);
   }
   toTitle() {
@@ -183,6 +188,8 @@ class Game {
     this.buildings = makeBuildings(city, q); this.surface.add(this.buildings);
     set('Planting the street trees…', 0.8); await tick();
     this.trees = makeTrees(city, q); this.surface.add(this.trees);
+    set('Parking the cars, lighting the lamps…', 0.83); await tick();
+    this.detail = makeDetail(city, R, q); this.surface.add(this.detail);
     set('Raising the landmarks and the bridges…', 0.86); await tick();
     this.landmarks = makeLandmarks(city); this.surface.add(this.landmarks);
     this.bridges = makeBridges(city); this.surface.add(this.bridges);
@@ -190,11 +197,14 @@ class Game {
     this.ruins = makeRuins(city); this.surface.add(this.ruins);
     this.under = makeUnderworld(city); scene.add(this.under);
     this.player = new Player(city);
+    this.player.onCaught = () => { this.ui.toast('The jetpack catches you. Hold Space to climb, or let it set you down.'); this.audio.jetStart(); };
+    this.player.onLanded = ok => this.ui.toast(ok ? 'Down. The jetpack folds away (G or 🚀 to fly again).' : 'No room to land here: fly over solid ground, a street or a flat roof, and try again.', ok ? undefined : 'warn');
     this.player.onRescueInterior = () => { const l = this.under.userData.landing; this.player.teleport(l[0] + 2, l[2], l[1]); };
     this.combat = new Combat(this);
     this.hands = makeHands(); this.handsScene.add(this.hands);
     this._streetIndex(); this._markers(); this.walkers = [];
-    this.npcs = [];
+    this.traffic = new Traffic(city, R, q, (x, z, r) => this.nearStreets(x, z, r)); this.surface.add(this.traffic.group);
+    this.npcs = []; this.met = new Set();
     this._post(q);
     set('Waking the dead…', 1); await tick();
     // compile shaders up front so the first steps don't stutter
@@ -208,6 +218,17 @@ class Game {
     const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: q === 'high' ? 4 : 2 });
     const c = this.composer = new EffectComposer(R, rt);
     c.addPass(new RenderPass(this.scene, this.camera));
+    // ground-truth ambient occlusion: contact shadow where walls meet the pavement, under cars, cornices and eaves
+    const ao = this.ao = new GTAOPass(this.scene, this.camera, size.x, size.y);
+    ao.updateGtaoMaterial({ radius: 1.1, distanceExponent: 1.6, thickness: 2.5, scale: 1.0, samples: q === 'high' ? 16 : 8, distanceFallOff: 1, screenSpaceRadius: false });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: q === 'high' ? 16 : 8 });
+    ao.blendIntensity = 0.6;
+    if (q !== 'high') { const set = ao.setSize.bind(ao); ao.setSize = (w, h) => set(Math.ceil(w / 2), Math.ceil(h / 2)); ao.setSize(size.x, size.y); }
+    // people, the sky and the markers don't need occlusion: leave them out of its extra pass
+    { const hide = [], ov = ao.overrideVisibility.bind(ao), rv = ao.restoreVisibility.bind(ao);
+      ao.overrideVisibility = () => { ov(); hide.length = 0; for (const o of [this.sky, this.backdrop, this.markerGroup, this.beacon, ...this.npcs.map(n => n.mesh), ...this.walkers.map(w => w.mesh), ...this.combat.enemies.map(e => e.mesh).filter(Boolean)]) if (o && o.visible) { o.visible = false; hide.push(o); } };
+      ao.restoreVisibility = () => { for (const o of hide) o.visible = true; rv(); }; }
+    c.addPass(ao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.3, 0.55, 1.05); c.addPass(this.bloom);
     c.addPass(new OutputPass());
     c.addPass(new ShaderPass({
@@ -307,7 +328,17 @@ class Game {
       if (inRoom) { mesh.scale.setScalar(1); }
       this.npcs.push({ id, def, mesh, x, y, z, hx: x, hz: z, facing: 0, visible: true, inRoom, hostile: false });
     }
+    // the regulars: always on the same corner, each their own person
+    REGULARS.forEach((q, i) => {
+      const def = makeCitizen(q.seed, q.district, { id: 'reg' + i, job: q.job, tag: q.tag, age: q.age }); EXTRAS[def.id] = def;
+      const [px, pz] = toXZ(q.at[0], q.at[1]), [x, y, z] = this.findSpot(px, pz);
+      const mesh = makePerson(Object.assign({}, def.look, { ghost: def.dead && !!this.flags.slept })); mesh.position.set(x, y, z); this.scene.add(mesh);
+      this.npcs.push({ id: def.id, def, mesh, x, y, z, hx: x, hz: z, facing: (q.seed % 7), visible: true, inRoom: false, hostile: false, regular: true });
+    });
     this.refreshNPCs();
+    // parked cars and lamps keep clear of everyone and everything the story needs
+    const spots = this.npcs.filter(n => !n.inRoom).map(n => [n.x, n.z]).concat(this.marks.map(m => [m.x, m.z]), LIBRARIES.map(l => [l.x, l.z]), Object.values(PLACES).map(q => toXZ(q.lat, q.lon)), this.ruins.userData.sites.map(q => [q.stele[0], q.stele[1]]));
+    this.detail.userData.reserve(spots);
   }
   npcShown(id) {
     const s = this.state, f = this.flags;
@@ -436,6 +467,12 @@ class Game {
   }
 
   /* ---------------- conversation ---------------- */
+  /* a passer-by stops, turns, and is somebody */
+  talkToWalker(w) {
+    const q = w.mesh.position; EXTRAS[w.def.id] = w.def;
+    const npc = { id: w.def.id, def: w.def, mesh: w.mesh, x: q.x, y: q.y, z: q.z, facing: w.mesh.rotation.y, visible: true, hostile: false, walker: w };
+    w.talk = npc; this.startTalk(npc);
+  }
   startTalk(npc) {
     this.talk = { npc, history: [] }; npc.mesh.userData.talking = true; this.pauseInput(true);
     document.exitPointerLock && document.exitPointerLock();
@@ -496,6 +533,8 @@ class Game {
     const t = this.talk; if (!t) return;
     if (t.ctl) t.ctl.abort();
     t.npc.mesh.userData.talking = false; this.talk = null; this.ui.closeDialogue(); this.pauseInput(false);
+    if (t.npc.def.ambient) this.met.add(t.npc.id);
+    if (t.npc.walker) t.npc.walker.talk = null;
     if (this.pending) { const p = this.pending; this.pending = null; p(); }
   }
   pauseInput(on) { this.paused = on; this.input.enabled = !on; if (on) this.input.releaseAll(); }
@@ -547,7 +586,8 @@ class Game {
   interactables() {
     const p = this.player, s = this.state, out = [];
     const near = (x, z, r) => Math.hypot(x - p.x, z - p.z) < r;
-    for (const n of this.npcs) if (n.visible && !n.hostile && near(n.x, n.z, 3.2) && Math.abs(n.y - p.y) < 3) out.push({ x: n.x, z: n.z, label: `Talk to ${n.def.name}`, icon: '💬', run: () => this.startTalk(n) });
+    for (const n of this.npcs) if (n.visible && !n.hostile && near(n.x, n.z, 3.2) && Math.abs(n.y - p.y) < 3) out.push({ x: n.x, z: n.z, label: `Talk to ${n.def.ambient && !this.met.has(n.id) ? n.def.tag : n.def.name}`, icon: '💬', minor: !!n.def.ambient, run: () => this.startTalk(n) });
+    for (const w of this.walkers) { const q = w.mesh.position; if (w.def && near(q.x, q.z, 2.6) && Math.abs(q.y - p.y) < 3) out.push({ x: q.x, z: q.z, label: `Talk to ${this.met.has(w.def.id) ? w.def.name : w.def.tag}`, icon: '💬', minor: true, run: () => this.talkToWalker(w) }); }
     if (!p.interior) {
       for (const m of this.marks) {
         if (!near(m.x, m.z, 2.8) || !this.markVisible(m)) continue;
@@ -569,7 +609,7 @@ class Game {
     }
     // closest first, preferring what you face
     const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
-    out.forEach(o => { const dx = o.x - p.x, dz = o.z - p.z, d = Math.hypot(dx, dz) || 1; o.score = d - (dx * fx + dz * fz) / d * 1.5; });
+    out.forEach(o => { const dx = o.x - p.x, dz = o.z - p.z, d = Math.hypot(dx, dz) || 1; o.score = d - (dx * fx + dz * fz) / d * 1.5 + (o.minor ? 2.5 : 0); });   // the story's people before passers-by
     out.sort((a, b) => a.score - b.score);
     return out[0] || null;
   }
@@ -667,7 +707,17 @@ class Game {
       n.facing = Math.atan2(p.x - n.x, p.z - n.z);
     } else {
       // actions
-      if (inp.pressed('bike')) { if (p.interior || this.combat.duel) this.ui.toast('No room for a bicycle here.'); else { p.bike = !p.bike; this.ui.toast(p.bike ? 'On the bicycle. Press B (🚲) to get off.' : 'On foot.'); } }
+      if (inp.pressed('bike')) { if (p.interior || this.combat.duel) this.ui.toast('No room for a bicycle here.'); else if (p.jet) this.ui.toast('Land first (G or 🚀), then take the bicycle.'); else { p.bike = !p.bike; this.ui.toast(p.bike ? 'On the bicycle. Press B (🚲) to get off.' : 'On foot.'); } }
+      if (inp.pressed('jet')) {
+        if (p.interior) this.ui.toast('No sky down here.');
+        else if (this.combat.duel) this.ui.toast('Not in the middle of a duel.');
+        else {
+          const r = p.toggleJet();
+          if (r === 'on') { this.ui.toast(this.touchUI() ? 'Jetpack on. ⤒ climbs, ⤓ drops, push the stick past its edge to boost. 🚀 again to land.' : 'Jetpack on. Space climbs, Z or Ctrl drops, Shift boosts, and you fly where you look. G again to land.'); this.audio.jetStart(); }
+          else if (r === 'landing') this.ui.toast('Coming down to land…');
+          else this.ui.toast('On foot.');
+        }
+      }
       if (inp.pressed('heal')) { const f = ['sourdough', 'pandulce', 'coffee'].find(k => s.inv[k]); if (f) this.useItem(f); else this.ui.toast('Nothing to eat. The Ferry Building has bread.', 'warn'); }
       for (let i = 1; i <= 6; i++) if (inp.pressed('weapon' + i)) { const w = WEAPON_ORDER[i - 1]; if (s.weapons.includes(w)) this.wield(w); }
       if (inp.pressed('weaponNext') || inp.pressed('weaponPrev')) { const own = WEAPON_ORDER.filter(w => s.weapons.includes(w)); if (own.length) this.wield(own[(own.indexOf(s.weapon) + (inp.peek('weaponPrev') ? -1 : 1) + own.length) % own.length]); }
@@ -687,9 +737,15 @@ class Game {
     if (p.interior) { const hall = this.under.userData.hall; if (Math.hypot(hall[0] - p.x, hall[2] - p.z) < 18) this.quests.event('reach', 'tidehall'); }
     if (s.customWP && Math.hypot(s.customWP.x - p.x, s.customWP.z - p.z) < 12) { s.customWP = null; this.ui.toast('You have arrived.'); }
     // streaming
-    if (!p.interior) { this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera); this.landmarks.userData.update(this.t); this.embarcadero.userData.update(this.t, dt, p.x, p.z); }
+    if (!p.interior) {
+      const agl = p.y - Math.max(0, this.city.heightAt(p.x, p.z));
+      this.detail.userData.update(p.x, p.z, agl, this.uNight()); this.traffic.update(dt, p, this.uNight());
+      this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera); this.landmarks.userData.update(this.t); this.embarcadero.userData.update(this.t, dt, p.x, p.z); }
     // audio bed
-    const sea = p.interior ? 0 : Math.max(0, 1 - this.distToWater() / 300);
+    const sea = p.interior ? 0 : Math.max(0, 1 - this.distToWater() / 300) * Math.max(0, 1 - (p.y - this.city.heightAt(p.x, p.z)) / 120);
+    this.audio.jet(p.jet ? p.thrust : 0);
+    this.ui.jetInfo(p.jet ? { alt: p.y, agl: p.y - Math.max(0, this.city.heightAt(p.x, p.z)), speed: p.speed, landing: p.jetLanding } : null);
+    document.body.classList.toggle('jet', !!p.jet);
     this.audio.update(dt, { t: this.t, sea, height: p.y, fog: this.fogBank, night: this.uNight() > 0.5, under: !!p.interior });
     if (p.speed > 0.5 && p.onGround && !p.bike) { this.stepT = (this.stepT || 0) + dt * p.speed; if (this.stepT > 1.4) { this.stepT = 0; this.audio.step(p.interior ? 'stone' : 'street'); } }
     // autosave
@@ -752,7 +808,7 @@ class Game {
   findFloor(x, z, y) { return this.player.floorAt.call({ city: this.city, interior: null }, x, z, y).f; }
   _walkers(dt) {
     const p = this.player; if (p.interior) return;
-    const cap = this.settings.quality === 'low' ? 6 : 12, want = Math.round(cap * (1 - this.uNight() * 0.6));
+    const cap = this.settings.quality === 'low' ? 6 : this.settings.quality === 'medium' ? 12 : 18, want = Math.round(cap * (1 - this.uNight() * 0.6));
     this.walkT = (this.walkT || 0) - dt;
     if (this.walkers.length < want && this.walkT < 0) {
       this.walkT = 0.7;
@@ -761,9 +817,9 @@ class Game {
         const st = sts[Math.floor(Math.random() * sts.length)], i = Math.floor(Math.random() * (st.pts.length - 1));
         const [ax, az] = st.pts[i], [bx, bz] = st.pts[i + 1], d0 = Math.hypot(ax - p.x, az - p.z);
         if (d0 > 50 && d0 < 170) {
-          const side = Math.random() < 0.5 ? -1 : 1, look = { skin: [0xe0b894, 0xc99a78, 0x8a5a3c, 0x5a3a28, 0xd8b48e, 0xa8765a][Math.floor(Math.random() * 6)], hair: [0x1a1410, 0x3a2a1a, 0x6a4a2a, 0xb8b8b8, 0xd8b060][Math.floor(Math.random() * 5)], hairStyle: ['short', 'long', 'bun', 'short', 'afro', 'bald'][Math.floor(Math.random() * 6)], top: [0x3a4a5a, 0x7a3a2a, 0x2a2a2a, 0x5a6a4a, 0x8a7a6a, 0x2a4a6a, 0xa8342a][Math.floor(Math.random() * 7)], bottom: [0x2a2a30, 0x3a3d44, 0x4a4030][Math.floor(Math.random() * 3)], hat: Math.random() < 0.2 ? 'beanie' : 'none', coat: Math.random() < 0.3 ? 0x3a3530 : false, ghost: Math.random() < 0.3 && this.flags.slept, height: 0.92 + Math.random() * 0.14 };
-          const mesh = makePerson(look); this.scene.add(mesh);
-          this.walkers.push({ mesh, st, i, t: 0, dir: 1, side, speed: 1.1 + Math.random() * 0.5 });
+          const side = Math.random() < 0.5 ? -1 : 1, def = makeCitizen((Math.random() * 2 ** 31) | 0, this.city.district(ax, az));
+          const mesh = makePerson(Object.assign({}, def.look, { ghost: def.dead && !!this.flags.slept })); this.scene.add(mesh);
+          this.walkers.push({ mesh, def, st, i, t: 0, dir: 1, side, speed: (1.05 + Math.random() * 0.5) * (def.age > 70 ? 0.7 : 1) });
         }
       }
     }
@@ -773,12 +829,22 @@ class Game {
       this.walkT2 = 0.5;
       const t = q.t + (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 100), s = [26, 30, 34, -23.5][Math.floor(Math.random() * 4)];
       if (t > 10 && t < WF.length - 10) {
-        const look = { skin: [0xe0b894, 0xc99a78, 0x8a5a3c, 0x5a3a28, 0xd8b48e][Math.floor(Math.random() * 5)], hair: [0x1a1410, 0x3a2a1a, 0x6a4a2a, 0xb8b8b8][Math.floor(Math.random() * 4)], hairStyle: ['short', 'long', 'bun', 'afro'][Math.floor(Math.random() * 4)], top: [0x3a4a5a, 0x7a3a2a, 0x2a2a2a, 0xd8c8a0, 0x2a4a6a, 0xa8342a][Math.floor(Math.random() * 6)], bottom: [0x2a2a30, 0x3a3d44, 0x3a4a6a][Math.floor(Math.random() * 3)], coat: Math.random() < 0.35 ? 0x4a4038 : false, hat: Math.random() < 0.15 ? 'cap' : 'none', ghost: Math.random() < 0.25 && this.flags.slept };
-        const mesh = makePerson(look); this.scene.add(mesh);
-        this.walkers.push({ mesh, wf: true, t, s: s + (Math.random() - 0.5) * 2, dir: Math.random() < 0.5 ? -1 : 1, speed: 1.1 + Math.random() * 0.5 });
+        const def = makeCitizen((Math.random() * 2 ** 31) | 0, t < RINCON_T ? 'South of Market' : 'Financial District');
+        const mesh = makePerson(Object.assign({}, def.look, { ghost: def.dead && !!this.flags.slept })); this.scene.add(mesh);
+        this.walkers.push({ mesh, def, wf: true, t, s: s + (Math.random() - 0.5) * 2, dir: Math.random() < 0.5 ? -1 : 1, speed: 1.1 + Math.random() * 0.5 });
       }
     }
     for (const w of this.walkers) {
+      // someone you're talking to, or about to: they stop and turn to you
+      const mp = w.mesh.position, dP = Math.hypot(mp.x - p.x, mp.z - p.z);
+      if (w.talk || (dP < 2.4 && !p.jet) || (w.paused && dP < 3.6 && !p.jet)) {
+        w.paused = true;
+        const want = w.talk ? w.talk.facing : Math.atan2(p.x - mp.x, p.z - mp.z);
+        let a = want - w.mesh.rotation.y; a = Math.atan2(Math.sin(a), Math.cos(a)); w.mesh.rotation.y += a * Math.min(1, dt * 5);
+        w.mesh.userData.animate(dt, 0, this.t);
+        continue;
+      }
+      w.paused = false;
       if (w.wf) {
         w.t += w.dir * w.speed * dt; const [x, z, ang] = wfPoint(w.t, w.s);
         w.mesh.position.set(x, XS.deckY + 0.15, z); w.mesh.rotation.y = -ang + Math.PI / 2 + (w.dir < 0 ? Math.PI : 0);
@@ -795,8 +861,8 @@ class Game {
       w.mesh.userData.animate(dt, w.speed, this.t);
       if (Math.hypot(x - p.x, z - p.z) > 220) w.gone = true;
     }
-    for (const w of this.walkers) if (w.gone) this.scene.remove(w.mesh);
-    this.walkers = this.walkers.filter(w => !w.gone);
+    for (const w of this.walkers) if (w.gone && !w.talk) this.scene.remove(w.mesh);
+    this.walkers = this.walkers.filter(w => !w.gone || w.talk);
   }
   _markersUpdate() {
     const p = this.player;
@@ -815,6 +881,12 @@ class Game {
     const shake = this.shakeA * 0.03; this.shakeA = Math.max(0, this.shakeA - dt * 2);
     cam.position.set(p.x + (Math.random() - 0.5) * shake, p.eye(this.settings.reduced) + (Math.random() - 0.5) * shake, p.z);
     cam.rotation.set(p.pitch, p.yaw, 0);
+    // flying: the view widens a little with speed, and you feel the air
+    const fov = 68 + (p.jet ? Math.min(16, Math.hypot(p.vx, p.vz) / 5) : 0);
+    // high up, push the near plane out so distant streets and roofs keep their depth precision
+    const near = p.interior ? 0.2 : Math.max(0.2, Math.min(6, (cam.position.y - Math.max(0, this.city.heightAt(p.x, p.z)) - 3) * 0.03));
+    if (Math.abs(cam.fov - fov) > 0.05 || Math.abs(cam.near - near) > 0.02) { cam.fov += (fov - cam.fov) * Math.min(1, dt * 3); cam.near = near; cam.updateProjectionMatrix(); }
+    if (p.jet && !this.settings.reduced) { const w = Math.min(1, Math.hypot(p.vx, p.vz) / 70) * 0.004; cam.rotation.x += (Math.random() - 0.5) * w; cam.rotation.z = (Math.random() - 0.5) * w; }
     U.uCamPos.value.copy(cam.position);
     this.sky.position.copy(cam.position);
     // storybook lights follow the painted sky

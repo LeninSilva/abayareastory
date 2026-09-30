@@ -45,6 +45,9 @@ export const PLACES = {
   davidson: { name: 'Mount Davidson', lat: 37.73840, lon: -122.45450 }
 };
 
+// the people on the sidewalks, made as you meet them (see citizens.js); the voices look here too
+export const EXTRAS = {};
+
 // shorthand for person specs
 const P = (o) => o;
 

@@ -38,6 +38,12 @@ export class UI {
     p.hidden = false; p.innerHTML = `<kbd>${this.g.touchUI() ? 'E' : 'E'}</kbd>${esc(target.label)}`;
     tb.classList.add('ready'); tb.textContent = target.icon || 'E';
   }
+  jetInfo(j) {
+    const el = $('jetinfo'); if (!j) { if (!el.hidden) el.hidden = true; return; }
+    this._jetT = (this._jetT || 0) + 1; if (!el.hidden && this._jetT % 6) return;
+    el.hidden = false;
+    el.textContent = `${j.landing ? 'LANDING · ' : ''}ALT ${Math.round(j.agl)} m · ${Math.round(j.speed * 3.6)} km/h`;
+  }
   update(dt) {
     const g = this.g, st = g.state, p = g.player;
     if (this.subT > 0) { this.subT -= dt; if (this.subT <= 0) $('subtitle').hidden = true; }
@@ -281,7 +287,7 @@ export class UI {
   _mapMarks() {
     const g = this.g, marks = [];
     for (const l of LIBRARIES) { const open = g.state.libs.includes(l.id); marks.push({ x: l.x, z: l.z, kind: 'lib', label: l.name, open, id: l.id, color: open ? '#8fe3d4' : '#6a7a80' }); }
-    for (const n of g.npcs) if (n.visible && !n.inRoom) marks.push({ x: n.x, z: n.z, kind: 'npc', label: n.def.name + ', ' + n.def.title, color: g.npcHasQuest(n.id) ? '#e2b865' : '#cfc7b0', npc: n });
+    for (const n of g.npcs) if (n.visible && !n.inRoom && !n.def.ambient) marks.push({ x: n.x, z: n.z, kind: 'npc', label: n.def.name + ', ' + n.def.title, color: g.npcHasQuest(n.id) ? '#e2b865' : '#cfc7b0', npc: n });
     for (const s of g.ruins.userData.sites) if (g.state.glyphs.includes(s.id) || g.state.seenSites.includes(s.id)) marks.push({ x: s.x, z: s.z, kind: 'site', label: s.name, color: g.state.glyphs.includes(s.id) ? '#8fe3d4' : '#b0a890' });
     for (const f of g.fastTravelSpots()) marks.push(f);
     return marks;

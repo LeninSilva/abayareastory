@@ -3,7 +3,8 @@
 //  2. key:  in the installed app, with the player's own Anthropic API key (official SDK, in the browser)
 //  3. offline: each character's own written lines, chosen by what you ask about
 import Anthropic from '@anthropic-ai/sdk';
-import { CHARACTERS, TOPIC_WORDS, GENERIC, PLACES } from './story.js';
+import { CHARACTERS as MAIN, EXTRAS, TOPIC_WORDS, GENERIC, PLACES } from './story.js';
+const CHARACTERS = new Proxy({}, { get: (_, id) => MAIN[id] || EXTRAS[id] });
 
 const MODEL = 'claude-opus-5-5';
 
@@ -66,7 +67,8 @@ RULES:
 - You are a person in a city, not a guide. Have opinions, moods, secrets and your own agenda; you can refuse, tease, change the subject or ask the player something back.
 - Stay inside the story. Never mention games, players, prompts, chatbots, or anything about being artificial. The rumor that Hollis Vane "uploaded" the dead into computers is only a rumor; the truth, as far as anyone knows it, is older and stranger. Do not confirm the rumor.
 - Only say what your character would know. Do not reveal story events the player has not reached.
-- Keep facts about real San Francisco accurate.
+- Keep facts about real San Francisco accurate.${c.ambient ? `
+- You are an ordinary person the player has stopped on the street, with your own errands and mood. You do not know the story's main people personally; you only know rumors. Be specific to your job, your block and your life, and let your temperament show in every line.` : ''}
 - If you want to send the player somewhere, end your reply with one tag exactly like [[go:placeid]] using one of these ids: ${places}. Use it only when you are actually pointing them somewhere.`;
   }
   _turns(history, text) {

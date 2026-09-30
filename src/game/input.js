@@ -3,7 +3,7 @@
 const KEYMAP = {
   KeyE: 'interact', Enter: 'interact', KeyF: 'ability', KeyQ: 'cycle', Space: 'jump', ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyB: 'bike', KeyM: 'map', Escape: 'menu', Tab: 'menu', KeyJ: 'journal', KeyI: 'inventory', KeyC: 'character', KeyH: 'heal', KeyR: 'block', KeyX: 'attack',
-  Digit1: 'weapon1', Digit2: 'weapon2', Digit3: 'weapon3', Digit4: 'weapon4', Digit5: 'weapon5', Digit6: 'weapon6', KeyV: 'camera'
+  Digit1: 'weapon1', Digit2: 'weapon2', Digit3: 'weapon3', Digit4: 'weapon4', Digit5: 'weapon5', Digit6: 'weapon6', KeyV: 'camera', KeyG: 'jet', KeyZ: 'descend', ControlLeft: 'descend', ControlRight: 'descend'
 };
 const MOVEKEYS = { KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
 
@@ -112,7 +112,7 @@ export class Input {
     const dz = v => Math.abs(v) < 0.15 ? 0 : v;
     this.padMove.x = dz(p.axes[0]); this.padMove.y = -dz(p.axes[1]);
     this.look.dx += dz(p.axes[2] || 0) * dt * 2.6; this.look.dy += dz(p.axes[3] || 0) * dt * 2.2;
-    const map = ['interact', 'block', 'attack', 'ability', 'cycle', 'attack', 'block', 'attack', 'map', 'menu', 'sprint', 'bike', 'heal', 'bike', 'weaponPrev', 'weaponNext'];
+    const map = ['interact', 'block', 'attack', 'ability', 'cycle', 'attack', 'block', 'attack', 'map', 'menu', 'sprint', 'bike', 'heal', 'jet', 'weaponPrev', 'weaponNext'];
     p.buttons.forEach((b, i) => {
       const a = map[i]; if (!a) return;
       const was = this.lastPad[i], now = b.pressed;

@@ -30,7 +30,7 @@
       <button id="btn-title-settings">Settings</button>
       <button id="btn-about">About</button>
     </div>
-    <p class="hint" id="title-hint">Move with WASD or the left side of the screen. Look with the mouse or the right side. Press E to talk.</p>
+    <p class="hint" id="title-hint">Move with WASD or the left side of the screen. Look with the mouse or the right side. Press E to talk, G to fly.</p>
   </div>
 </section>
 
@@ -55,6 +55,7 @@
   <div id="foe" hidden><span id="foe-name"></span><div class="bar"><i id="foe-bar"></i></div></div>
   <div id="cross"></div>
   <div id="prompt" hidden></div>
+  <div id="jetinfo" hidden aria-live="off"></div>
   <div id="subtitle" hidden></div>
   <div id="toasts" aria-live="polite"></div>
   <button id="stuck" hidden>Stuck? Tap here (or press U) to step free</button>
@@ -70,10 +71,12 @@
     <button data-action="attack" class="tb big" aria-label="Strike">⚔</button>
     <button data-action="block" class="tb" aria-label="Block">🛡</button>
     <button data-action="interact" class="tb act" id="tb-interact" aria-label="Talk or use">E</button>
-    <button data-action="jump" class="tb" aria-label="Jump">⤒</button>
+    <button data-action="jump" class="tb" aria-label="Jump, or climb with the jetpack">⤒</button>
+    <button data-action="descend" class="tb jetonly" aria-label="Fly down">⤓</button>
     <button data-action="ability" class="tb" aria-label="Ability">✦</button>
     <button data-action="cycle" class="tb sm" aria-label="Change ability">↻</button>
     <button data-action="bike" class="tb sm" aria-label="Bicycle">🚲</button>
+    <button data-action="jet" class="tb sm" aria-label="Jetpack: fly, or land">🚀</button>
     <button data-action="heal" class="tb sm" aria-label="Eat">🍞</button>
     <button data-action="map" class="tb sm" aria-label="Map">🗺</button>
   </div>
