@@ -7,7 +7,7 @@ const COLORS = [0xe8e8e6, 0x1a1a1c, 0x9aa0a6, 0x5a6068, 0x23324a, 0x7a1c1c, 0xe8
 export class Traffic {
   constructor(city, renderer, quality, nearStreets) {
     this.city = city; this.near = nearStreets;
-    this.max = quality === 'low' ? 4 : quality === 'medium' ? 10 : 18;
+    this.max = quality === 'low' ? 4 : quality === 'medium' ? 10 : quality === 'high' ? 18 : 26;
     this.kit = new CarKit(renderer, this.max + 2); this.group = this.kit.group;
     this.cars = []; this.t = 0;
   }

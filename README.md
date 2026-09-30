@@ -28,7 +28,15 @@ You can play it in a browser or install it on Android as an app: open the page i
   - The Estadio 18 de Marzo and its portada, which carries Cárdenas' words: "Los recursos naturales del país deben servir para su propia prosperidad. Entregarlos a intereses extraños es traicionar la patria."
   - The Plaza de la Feria, the Santuario de Guadalupe, San Cayetano, Santa Anita, the Plaza de Toros Alberto Balderas, the Museo Vida y Obra de Lázaro Cárdenas, the gate of the Parque Juárez, and the cross on the summit of the cerro.
   - Where a building's exact form isn't recorded (the portada, the kiosco, the bullring), it is modelled in the regional style.
-- **Rendering:** sun shadows; ambient occlusion (medium and high quality); bloom; fog integrated through the air, so the valley stays clear from above; a sun that crosses from east to west a little to the south; a speed blur when you fly or drive fast.
+- **Rendering:** a look modelled on Unreal Engine, built in three.js:
+  - a physically based sky with raymarched clouds (silver-lined toward the sun) that also lights the scene through image-based lighting;
+  - GGX specular highlights and fine surface relief on walls, roofs, cobbles, asphalt and the river;
+  - two sun-shadow cascades, one sharp near you and one out to the hills;
+  - ambient occlusion, god rays through gaps in the buildings and bloom;
+  - aerial perspective that fogs distant hills toward blue;
+  - wind-blown grass, and leaf-card crowns on the trees;
+  - AgX filmic tone mapping, eye adaptation and a film grade;
+  - a sun that crosses from east to west a little to the south, and a speed blur when you fly or drive fast.
 
 ## How it plays
 
@@ -54,7 +62,7 @@ You can play it in a browser or install it on Android as an app: open the page i
   - Forgiving chases and timers
   - Look sensitivity and inverted look
   - On-screen controls: automatic, always or never
-  - Three quality presets
+  - Four quality presets (Low, Medium, High, Cinematic)
   - An "I'm stuck" button (U) that always gets you back to a street
 
 ## What's real and what isn't

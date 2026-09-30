@@ -9,21 +9,39 @@ export function makeSky() {
     vertexShader: /* glsl */`varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.); gl_Position = p.xyww; }`,
     fragmentShader: GLSL_COMMON + /* glsl */`
 varying vec3 vDir;
+// cloud density at a point on the cloud deck
+float cloudD(vec2 p){ vec2 w = vec2(uTime * .9, uTime * .35); float c = fbm(p * .00042 + w * .0004) * .7 + fbm(p * .0016 - w * .0007) * .35 + vnoise(p * .006) * .08; return smoothstep(.52, .82, c); }
 void main(){
   vec3 d = normalize(vDir);
   float h = max(d.y, -0.2);
-  vec3 col = mix(uSkyHorizon, uSkyTop, pow(clamp(h, 0., 1.), 0.55));
-  float sd = max(dot(d, uSunDir), 0.);
-  col += uSunColor * (pow(sd, 900.) * 6. + pow(sd, 18.) * .35 + pow(sd, 3.) * .12) * (1. - uNight * .9);
-  // painted clouds: two layers of fbm on a flattened dome
-  vec2 cp = d.xz / (d.y + .18) * 1.6 + vec2(uTime * .004, uTime * .0015);
-  float c = smoothstep(.48, .78, fbm(cp * 1.4) * .75 + fbm(cp * 4.1) * .35);
-  vec3 cloudLit = mix(uFogColor * .95, uSunColor * 1.15, pow(sd, 2.) * .8 + .2);
-  col = mix(col, cloudLit, c * smoothstep(0.02, .25, d.y) * (1. - uNight * .6) * .85);
-  // stars at night
-  if (uNight > .01) { vec2 sp = floor(d.xz / (d.y + .3) * 220.); float s = step(.9975, hash12(sp)); col += vec3(s) * uNight * smoothstep(.05, .4, d.y); }
-  // the marine layer sits on the horizon
-  col = mix(col, uFogColor, smoothstep(.12, -.02, d.y) * .85);
+  // atmosphere: the zenith colour, a bright band at the horizon (more air to look through), Rayleigh-ish blue away from the sun
+  float mu = dot(d, uSunDir), day = 1. - uNight;
+  vec3 col = mix(uSkyHorizon, uSkyTop, pow(clamp(h, 0., 1.), 0.45));
+  col = mix(col, uSkyHorizon * 1.15, exp(-max(h, 0.) * 9.) * .45);
+  col *= 1. + .12 * (1. + mu * mu) * day;
+  // the sun: a hard disc, a Mie halo, a wide glow
+  float sd = max(mu, 0.);
+  col += uSunColor * (smoothstep(.99985, .99995, sd) * 30. + pow(sd, 700.) * 4. + pow(sd, 22.) * .45 + pow(sd, 4.) * .14) * day;
+  // clouds: a deck 2.5 km up, marched through its thickness, lit toward the sun, silver at the edges
+  if (d.y > .015) {
+    float t0 = (2500. - uCamPos.y) / d.y, dens = 0., light = 0.;
+    for (int i = 0; i < 4; i++) {
+      vec3 p = uCamPos + d * (t0 + float(i) * 120. / d.y);
+      float c = cloudD(p.xz); if (c <= 0.) continue;
+      float toward = cloudD(p.xz + uSunDir.xz / max(uSunDir.y, .15) * 220.);   // how much cloud lies between here and the sun
+      light += c * (1. - dens) * exp(-toward * 2.2);
+      dens += c * (1. - dens) * .55;
+    }
+    dens = clamp(dens * smoothstep(.015, .2, d.y), 0., 1.);
+    float silver = pow(sd, 8.) * 2.;
+    vec3 lit = mix(uFogColor * .85, uSunColor * (1.25 + silver), clamp(light / max(dens, .05) * .9, 0., 1.)) * day + uSkyTop * .25;
+    vec3 shade = mix(uSkyTop * .55 + uFogColor * .35, uSkyHorizon * .7, .3);
+    vec3 cc = mix(shade, lit, clamp(light * 1.6, 0., 1.));
+    cc = mix(cc, uFogColor, clamp(t0 / 60000., 0., .85));      // far clouds melt into the haze
+    col = mix(col, cc * (uNight > .5 ? .15 : 1.), dens * (1. - uNight * .7));
+  }
+  if (uNight > .01) { vec2 sp = floor(d.xz / (d.y + .3) * 260.); float s = step(.9975, hash12(sp)) * (.5 + .5 * sin(uTime * 3. + hash12(sp + 1.) * 40.)); col += vec3(s) * uNight * smoothstep(.05, .4, d.y); }
+  col = mix(col, uFogColor, smoothstep(.1, -.03, d.y) * .8);
   gl_FragColor = vec4(col, 1.);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

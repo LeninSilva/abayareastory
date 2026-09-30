@@ -192,7 +192,7 @@ export class UI {
     const v = this.g.voices;
     return `<div class="sect"><h2>Settings</h2>
     <h3>Seeing</h3>
-    <div class="setting"><label>Picture quality</label>${seg('quality', [['low', 'Light'], ['medium', 'Balanced'], ['high', 'Beautiful']])}<small>Lighter quality draws less of the distance and runs better on phones. Takes effect when you restart.</small></div>
+    <div class="setting"><label>Picture quality</label>${seg('quality', [['low', 'Light'], ['medium', 'Balanced'], ['high', 'Beautiful'], ['cinematic', 'Cinematic']])}<small>Lighter quality runs better on phones. Cinematic is for a strong graphics card: sharper and longer shadows, denser grass, trees and traffic. Takes effect the next time the town loads.</small></div>
     <div class="setting"><label>Text size</label>${seg('text', [['s', 'Small'], ['m', 'Medium'], ['l', 'Large'], ['xl', 'Largest']])}</div>
     <div class="setting"><label>High contrast panels</label>${seg('contrast', [['normal', 'Off'], ['high', 'On']])}</div>
     <div class="setting"><label>Reduce motion</label>${seg('reduced', [['false', 'Off'], ['true', 'On']])}<small>No head bob, no camera shake, no speed stretch.</small></div>

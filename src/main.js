@@ -13,6 +13,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { makeBuildings } from './render/buildings.js';
 import { makeTrees } from './render/trees.js';
+import { makeGrass } from './render/grass.js';
 import { makeDetail, CarKit } from './render/detail.js';
 import { Traffic } from './render/traffic.js';
 import { makeLandmarks } from './render/landmarks.js';
@@ -85,7 +86,7 @@ class Game {
     if (this.renderer) this.maxPR = this.qualityPR();
   }
   touchUI() { return this.settings.touch === 'on' || (this.settings.touch === 'auto' && (this.input.touchMode || mobile)); }
-  qualityPR() { const d = devicePixelRatio || 1; return Math.min(d, this.settings.quality === 'high' ? 2 : this.settings.quality === 'medium' ? 1.35 : 1); }
+  qualityPR() { const d = devicePixelRatio || 1, q = this.settings.quality; return q === 'cinematic' ? Math.max(1.25, Math.min(d, 2)) : Math.min(d, q === 'high' ? 2 : q === 'medium' ? 1.35 : 1); }
 
   /* ---------------- starting ---------------- */
   async begin(save) {
@@ -155,7 +156,7 @@ class Game {
     const city = this.city = await loadCity(f => set('Unfolding the town…', f * 0.4));
     const q = this.settings.quality;
     const R = this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: q !== 'low', powerPreference: 'high-performance' });
-    R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 0.8; R.outputColorSpace = THREE.SRGBColorSpace; R.autoClear = false;
+    R.toneMapping = THREE.AgXToneMapping; R.toneMappingExposure = 1.05; R.outputColorSpace = THREE.SRGBColorSpace; R.autoClear = false;   // AgX: filmic, with soft highlight roll-off
     this.maxPR = this.qualityPR(); this.pr = this.maxPR; R.setPixelRatio(this.pr);
     const scene = this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(68, 1, 0.2, 60000); this.camera.rotation.order = 'YXZ';
@@ -174,6 +175,8 @@ class Game {
     this.buildings = makeBuildings(city, q); this.surface.add(this.buildings);
     set('Planting the laureles and the jacarandas…', 0.74); await tick();
     this.trees = makeTrees(city, q); this.surface.add(this.trees);
+    if (q !== 'low') { this.grass = makeGrass(city, q); this.surface.add(this.grass); }
+    U.uDetail.value = q === 'low' ? 0 : 1;
     set('Ringing the bells of San Francisco…', 0.82); await tick();
     this.landmarks = makeLandmarks(city); this.surface.add(this.landmarks); this.spots = this.landmarks.userData.spots;
     set('Parking the cars…', 0.9); await tick();
@@ -188,6 +191,7 @@ class Game {
     this._streetIndex(); this._markers();
     this.races = makeRaces(city, this.spots);
     this._post(q);
+    this._envSetup();
     set('Waking the town…', 1); await tick();
     try { R.compile(scene, this.camera); } catch (_) {}
   }
@@ -198,15 +202,30 @@ class Game {
     const c = this.composer = new EffectComposer(R, rt);
     c.addPass(new RenderPass(this.scene, this.camera));
     const ao = this.ao = new GTAOPass(this.scene, this.camera, size.x, size.y);
-    ao.updateGtaoMaterial({ radius: 1.1, distanceExponent: 1.6, thickness: 2.5, scale: 1.0, samples: q === 'high' ? 16 : 8, distanceFallOff: 1, screenSpaceRadius: false });
-    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: q === 'high' ? 16 : 8 });
-    ao.blendIntensity = 0.6;
-    if (q !== 'high') { const setS = ao.setSize.bind(ao); ao.setSize = (w, h) => setS(Math.ceil(w / 2), Math.ceil(h / 2)); ao.setSize(size.x, size.y); }
+    const hq = q === 'high' || q === 'cinematic';
+    ao.updateGtaoMaterial({ radius: 1.3, distanceExponent: 1.6, thickness: 2.5, scale: 1.0, samples: hq ? 16 : 8, distanceFallOff: 1, screenSpaceRadius: false });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: hq ? 16 : 8 });
+    ao.blendIntensity = 0.7;
+    if (!hq) { const setS = ao.setSize.bind(ao); ao.setSize = (w, h) => setS(Math.ceil(w / 2), Math.ceil(h / 2)); ao.setSize(size.x, size.y); }
     { const hide = [], ov = ao.overrideVisibility.bind(ao), rv = ao.restoreVisibility.bind(ao);
-      ao.overrideVisibility = () => { ov(); hide.length = 0; for (const o of [this.sky, this.markerGroup, this.beacon, this.raceGroup(), ...this.npcs.map(n => n.mesh), ...this.walkers.map(w => w.mesh)]) if (o && o.visible) { o.visible = false; hide.push(o); } };
+      ao.overrideVisibility = () => { ov(); hide.length = 0; for (const o of [this.sky, this.markerGroup, this.beacon, this.raceGroup(), this.grass, ...this.npcs.map(n => n.mesh), ...this.walkers.map(w => w.mesh)]) if (o && o.visible) { o.visible = false; hide.push(o); } };
       ao.restoreVisibility = () => { for (const o of hide) o.visible = true; rv(); }; }
     c.addPass(ao);
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.3, 0.55, 1.05); c.addPass(this.bloom);
+    // sun shafts: march from each pixel toward the sun across the depth buffer, gathering open sky
+    this.shafts = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, tDepth: { value: ao.depthTexture }, uSun: { value: new THREE.Vector2(0.5, 0.5) }, uVis: { value: 0 }, uCol: { value: new THREE.Color() }, uStrength: { value: q === 'cinematic' ? 0.55 : 0.4 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+      fragmentShader: `uniform sampler2D tDiffuse, tDepth; uniform vec2 uSun; uniform float uVis, uStrength; uniform vec3 uCol; varying vec2 vUv;
+        void main(){ vec3 c = texture2D(tDiffuse, vUv).rgb;
+          if (uVis > .001) {
+            vec2 d = (uSun - vUv) / 40.; vec2 p = vUv + d * fract(sin(dot(vUv, vec2(12.9898, 78.233))) * 43758.5453); float acc = 0., w = 1.;
+            for (int i = 0; i < 40; i++) { p += d; if (p.x < 0. || p.y < 0. || p.x > 1. || p.y > 1.) break; float sky = step(.99995, texture2D(tDepth, p).r); acc += sky * w * smoothstep(.75, 0., distance(p, uSun)); w *= .965; }
+            c += uCol * acc / 40. * uStrength * uVis * smoothstep(1.1, .2, distance(vUv, uSun));
+          }
+          gl_FragColor = vec4(c, 1.); }`
+    });
+    c.addPass(this.shafts);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.3, 0.6, 1.0); c.addPass(this.bloom);
     c.addPass(new OutputPass());
     c.addPass(new ShaderPass({
       uniforms: { tDiffuse: { value: null }, uTime: U.uTime, uSpeed: { value: 0 } },
@@ -216,15 +235,35 @@ class Game {
           // speed: a little radial smear at the edges when you're flying or driving fast
           vec3 c = texture2D(tDiffuse, vUv).rgb;
           if (uSpeed > .01) { vec3 acc = c; for (int i = 1; i < 6; i++) acc += texture2D(tDiffuse, vUv - d * float(i) * .012 * uSpeed * dot(d, d) * 4.).rgb; c = mix(c, acc / 6., smoothstep(.05, .3, length(d))); }
-          float l = dot(c, vec3(.299,.587,.114));
-          c = mix(c, c * vec3(1.04, 1.0, .95), smoothstep(.45, .9, l));
-          c = mix(c, c * vec3(.95, .98, 1.06), smoothstep(.45, .05, l));
-          c *= 1. - dot(d, d) * .5;
-          c += (fract(sin(dot(vUv * 1000. + uTime, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;
+          // a lens: faint colour fringing toward the corners
+          float ca = dot(d, d) * .011; c.r = mix(c.r, texture2D(tDiffuse, vUv - d * ca).r, .6); c.b = mix(c.b, texture2D(tDiffuse, vUv + d * ca).b, .6);
+          // the grade: a gentle S-curve and some saturation back after the filmic curve, warm highlights, cool shadows
+          float l = dot(c, vec3(.2126,.7152,.0722));
+          c = mix(vec3(l), c, 1.14);
+          c = clamp((c - .5) * 1.07 + .5, 0., 1.);
+          c = mix(c, c * vec3(1.04, 1.0, .94), smoothstep(.45, .9, l));
+          c = mix(c, c * vec3(.94, .98, 1.07), smoothstep(.45, .05, l));
+          c *= 1. - dot(d, d) * .55;
+          c += (fract(sin(dot(vUv * 1000. + uTime, vec2(12.9898, 78.233))) * 43758.5453) - .5) * .016;   // film grain
           gl_FragColor = vec4(c, 1.); }`
     }));
     this.grade = c.passes[c.passes.length - 1];
-    this.shadows = new SunShadows(R, q === 'high' ? 2048 : 1536, q === 'high' ? 170 : 130);
+    const cin = q === 'cinematic';
+    this.shadows = new SunShadows(R, cin ? 4096 : q === 'high' ? 2048 : 1536, cin ? 75 : q === 'high' ? 65 : 55, 0);
+    this.shadowsFar = new SunShadows(R, cin ? 4096 : q === 'high' ? 2048 : 1024, cin ? 900 : q === 'high' ? 700 : 480, 1);
+  }
+  /* image-based light: the live sky, pre-filtered, lights and reflects in every physically based surface */
+  _envSetup() {
+    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.envScene = new THREE.Scene(); this.envSky = makeSky(); this.envSky.scale.setScalar(0.001); this.envScene.add(this.envSky);
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(40, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5a5a48 })); ground.position.y = -4; this.envScene.add(ground); this.envGround = ground;
+    this.envT = -1;
+  }
+  _envUpdate() {
+    if (!this.pmrem || (this.envT >= 0 && this.t - this.envT < 2.5)) return; this.envT = this.t;
+    this.envGround.material.color.copy(U.uGroundBounce.value).multiplyScalar(1.3);
+    const old = this.envRT; this.envRT = this.pmrem.fromScene(this.envScene, 0.02, 0.1, 100);
+    this.scene.environment = this.envRT.texture; if (old) old.dispose();
   }
   onResize() {
     const w = innerWidth, h = innerHeight; if (!this.renderer) return;
@@ -598,7 +637,8 @@ class Game {
     // streaming
     const agl = p.y - Math.max(0, this.city.heightAt(p.x, p.z));
     this.detail.userData.update(p.x, p.z, agl, this.uNight()); this.traffic.update(dt, V.driving ? { x: p.x, z: p.z, y: p.y, jet: false, onGround: true, canStand: () => null } : p, this.uNight());
-    this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera); this.landmarks.userData.update(this.t, this.uNight());
+    this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera);
+    if (this.grass) this.grass.userData.update(p.x, p.z, agl); this.landmarks.userData.update(this.t, this.uNight());
     // sound and speed readouts
     this.audio.update(dt, { t: this.t, sea: 0, height: Math.max(0, agl), fog: 0, night: this.uNight() > 0.5, under: false, noHorn: true });
     this.audio.jet(p.jet ? p.thrust : 0);
@@ -688,16 +728,29 @@ class Game {
     U.uCamPos.value.copy(cam.position); this.sky.position.copy(cam.position);
     this.sun.position.copy(cam.position).addScaledVector(U.uSunDir.value, 500); this.sun.target.position.copy(cam.position);
     this.sun.color.copy(U.uSunColor.value); this.sun.intensity = 2.4 * (1 - U.uNight.value * 0.8);
-    this.hemi.color.copy(U.uAmbient.value).multiplyScalar(2.3); this.hemi.groundColor.copy(U.uGroundBounce.value).multiplyScalar(2.0);
+    this.hemi.color.copy(U.uAmbient.value).multiplyScalar(this.scene.environment ? 0.9 : 2.3); this.hemi.groundColor.copy(U.uGroundBounce.value).multiplyScalar(this.scene.environment ? 0.8 : 2.0);
+    this._envUpdate();
     this.hsun.color.copy(this.sun.color); this.hsun.intensity = this.sun.intensity; this.hsun.position.set(U.uSunDir.value.x, U.uSunDir.value.y, U.uSunDir.value.z);
     this.hhemi.color.copy(this.hemi.color); this.hhemi.groundColor.copy(this.hemi.groundColor);
     R.setClearColor(U.uFogColor.value, 1);
     if (this.shadows) {
       const fx = -Math.sin(this.viewYaw()), fz = -Math.cos(this.viewYaw()), c = this.shadowCenter || (this.shadowCenter = new THREE.Vector3());
       c.set(p.x + fx * this.shadows.R * 0.45, p.y, p.z + fz * this.shadows.R * 0.45);
-      this.shadows.update(this.scene, c, U.uSunDir.value, [this.sky, this.streets, this.streams, this.markerGroup, this.beacon, this.terrain, this.raceGroup()].filter(Boolean));
-    } else U.uShadowOn.value = 0;
-    if (this.composer) { this.bloom.strength = 0.26 + U.uNight.value * 0.5; this.composer.render(dt); }
+      const hide = [this.sky, this.streets, this.streams, this.markerGroup, this.beacon, this.terrain, this.grass, this.raceGroup()].filter(Boolean);
+      this.shadows.update(this.scene, c, U.uSunDir.value, hide);
+      // the far cascade covers the view out to the hills; it can be a frame behind
+      this.farFrame = (this.farFrame || 0) + 1;
+      if (this.farFrame % 2 === 0) { const c2 = this.shadowCenter2 || (this.shadowCenter2 = new THREE.Vector3()); c2.set(p.x + fx * this.shadowsFar.R * 0.5, p.y, p.z + fz * this.shadowsFar.R * 0.5); this.shadowsFar.update(this.scene, c2, U.uSunDir.value, hide.concat(this.walkers.map(w => w.mesh), this.npcs.map(n => n.mesh))); }
+    } else { U.uShadowOn.value = 0; U.uShadowOn2.value = 0; }
+    // eye adaptation: brighter at night, a touch darker when you look into the sun
+    const sd = U.uSunDir.value, fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion), glare = Math.max(0, fwd.dot(sd)) ** 4 * (1 - U.uNight.value);
+    const expo = 1.05 * (1 + U.uNight.value * 0.35) * (1 - glare * 0.22); R.toneMappingExposure += (expo - R.toneMappingExposure) * Math.min(1, dt * 1.5);
+    if (this.shafts) {
+      const sp = cam.position.clone().addScaledVector(sd, 5000).project(cam), vis = sp.z < 1 && fwd.dot(sd) > 0 ? Math.max(0, 1 - Math.max(Math.abs(sp.x), Math.abs(sp.y)) / 1.6) : 0;
+      this.shafts.uniforms.uSun.value.set(sp.x * 0.5 + 0.5, sp.y * 0.5 + 0.5); this.shafts.uniforms.uVis.value = vis * Math.min(1, sd.y * 6) * (1 - U.uNight.value);
+      this.shafts.uniforms.uCol.value.copy(U.uSunColor.value);
+    }
+    if (this.composer) { this.bloom.strength = 0.24 + U.uNight.value * 0.5; this.composer.render(dt); }
     else { R.setRenderTarget(null); R.clear(); R.render(this.scene, cam); }
     this.hands.userData.setWeapon(null);
     this.hands.visible = false;   // empty-handed first person: nothing to hold up

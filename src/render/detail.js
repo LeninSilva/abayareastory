@@ -64,11 +64,10 @@ function carParts(kind) {
 /** Instanced cars with a fixed capacity; set(i, x, y, z, ang, pitch, kind, color); commit(). */
 export class CarKit {
   constructor(renderer, capacity) {
-    const env = envMap(renderer);
     this.cap = capacity;
     this.mats = {
-      body: landmarkMaterial({ color: 0xffffff, metalness: 0.5, roughness: 0.3, envMap: env }),
-      glass: landmarkMaterial({ color: 0x0e1418, metalness: 0.3, roughness: 0.06, envMap: env }),
+      body: landmarkMaterial({ color: 0xffffff, metalness: 0.55, roughness: 0.28 }),   // clear-coat paint; reflects the live sky (scene.environment)
+      glass: landmarkMaterial({ color: 0x0e1418, metalness: 0.3, roughness: 0.05 }),
       wheels: landmarkMaterial({ color: 0x151515, roughness: 0.85 }),
       lights: new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })
     };
@@ -104,7 +103,7 @@ export class CarKit {
 /* ---------------- the close-up builder ---------------- */
 export function makeDetail(city, renderer, quality) {
   const group = new THREE.Group();
-  const RADIUS = quality === 'low' ? 140 : quality === 'medium' ? 220 : 300, CAP = quality === 'low' ? 6000 : 16000;
+  const RADIUS = quality === 'low' ? 140 : quality === 'medium' ? 220 : quality === 'high' ? 300 : 380, CAP = quality === 'low' ? 6000 : 16000;
   // materials
   const prop = landmarkMaterial({ color: 0xffffff, roughness: 0.8 });
   const iron = landmarkMaterial({ color: 0x2b2b2e, roughness: 0.55, metalness: 0.5 });

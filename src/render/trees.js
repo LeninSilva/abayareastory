@@ -38,6 +38,46 @@ function palm() {
   return merge(parts);
 }
 
+/* leaf cards: many small alpha-cut quads of painted leaves around each crown, with normals pointing out from the
+   crown's centre so the foliage lights like a soft volume rather than a faceted ball */
+let LEAF = null;
+function leafTexture() {
+  if (LEAF) return LEAF;
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  for (let i = 0; i < 70; i++) {
+    const px = 10 + Math.random() * 108, py = 10 + Math.random() * 108, a = Math.random() * Math.PI * 2, l = 9 + Math.random() * 10, w = l * 0.42;
+    const g = 150 + Math.random() * 90; x.fillStyle = `rgb(${g * 0.8},${g},${g * 0.7})`;
+    x.save(); x.translate(px, py); x.rotate(a); x.beginPath(); x.ellipse(0, 0, l, w, 0, 0, Math.PI * 2); x.fill();
+    x.strokeStyle = 'rgba(0,0,0,0.25)'; x.lineWidth = 1; x.beginPath(); x.moveTo(-l, 0); x.lineTo(l, 0); x.stroke(); x.restore();
+  }
+  LEAF = new THREE.CanvasTexture(c); LEAF.colorSpace = THREE.SRGBColorSpace; return LEAF;
+}
+function cards(crowns, color, per = 16) {
+  const pos = [], nor = [], uv = [], col = [], idx = []; const cc = new THREE.Color(color), tmp = new THREE.Color(); let base = 0, seed = 1;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (const [cx, cy, cz, r] of crowns) for (let k = 0; k < per; k++) {
+    const u = rnd() * 2 - 1, th = rnd() * Math.PI * 2, s = Math.sqrt(1 - u * u), rr = r * (0.8 + 0.35 * rnd());
+    const px = cx + s * Math.cos(th) * rr, py = cy + u * rr * 0.8, pz = cz + s * Math.sin(th) * rr, size = r * (0.55 + 0.3 * rnd());
+    const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rnd() * 6.28, rnd() * 6.28, rnd() * 6.28));
+    const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(q).multiplyScalar(size / 2), ay = new THREE.Vector3(0, 1, 0).applyQuaternion(q).multiplyScalar(size / 2);
+    const n = new THREE.Vector3(px - cx, (py - cy) * 1.4 + r * 0.3, pz - cz).normalize();
+    tmp.copy(cc).multiplyScalar(0.8 + 0.4 * rnd());
+    for (const [a, b, s1, t1] of [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1]]) { pos.push(px + ax.x * a + ay.x * b, py + ax.y * a + ay.y * b, pz + ax.z * a + ay.z * b); nor.push(n.x, n.y, n.z); uv.push(s1, t1); col.push(tmp.r, tmp.g, tmp.b); }
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3); base += 4;
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx);
+  return g;
+}
+const CROWNS = [
+  [[0, 4.6, 0, 3.1], [1.6, 4.2, .8, 2.2], [-1.5, 4.3, -.8, 2.2], [.2, 5.8, 0, 2.1]],                 // laurel
+  [[0, 8.2, 0, 1.4]],                                                                                   // palm (fronds stay as they are)
+  [[0, 3.6, 0, 2.3], [.3, 5, 0, 1.9], [.2, 6.3, 0, 1.4]],                                               // pine / oak
+  [[0, 9.5, 0, 2.3], [.8, 8, .6, 1.8], [-.7, 11, -.3, 1.7], [.2, 12.5, .2, 1.4]],                     // ahuehuete / eucalyptus
+  [[0, 5, 0, 2.4], [1.4, 4.6, .5, 1.8], [-1.3, 4.7, -.6, 1.9], [.3, 6.1, -.2, 1.5]],                 // jacaranda
+  [[0, 1.5, 0, 1.4], [.7, 1.2, .3, 1], [-.6, 1.3, -.4, 1]]                                             // scrub
+];
+const CARD_COLORS = [0x3d6a2e, 0x5d7f3a, 0x35602e, 0x6d8a58, 0x9a82d8, 0x62723a];
+
 // laurel de la India, the plaza tree: a dense, clipped dome of dark leaves on a thick grey trunk
 function laurel() {
   const parts = [colored(new THREE.CylinderGeometry(0.28, 0.42, 2.6, 7).translate(0, 1.3, 0), 0x6e6a60)];
@@ -61,11 +101,14 @@ export function makeTrees(city, quality) {
   // 0 laurel, 1 palm, 2 pine and oak on the hills, 3 ahuehuete and eucalyptus in the Bosque, 4 jacaranda, 5 scrub
   const types = [laurel(), palm(), conifer(), eucalyptus(), jacaranda(), scrub()];
   const mat = landmarkMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
-  const cap = quality === 'low' ? 2500 : quality === 'medium' ? 5000 : 9000;
-  const radius = quality === 'low' ? 320 : quality === 'medium' ? 480 : 700;
+  const cap = quality === 'low' ? 2500 : quality === 'medium' ? 5000 : quality === 'high' ? 9000 : 14000;
+  const radius = quality === 'low' ? 320 : quality === 'medium' ? 480 : quality === 'high' ? 700 : 1000;
   const white = new THREE.Color(1, 1, 1);
   const meshes = types.map(g => { const m = new THREE.InstancedMesh(g, mat, cap); m.setColorAt(0, white); m.count = 0; m.frustumCulled = false; return m; });
   const group = new THREE.Group(); meshes.forEach(m => group.add(m));
+  // the leaf cards (not on light quality)
+  const leafMat = landmarkMaterial({ map: leafTexture(), alphaTest: 0.42, side: THREE.DoubleSide, vertexColors: true, roughness: 0.75 });
+  const cardMeshes = quality === 'low' ? [] : CROWNS.map((cr, i) => { if (i === 1) return null; const m = new THREE.InstancedMesh(cards(cr, CARD_COLORS[i], quality === 'cinematic' ? 26 : 18), leafMat, cap); m.setColorAt(0, white); m.count = 0; m.frustumCulled = false; group.add(m); return m; });
   // bucket trees on a 100 m grid
   const T = city.trees, CELL = 100, grid = new Map();
   for (let k = 0; k < T.length / 4; k++) { const key = Math.floor((T[k * 4] + city.half) / CELL) * 1000 + Math.floor((T[k * 4 + 1] + city.half) / CELL); let a = grid.get(key); if (!a) grid.set(key, a = []); a.push(k); }
@@ -87,9 +130,11 @@ export function makeTrees(city, quality) {
       m4.compose(v, q, s); meshes[type].setMatrixAt(counts[type], m4);
       const h = ((k * 0.618) % 1);
       meshes[type].setColorAt(counts[type], col.setRGB(0.85 + h * 0.3, 0.9 + ((k * 0.37) % 1) * 0.2, 0.8 + h * 0.2));
+      const cm = cardMeshes[type]; if (cm) { cm.setMatrixAt(counts[type], m4); cm.setColorAt(counts[type], col); }
       counts[type]++;
     }
     meshes.forEach((m, i) => { m.count = counts[i]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
+    cardMeshes.forEach((m, i) => { if (!m) return; m.count = counts[i]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; });
   };
   return group;
 }

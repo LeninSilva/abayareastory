@@ -111,7 +111,9 @@ void main(){
     col = rc * (.88 + .2 * vnoise(vW.xz * .4)) * (.94 + .12 * vnoise(vW.xz * 6.));
     float edge = min(min(lp.x, vSc.x - lp.x), min(lp.y, vSc.z - lp.y));
     col = mix(base * .85, col, smoothstep(.15, .35, edge));                                   // pretil
-    vec3 lit = lightItS(col, n, 1., shadowAt(vW, n));
+    n = bump(n, vW, style == 44. ? .5 : 2.5, style == 44. ? .05 : .18);
+    float shR = shadowAt(vW, n);
+    vec3 lit = lightItS(col, n, 1., shR) + specIt(n, vW, style == 44. ? .35 : rt < .55 ? .55 : .8, shR, style == 44. ? .5 : .04);
     gl_FragColor = vec4(fogIt(lit, vW), 1.);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -187,7 +189,10 @@ void main(){
   float edgeD = min(along, faceW - along);
   float ao = mix(.65, 1., smoothstep(0., 2.5, upS + (part ? 3. : 0.))) * mix(.82, 1., smoothstep(0., 1., edgeD));
   float sh = shadowAt(vW, n);
-  vec3 lit = lightItS(col, n, ao, sh);
+  // plaster and block have relief up close; painted walls a soft sheen, bare block none
+  n = bump(n, vW, style == 42. ? 6. : 3., style == 42. ? .12 : .07);
+  sh = shadowAt(vW, n);
+  vec3 lit = lightItS(col, n, ao, sh) + specIt(n, vW, style == 42. ? .95 : style == 41. || style == 43. ? .6 : .78, sh, .04) * ao;
   // windows: the room inside, glass reflecting the sky; lights come on after dark
   float litW = step(.62, hash12(vec2(floor(along / cellW) + seed * 31., fl + hIdx * 7.))) * smoothstep(.2, .7, uNight) * (.55 + .45 * hash12(vec2(fl, seed)));
   float roomId = floor(along / cellW) * 7.31 + fl * 13.7 + seed * 101.;
@@ -276,7 +281,7 @@ export function makeBuildings(city, quality) {
   for (const b of city.buildings) put(b.x, b.z, { x: b.x, y: b.y - BASE_DROP, z: b.z, w: b.w, d: b.d, h: b.h + BASE_DROP, ang: b.ang, style: b.styleId, seed: b.seed / 255, houses: b.houses, floors: b.floors });
   for (const items of buckets.values()) group.add(boxInstances(items));
   group.userData.update = cam => {
-    const far = (quality === 'low' ? 1600 : quality === 'medium' ? 2600 : 4000) * (1 + Math.min(2, Math.max(0, cam.position.y - 120) / 250));
+    const far = (quality === 'low' ? 1600 : quality === 'medium' ? 2600 : quality === 'high' ? 4000 : 6000) * (1 + Math.min(2, Math.max(0, cam.position.y - 120) / 250));
     for (const m of group.children) { const bs = m.boundingSphere; if (!bs) continue; m.visible = bs.center.distanceTo(cam.position) - bs.radius < far; }
   };
   return group;

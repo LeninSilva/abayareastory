@@ -57,8 +57,9 @@ void main(){
   else if (cv < 10.5) col = mix(vec3(.70,.66,.58), soil, nz2 * .5);               // quarry
   else col = mix(dirt, grass, .5);
   col = mix(col, soil * .9, smoothstep(.55, .8, slope));                          // bare cuts on the steepest ground
+  n = bump(n, vW, .9, .45);
   float sh = shadowAt(vW, n);
-  vec3 lit = lightItS(col, n, 1., sh);
+  vec3 lit = lightItS(col, n, 1., sh) + specIt(n, vW, .92, sh, .03) * .5;
   gl_FragColor = vec4(fogIt(lit, vW), 1.);` + FINISH + '\n}';
 
 function terrainPatch(city, x0, z0, x1, z1, step, hole, drop) {
@@ -134,7 +135,8 @@ void main(){
     vec3 V = normalize(vW - uCamPos); float F = pow(1. - abs(V.y), 4.);
     col = mix(col, mix(uSkyHorizon, uSkyTop, .4), F * .5);
   }
-  gl_FragColor = vec4(fogIt(lightIt(col, n, 1.), vW), 1.);` + FINISH + '\n}'
+  if (vI.x < .5) n = normalize(vec3((vnoise(vW.xz * 1.3 + uTime * .6) - .5) * .25, 1., (vnoise(vW.zx * 1.3 - uTime * .5) - .5) * .25));
+  gl_FragColor = vec4(fogIt(lightIt(col, n, 1.) + (vI.x < .5 ? specIt(n, vW, .07, shadowAt(vW, n), .02) : vec3(0.)), vW), 1.);` + FINISH + '\n}'
   });
   const m = new THREE.Mesh(g, mat); m.receiveShadow = true; return m;
 }
@@ -225,7 +227,16 @@ void main(){
     col = vec3(.70,.69,.66) * (.9 + .1 * nz);
     col = mix(col, vec3(.86,.70,.18), step(.72, fract(along / 37.)) * .9);
   }
-  vec3 lit = lightItS(col, n, 1., shadowAt(vW, n));
+  // relief and sheen: river stones polished by tyres, asphalt a little glossy, concrete matte
+  float rough = .8;
+  if (kind > .5 && kind < 1.5) {
+    if (surf > .5 && surf < 1.5) { n = bump(n, vW, 5., .45); rough = .42; }
+    else if (surf < .5) { n = bump(n, vW, 9., .1); rough = .62; }
+    else if (surf < 2.5) { n = bump(n, vW, 3., .35); rough = .95; }
+    else n = bump(n, vW, 4., .12);
+  } else n = bump(n, vW, 7., .06);
+  float shS = shadowAt(vW, n);
+  vec3 lit = lightItS(col, n, 1., shS) + specIt(n, vW, rough, shS, .04);
   float off = kind < .5 ? vInfo.x : (vInfo.x - .5) * (vInfo.w - ${2 * SW});
   if (kind < 1.5) lit += col * lampPools(along, off, w);
   gl_FragColor = vec4(fogIt(lit, vW), 1.);` + FINISH + '\n}'
