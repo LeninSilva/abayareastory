@@ -21,6 +21,20 @@ You can play it in a browser or install it on Android as an app: open the page i
   - The edges of the city: the Cliff House and Sutro Baths, the Legion of Honor, Fort Point, Alcatraz.
   - Both bridges, which you can walk across.
   - The twelve branch libraries in the game, which are safe places, save points and fast-travel stops.
+- **The Embarcadero, from Oracle Park to Pier 39,** built by hand along its real course.
+  - The boulevard has a streetcar median with vintage F-line streetcars running on it, and Canary Island palms down both sides.
+  - Green bike lanes, curbs and crosswalks at the cross streets.
+  - The promenade runs along the seawall, with its railing and lamps.
+  - Numbered pier bulkheads, from Pier 40 to Pier 35. Pier 7 and Pier 14 can be walked out over the bay.
+  - The Ferry Building plaza, Rincon Park with Cupid's Span (the bow and arrow), the Vaillancourt Fountain and the Hyatt Regency.
+  - A continuous frontage of buildings on the inland side, and gulls over the water.
+- **Rendering:**
+  - real-time sun shadows;
+  - bloom, so lit windows, lamps and the sun on the water glow;
+  - multisampled HDR with filmic tone mapping and a light grade;
+  - water with layered swell and chop, sky reflections, sun glitter and surf on the shallows.
+  - Streets have curbs, sidewalks that stop at the corners, and crosswalks where streets meet.
+  - Street trees stand on the sidewalks: the city's tree records put about half of them a few metres into the roadway, and they are moved to the nearest curb.
 - **Time and weather.** Time passes from dawn to night. The fog is thicker in the west and in the mornings and evenings. A foghorn sounds from the Gate.
 
 ## How it plays

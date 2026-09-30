@@ -12,7 +12,9 @@ attribute vec4 aStyle;          // style id, seed (0..1), houses, unused
 varying vec3 vW; varying vec3 vN; varying vec3 vL; varying vec3 vLN; varying vec3 vSc; varying vec4 vStyle;
 void main(){
   vec3 sc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
-  vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.);
+  // neighbours whose walls coincide would z-fight: inset each building by a few centimetres to decimetres
+  vec3 p = position; p.xz *= 1. - .012 * (.3 + aStyle.y);
+  vec4 w = modelMatrix * instanceMatrix * vec4(p, 1.);
   vW = w.xyz; vL = position; vLN = normal; vSc = sc; vStyle = aStyle;
   vN = normalize(mat3(modelMatrix * instanceMatrix) * (normal / sc));
   gl_Position = projectionMatrix * viewMatrix * w;
@@ -40,7 +42,10 @@ vec3 pal(float style, float r){
   return mix(mix(vec3(.80,.76,.68), vec3(.66,.64,.62), r), vec3(.74,.70,.62), step(.7, r));    // stone downtown
 }
 void main(){
-  float style = floor(vStyle.x + .5), seed = vStyle.y, houses = max(1., vStyle.z);
+  float style = floor(vStyle.x + .5);
+  // varyings wobble by a few ulps across a triangle; a hash would turn that into speckle, so snap the seed to its byte
+  float seed = floor(vStyle.y * 255. + .5) / 255.;
+  float houses = max(1., min(vStyle.z, floor(vSc.x / 5.5)));   // no house narrower than a San Francisco lot
   vec3 ln = vLN; vec3 n = normalize(vN);
   float up = vL.y * vSc.y;
   vec3 col;
@@ -73,7 +78,9 @@ void main(){
     float fr = step(wInX - .06, cx) * step(cx, 1. - wInX + .06) * step(.2, fy) * step(fy, wTop + .05) * (1. - win);
     float sill = step(wInX - .08, cx) * step(cx, 1. - wInX + .08) * step(.19, fy) * step(fy, .24);
     // fade fine detail where it would shimmer (far away or at grazing angles)
-    float detail = 1. - smoothstep(.25, .7, fwidth(hx * cols) + fwidth(fy) * .5);
+    vec3 toCam = uCamPos - vW; float dcam = length(toCam);
+    float graz = 1. - abs(dot(n, toCam / dcam));
+    float detail = 1. - smoothstep(18., 55., dcam * (1. + 6. * graz * graz) / max(houseW / cols, 1.));
     win *= detail; fr *= detail; sill *= detail;
     bool shopfront = commercial && fl < 1.;
     if (shopfront) { win = step(.06, cx) * step(cx, .94) * step(.1, fy) * step(fy, .72); fr = 0.; sill = 0.; }
@@ -99,19 +106,20 @@ void main(){
     // soft occlusion: at the ground and in the corners
     float edgeD = min(along, faceW - along);
     float ao = mix(.62, 1., smoothstep(0., 3., up)) * mix(.8, 1., smoothstep(0., 1.2, edgeD));
-    vec3 lit = lightIt(col, n, ao);
+    float sh = shadowAt(vW, n);
+    vec3 lit = lightItS(col, n, ao, sh);
     // glass: the sky reflected, darker inside; lights come on at dusk
     vec3 refl = mix(uSkyHorizon, uSkyTop, clamp(.3 + fy * .5, 0., 1.)) * (glass ? .8 : .55);
     vec3 inside = vec3(.09,.11,.14) + uAmbient * .1;
     vec3 glassC = mix(inside, refl, glass ? .75 : .45) * (1. - .3 * step(.5, fract(fy * 1.8 + .2)) * (1. - float(glass)));
-    float litW = step(.58, hash12(vec2(floor(along / (houseW / cols)) + seed * 31., fl + hIdx * 7.))) * smoothstep(.2, .7, uNight);
-    vec3 glow = vec3(1., .72, .38) * (shopfront ? 2.6 : 1.9) * litW;
+    float litW = step(.7, hash12(vec2(floor(along / (houseW / cols)) + seed * 31., fl + hIdx * 7.))) * smoothstep(.2, .7, uNight) * (.55 + .45 * hash12(vec2(fl, seed)));
+    vec3 glow = vec3(1., .72, .40) * (shopfront ? 1.9 : 1.25) * litW;
     vec3 wc = glassC * (1. - uNight * .6) + glow;
     if (!(fl > .5 || shopfront)) {
       // ground floor of a house: door and garage
       float door = step(.72, hx) * step(hx, .86) * step(fy, .78);
       lit = mix(lit, lit * .4, door);
-      if (style == 5. || style == 6. || style == 7.) lit = mix(lit, lightIt(vec3(.74,.72,.68), n, ao), step(.12, hx) * step(hx, .55) * step(fy, .72));
+      if (style == 5. || style == 6. || style == 7.) lit = mix(lit, lightItS(vec3(.74,.72,.68), n, ao, sh), step(.12, hx) * step(hx, .55) * step(fy, .72));
       win = 0.;
     }
     lit = mix(lit, wc, win);
@@ -123,7 +131,7 @@ void main(){
     #include <colorspace_fragment>
     return;
   }
-  vec3 lit = lightIt(col, n, 1.);
+  vec3 lit = lightItS(col, n, 1., shadowAt(vW, n));
   // windows glow on their own at night
   gl_FragColor = vec4(fogIt(lit, vW), 1.);
   #include <tonemapping_fragment>

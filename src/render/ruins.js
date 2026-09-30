@@ -48,7 +48,7 @@ void main(){
     float wave = step(fract(along), .5) * .5 + floor(fract(along * .5) * 4.) / 8.;
     band = step(.55, yy) * step(yy, .8) * step(abs(fract(yy * 4.) - wave), .18);
   }
-  vec3 col = lightIt(stone, n, .9);
+  vec3 col = lightItS(stone, n, .9, shadowAt(vW, n));
   col = mix(col, col * .6, band * (1. - uAwake));
   col += uGlow * band * uAwake * (1.2 + .4 * sin(uTime * 1.7 + vW.y));
   gl_FragColor = vec4(fogIt(col, vW), 1.);

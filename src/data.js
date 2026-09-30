@@ -1,5 +1,8 @@
 // Loads data/city.bin + data/city.json and answers spatial questions about the city.
 import { STYLE_BY_ID, LANDMARKS, TOWERS, LIBRARIES, toXZ } from './geo.js';
+import { prepWaterfront } from './waterfront.js';
+
+export const SIDEWALK = 3.2;   // sidewalk width on each side of a street (m)
 
 export async function loadCity(onProgress) {
   const meta = await (await fetch('data/city.json')).json();
@@ -38,11 +41,84 @@ export class City {
     const ti = S('treeI'), ts = S('treeS');
     this.trees = new Float32Array(ti.length / 2 * 4);
     for (let k = 0; k < ti.length / 2; k++) { this.trees[k * 4] = ti[k * 2] / 4; this.trees[k * 4 + 1] = ti[k * 2 + 1] / 4; this.trees[k * 4 + 2] = ts[k * 2]; this.trees[k * 4 + 3] = ts[k * 2 + 1] / 100; }
+    // alleys, places, lanes and courts are narrow: an alley in Chinatown is not a 20 m boulevard
+    for (const st of this.streets) if (/\b(ALY|ALLEY|PL|LN|WAY|TER|CT|WALK|STPS|STAIRS|PATH|ROW)$/.test(st.name || '')) st.width = Math.min(st.width, 9);
+    this._segIndex();
+    this._dedupeStreets();
+    prepWaterfront(this);
+    this._treesOffTheRoad();
     this.colliders = new Colliders(this.half);
     for (const b of this.buildings) this.colliders.addBox(b.x, b.z, b.w, b.d, b.ang, b.y - 2, b.y + b.h, 'building');
     for (const t of TOWERS) { const [x, z] = toXZ(t.lat, t.lon); t.x = x; t.z = z; }
     for (const l of LANDMARKS) { const [x, z] = toXZ(l.lat, l.lon); l.x = x; l.z = z; }
     for (const l of LIBRARIES) { const [x, z] = toXZ(l.lat, l.lon); l.x = x; l.z = z; }
+  }
+  /* Street segments in a spatial hash: which street is under a point, and how far from its centerline. */
+  _segIndex() {
+    const CELL = 40, grid = new Map(); this.segCell = CELL; this.segGrid = grid;
+    this.streets.forEach((st, si) => {
+      for (let k = 0; k + 1 < st.pts.length; k++) {
+        const [ax, az] = st.pts[k], [bx, bz] = st.pts[k + 1], r = st.width / 2 + 2;
+        const i0 = Math.floor((Math.min(ax, bx) - r) / CELL), i1 = Math.floor((Math.max(ax, bx) + r) / CELL);
+        const j0 = Math.floor((Math.min(az, bz) - r) / CELL), j1 = Math.floor((Math.max(az, bz) + r) / CELL);
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const key = i * 100000 + j; let a = grid.get(key); if (!a) grid.set(key, a = []); a.push(si, k); }
+      }
+    });
+  }
+  /* The tracer sometimes followed one street twice (its trees were listed under two spellings of the name).
+     Each shorter trace gives up the stretches that run inside a longer trace of the same street. */
+  _dedupeStreets() {
+    const len = st => { let L = 0; for (let i = 1; i < st.pts.length; i++) L += Math.hypot(st.pts[i][0] - st.pts[i - 1][0], st.pts[i][1] - st.pts[i - 1][1]); return L; };
+    const key = st => (st.name || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const L = this.streets.map(len), K = this.streets.map(key), hits = [], out = [];
+    let trimmed = 0;
+    this.streets.forEach((st, si) => {
+      // densify to ~10 m so trimming is precise
+      const pts = [];
+      for (let i = 1; i < st.pts.length; i++) { const [ax, az] = st.pts[i - 1], [bx, bz] = st.pts[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 10)); for (let k = i === 1 ? 0 : 1; k <= n; k++) pts.push([ax + (bx - ax) * k / n, az + (bz - az) * k / n]); }
+      const covered = pts.map(([x, z]) => this.streetsAt(x, z, hits).some(h => h.si !== si && K[h.si] === K[si] && (L[h.si] > L[si] || (L[h.si] === L[si] && h.si < si)) && Math.abs(h.d) < h.half - 1));
+      if (!covered.some(Boolean)) { out.push(st); return; }
+      trimmed++;
+      let run = [];
+      pts.forEach((p, i) => { if (!covered[i]) run.push(p); else { if (run.length > 1) out.push({ ...st, pts: run }); run = []; } });
+      if (run.length > 1) out.push({ ...st, pts: run });
+    });
+    this.streets = out; this.dedupe = trimmed;
+    this._segIndex();
+  }
+  // every street whose right-of-way contains (x,z): [{ si, d (signed, left -), half, tx, tz }]
+  streetsAt(x, z, out = []) {
+    out.length = 0;
+    const a = this.segGrid.get(Math.floor(x / this.segCell) * 100000 + Math.floor(z / this.segCell)); if (!a) return out;
+    for (let n = 0; n < a.length; n += 2) {
+      const st = this.streets[a[n]], [ax, az] = st.pts[a[n + 1]], [bx, bz] = st.pts[a[n + 1] + 1];
+      const dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1, u = ((x - ax) * dx + (z - az) * dz) / L2;
+      if (u < -0.02 || u > 1.02) continue;
+      const L = Math.sqrt(L2), d = ((x - ax) * dz - (z - az) * dx) / L;
+      if (Math.abs(d) <= st.width / 2) out.push({ si: a[n], d, half: st.width / 2, tx: dx / L, tz: dz / L });
+    }
+    return out;
+  }
+  // true if (x,z) is on the roadway (between the curbs) of any street
+  onRoad(x, z) { for (const h of this.streetsAt(x, z, this._tmp || (this._tmp = []))) if (Math.abs(h.d) < h.half - SIDEWALK + 0.2) return true; return false; }
+  /* Street trees are recorded by address; our streets are traced from them and run a few metres off.
+     Move every tree that ended up in a roadway onto the nearest sidewalk, and drop any that still can't find one. */
+  _treesOffTheRoad() {
+    const T = this.trees, keep = [], hits = [];
+    let moved = 0, dropped = 0;
+    for (let k = 0; k < T.length / 4; k++) {
+      let x = T[k * 4], z = T[k * 4 + 1];
+      for (let pass = 0; pass < 3; pass++) {
+        const road = this.streetsAt(x, z, hits).find(h => Math.abs(h.d) < h.half - SIDEWALK + 0.6);
+        if (!road) break;
+        const side = road.d >= 0 ? 1 : -1, target = side * (road.half - Math.min(1.3, SIDEWALK * 0.4)), shift = target - road.d;
+        x += road.tz * shift; z -= road.tx * shift; moved++;
+      }
+      if (this.onRoad(x, z)) { dropped++; continue; }
+      keep.push(x, z, T[k * 4 + 2], T[k * 4 + 3]);
+    }
+    this.trees = Float32Array.from(keep);
+    this.treeFix = { moved, dropped };
   }
   // Bilinear ground height (metres above sea level)
   heightAt(x, z) {

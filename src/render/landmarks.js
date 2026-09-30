@@ -89,7 +89,7 @@ function solid(city, group, lx, lz, w, d, h, y0 = -2) {
 /* ---------------- the landmarks ---------------- */
 const BUILD = {
   ferry(city, g) {
-    const wall = texMat(windowTex('ferry', '#ddd1b8', '#3b4a55', 8, 2, { arch: true, px: 0.18, py: 0.2 }), 20, 1);
+    const wall = texMat(windowTex('ferry', '#e2d7c0', '#7d8f99', 8, 2, { arch: true, px: 0.18, py: 0.2 }), 20, 1);
     box(g, 200, 16, 30, wall); box(g, 202, 1.2, 32, M(0xcbbb9c), 0, 16);
     box(g, 196, 4, 26, M(0x9a8f80), 0, 17.2);
     // the clock tower, after the Giralda in Seville

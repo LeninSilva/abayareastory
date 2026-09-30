@@ -4,12 +4,20 @@ import { loadCity } from './data.js';
 import { U } from './render/shaders.js';
 import { makeSky, setTimeOfDay } from './render/sky.js';
 import { makeTerrain, makeWater, makeStreets, makeBackdrop } from './render/ground.js';
+import { makeEmbarcadero } from './render/embarcadero.js';
+import { SunShadows } from './render/shadows.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { WF, XS, FERRY, wfLocal, wfPoint, inCorridor } from './waterfront.js';
 import { makeBuildings } from './render/buildings.js';
 import { makeTrees } from './render/trees.js';
 import { makeLandmarks, makeBridges } from './render/landmarks.js';
 import { makeRuins, makeUnderworld, glyphTexture } from './render/ruins.js';
 import { makePerson, makeHands, WEAPONS } from './render/people.js';
-import { toXZ, LIBRARIES, LANDMARKS, DISTRICT_STYLE, STYLES } from './geo.js';
+import { toXZ, toLatLon, LIBRARIES, LANDMARKS, DISTRICT_STYLE, STYLES } from './geo.js';
 import { Input } from './game/input.js';
 import { Player } from './game/player.js';
 import { CHARACTERS, PLACES } from './game/story.js';
@@ -97,8 +105,8 @@ class Game {
       this.player.teleport(save.pos[0], save.pos[2], save.pos[1]); this.player.yaw = save.yaw || 0;
       this.ui.toast('Welcome back, ' + this.state.name + '.', 'good');
     } else {
-      const f = toXZ(37.79530, -122.39480);
-      this.player.teleport(f[0], f[1]); this.player.yaw = Math.PI / 2 + 0.2;   // facing west, up Market Street
+      const f = wfPoint(FERRY.t - 20, 52);
+      this.player.teleport(f[0], f[1]); this.player.yaw = -f[2] - Math.PI / 2 - 0.3;   // on the Ferry Building plaza, looking up the Embarcadero toward the clock tower
       this.ui.card([
         'Your mother, Marisela, died in Stockton in the spring, in a room that smelled of oranges.',
         'Near the end she held your wrist hard and said: <em>Go to the city. Find your father. Hollis Vane. Make him pay what he owes us, which is not money.</em>',
@@ -164,9 +172,13 @@ class Game {
     set('Raising the hills…', 0.55); await tick();
     this.surface = new THREE.Group(); scene.add(this.surface);
     this.sky = makeSky(); scene.add(this.sky);
-    this.surface.add(makeTerrain(city, q)); this.surface.add(makeWater(city)); this.surface.add(makeBackdrop());
+    this.terrain = makeTerrain(city, q); this.water = makeWater(city); this.backdrop = makeBackdrop();
+    this.surface.add(this.terrain, this.water, this.backdrop);
     set('Laying the streets…', 0.62); await tick();
-    this.surface.add(makeStreets(city));
+    this.streets = makeStreets(city, (x, z) => inCorridor(x, z, 4)); this.surface.add(this.streets);
+    this.embarcadero = makeEmbarcadero(city); this.surface.add(this.embarcadero);
+    // the Ferry Building's plaza is where the story starts
+    { const [x, z] = wfPoint(FERRY.t - 30, 50); const [lat, lon] = toLatLon(x, z); PLACES.ferry.lat = lat; PLACES.ferry.lon = lon; }
     set('Building the houses…', 0.7); await tick();
     this.buildings = makeBuildings(city, q); this.surface.add(this.buildings);
     set('Planting the street trees…', 0.8); await tick();
@@ -183,13 +195,39 @@ class Game {
     this.hands = makeHands(); this.handsScene.add(this.hands);
     this._streetIndex(); this._markers(); this.walkers = [];
     this.npcs = [];
+    this._post(q);
     set('Waking the dead…', 1); await tick();
     // compile shaders up front so the first steps don't stutter
     try { R.compile(scene, this.camera); } catch (_) {}
   }
+  /* Post: HDR with multisampling, bloom (lit windows, lamps, the sun on the water), filmic output, a quiet grade. */
+  _post(q) {
+    const R = this.renderer;
+    if (q === 'low') return;
+    const size = new THREE.Vector2(); R.getDrawingBufferSize(size);
+    const rt = new THREE.WebGLRenderTarget(size.x, size.y, { type: THREE.HalfFloatType, samples: q === 'high' ? 4 : 2 });
+    const c = this.composer = new EffectComposer(R, rt);
+    c.addPass(new RenderPass(this.scene, this.camera));
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.3, 0.55, 1.05); c.addPass(this.bloom);
+    c.addPass(new OutputPass());
+    c.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uTime: U.uTime },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; varying vec2 vUv;
+        void main(){ vec3 c = texture2D(tDiffuse, vUv).rgb;
+          float l = dot(c, vec3(.299,.587,.114));
+          c = mix(c, c * vec3(1.03, 1.0, .96), smoothstep(.45, .9, l));          // warm highlights
+          c = mix(c, c * vec3(.95, .99, 1.05), smoothstep(.45, .05, l));         // cool shadows
+          vec2 d = vUv - .5; c *= 1. - dot(d, d) * .55;                          // vignette
+          c += (fract(sin(dot(vUv * 1000. + uTime, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;   // dither
+          gl_FragColor = vec4(c, 1.); }`
+    }));
+    this.shadows = new SunShadows(R, q === 'high' ? 2048 : 1536, q === 'high' ? 170 : 130);
+  }
   onResize() {
     const w = innerWidth, h = innerHeight; if (!this.renderer) return;
     this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
+    if (this.composer) { this.composer.setPixelRatio(this.pr); this.composer.setSize(w, h); }
     this.handsCam.aspect = w / h; this.handsCam.updateProjectionMatrix();
   }
   _streetIndex() {
@@ -601,6 +639,7 @@ class Game {
     if (this.pfT > 2) { const fps = this.pfN / this.pfT; this.pfT = 0; this.pfN = 0; const old = this.pr;
       if (fps < 40) this.pr = Math.max(0.6, this.pr - 0.15); else if (fps > 56) this.pr = Math.min(this.maxPR, this.pr + 0.1);
       if (Math.abs(old - this.pr) > 0.01) { this.renderer.setPixelRatio(this.pr); this.onResize(); } }
+    this.fps = this.fps || 60;
   }
   update(dt) {
     const g = this, s = this.state, p = this.player, inp = this.input;
@@ -648,7 +687,7 @@ class Game {
     if (p.interior) { const hall = this.under.userData.hall; if (Math.hypot(hall[0] - p.x, hall[2] - p.z) < 18) this.quests.event('reach', 'tidehall'); }
     if (s.customWP && Math.hypot(s.customWP.x - p.x, s.customWP.z - p.z) < 12) { s.customWP = null; this.ui.toast('You have arrived.'); }
     // streaming
-    if (!p.interior) { this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera); this.landmarks.userData.update(this.t); }
+    if (!p.interior) { this.trees.userData.update(p.x, p.z); this.buildings.userData.update(this.camera); this.landmarks.userData.update(this.t); this.embarcadero.userData.update(this.t, dt, p.x, p.z); }
     // audio bed
     const sea = p.interior ? 0 : Math.max(0, 1 - this.distToWater() / 300);
     this.audio.update(dt, { t: this.t, sea, height: p.y, fog: this.fogBank, night: this.uNight() > 0.5, under: !!p.interior });
@@ -728,13 +767,31 @@ class Game {
         }
       }
     }
+    // on the Embarcadero, people stroll the promenade and the sidewalk
+    const q = wfLocal(p.x, p.z);
+    if (q && !q.end && q.s > -140 && this.walkers.length < want + 6 && (this.walkT2 = (this.walkT2 || 0) - dt) < 0) {
+      this.walkT2 = 0.5;
+      const t = q.t + (Math.random() < 0.5 ? -1 : 1) * (60 + Math.random() * 100), s = [26, 30, 34, -23.5][Math.floor(Math.random() * 4)];
+      if (t > 10 && t < WF.length - 10) {
+        const look = { skin: [0xe0b894, 0xc99a78, 0x8a5a3c, 0x5a3a28, 0xd8b48e][Math.floor(Math.random() * 5)], hair: [0x1a1410, 0x3a2a1a, 0x6a4a2a, 0xb8b8b8][Math.floor(Math.random() * 4)], hairStyle: ['short', 'long', 'bun', 'afro'][Math.floor(Math.random() * 4)], top: [0x3a4a5a, 0x7a3a2a, 0x2a2a2a, 0xd8c8a0, 0x2a4a6a, 0xa8342a][Math.floor(Math.random() * 6)], bottom: [0x2a2a30, 0x3a3d44, 0x3a4a6a][Math.floor(Math.random() * 3)], coat: Math.random() < 0.35 ? 0x4a4038 : false, hat: Math.random() < 0.15 ? 'cap' : 'none', ghost: Math.random() < 0.25 && this.flags.slept };
+        const mesh = makePerson(look); this.scene.add(mesh);
+        this.walkers.push({ mesh, wf: true, t, s: s + (Math.random() - 0.5) * 2, dir: Math.random() < 0.5 ? -1 : 1, speed: 1.1 + Math.random() * 0.5 });
+      }
+    }
     for (const w of this.walkers) {
+      if (w.wf) {
+        w.t += w.dir * w.speed * dt; const [x, z, ang] = wfPoint(w.t, w.s);
+        w.mesh.position.set(x, XS.deckY + 0.15, z); w.mesh.rotation.y = -ang + Math.PI / 2 + (w.dir < 0 ? Math.PI : 0);
+        w.mesh.userData.animate(dt, w.speed, this.t);
+        if (Math.hypot(x - p.x, z - p.z) > 240 || w.t < 5 || w.t > WF.length - 5) w.gone = true;
+        continue;
+      }
       const pts = w.st.pts, a = pts[w.i], b = pts[w.i + w.dir] || a, L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
       w.t += dt * w.speed / L;
       if (w.t >= 1) { w.t = 0; w.i += w.dir; if (w.i + w.dir < 0 || w.i + w.dir >= pts.length) { w.dir *= -1; w.side *= -1; } continue; }
-      const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, off = w.st.width / 2 + 1.4;
+      const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, off = w.st.width / 2 - 1.5;
       const x = a[0] + (b[0] - a[0]) * w.t - uz * off * w.side, z = a[1] + (b[1] - a[1]) * w.t + ux * off * w.side;
-      w.mesh.position.set(x, this.city.heightAt(x, z), z); w.mesh.rotation.y = Math.atan2(ux, uz);
+      w.mesh.position.set(x, this.city.heightAt(x, z) + 0.3, z); w.mesh.rotation.y = Math.atan2(ux, uz);
       w.mesh.userData.animate(dt, w.speed, this.t);
       if (Math.hypot(x - p.x, z - p.z) > 220) w.gone = true;
     }
@@ -763,11 +820,18 @@ class Game {
     // storybook lights follow the painted sky
     this.sun.position.copy(cam.position).addScaledVector(U.uSunDir.value, 500); this.sun.target.position.copy(cam.position);
     this.sun.color.copy(U.uSunColor.value); this.sun.intensity = 2.4 * (1 - U.uNight.value * 0.8);
-    this.hemi.color.copy(U.uAmbient.value).multiplyScalar(1.6); this.hemi.groundColor.copy(U.uGroundBounce.value).multiplyScalar(1.6);
+    this.hemi.color.copy(U.uAmbient.value).multiplyScalar(2.3); this.hemi.groundColor.copy(U.uGroundBounce.value).multiplyScalar(2.0);
     this.hsun.color.copy(this.sun.color); this.hsun.intensity = this.sun.intensity; this.hsun.position.set(U.uSunDir.value.x, U.uSunDir.value.y, U.uSunDir.value.z);
     this.hhemi.color.copy(this.hemi.color); this.hhemi.groundColor.copy(this.hemi.groundColor);
     R.setClearColor(p.interior ? 0x05080a : U.uFogColor.value, 1);
-    R.clear(); R.render(this.scene, cam);
+    if (this.shadows && !p.interior) {
+      // centre the shadow map a little ahead of where you look, so more of what you see is covered
+      const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), c = this.shadowCenter || (this.shadowCenter = new THREE.Vector3());
+      c.set(p.x + fx * this.shadows.R * 0.45, p.y, p.z + fz * this.shadows.R * 0.45);
+      this.shadows.update(this.scene, c, U.uSunDir.value, [this.sky, this.water, this.streets, this.backdrop, this.markerGroup, this.beacon, this.terrain]);
+    } else U.uShadowOn.value = 0;
+    if (this.composer) { this.bloom.strength = 0.28 + U.uNight.value * 0.5; this.composer.render(dt); }
+    else { R.setRenderTarget(null); R.clear(); R.render(this.scene, cam); }
     // hands: their own pass, never clipped by walls
     this.hands.userData.setWeapon(s.weapons.length ? s.weapon : null);
     this.hands.visible = this.started && !this.talk;
@@ -777,6 +841,6 @@ class Game {
 }
 
 const game = new Game();
-window.__undertow = game;   // for testing
+window.__undertow = game; game.__THREE = THREE;   // for testing
 // installed app: work offline once visited
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.claude) navigator.serviceWorker.register('sw.js').catch(() => {});

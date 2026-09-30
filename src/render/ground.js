@@ -52,14 +52,15 @@ void main(){
   vec3 golden = mix(vec3(.58,.54,.28), vec3(.47,.50,.25), nz2);
   vec3 grass = mix(lush, golden, smoothstep(60., 170., vW.y) * .7 + smoothstep(.6, .9, nz) * .25);
   // city ground: yards, gardens and paving between the houses
-  vec3 yards = mix(vec3(.42,.40,.35), vec3(.30,.44,.22), smoothstep(.3, .65, fbm(vW.xz * .09)) * .85);
+  vec3 yards = mix(vec3(.36,.34,.30), vec3(.22,.33,.16), smoothstep(.3, .65, fbm(vW.xz * .09)) * .8);
+  yards = mix(yards, vec3(.46,.44,.40), smoothstep(.55, .8, vnoise(vW.xz * .25)) * .5);   // paved yards and driveways
   vec3 col = mix(yards, grass, cov.r);
   col = mix(col, mix(vec3(.84,.77,.60), vec3(.76,.68,.52), nz2), cov.b);
   float slope = 1. - n.y;
   col = mix(col, mix(vec3(.46,.40,.33), vec3(.56,.50,.42), nz), smoothstep(.28, .5, slope));
   if (vW.y < .6) col = mix(col, vec3(.40,.37,.30), smoothstep(.6, -.5, vW.y));
   float ao = .85 + .15 * nz;
-  vec3 lit = lightIt(col, n, ao);
+  vec3 lit = lightItS(col, n, ao, shadowAt(vW, n));
   gl_FragColor = vec4(fogIt(lit, vW), 1.);` + FINISH + '\n}'
   });
   const CH = 30;                                // cells per chunk
@@ -95,26 +96,60 @@ export function makeWater(city) {
     vertexShader: /* glsl */`varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: GLSL_COMMON + /* glsl */`
 uniform sampler2D uDepth; uniform float uHalf; varying vec3 vW;
+// a sum of travelling waves (analytic slopes), fading the small ones with distance so the bay never shimmers
+vec2 waves(vec2 p, float dist){
+  vec2 g = vec2(0.);
+  float t = uTime;
+  // the long swell comes in through the Gate from the west; chop runs with the afternoon wind
+  vec4 W[7];
+  W[0] = vec4(normalize(vec2(-1., .25)), 38., .22);
+  W[1] = vec4(normalize(vec2(-.8, -.5)), 21., .14);
+  W[2] = vec4(normalize(vec2(-.3, 1.)), 11., .07);
+  W[3] = vec4(normalize(vec2(.9, .4)), 6.3, .04);
+  W[4] = vec4(normalize(vec2(-.6, .8)), 3.7, .022);
+  W[5] = vec4(normalize(vec2(.2, -1.)), 2.1, .012);
+  W[6] = vec4(normalize(vec2(-1., -.1)), 1.2, .006);
+  for (int i = 0; i < 7; i++) {
+    float L = W[i].z, k = 6.2832 / L, w = sqrt(9.81 * k);
+    float fade = 1. - smoothstep(L * 25., L * 90., dist);
+    float ph = dot(W[i].xy, p) * k - w * t * .6;
+    g += W[i].xy * (W[i].w * k * cos(ph)) * fade;
+  }
+  // wind ripples
+  float r = smoothstep(260., 40., dist);
+  g += (vec2(vnoise(p * .9 + t * .35), vnoise(p * .9 - t * .3 + 7.)) - .5) * .35 * r;
+  return g;
+}
 void main(){
   vec2 uv = (vW.xz + uHalf) / (2. * uHalf);
   float inside = step(0., uv.x) * step(uv.x, 1.) * step(0., uv.y) * step(uv.y, 1.);
   float dep = mix(1., texture2D(uDepth, uv).r, inside);
-  vec2 p = vW.xz * .045;
-  float w1 = fbm(p + vec2(uTime * .05, uTime * .03)), w2 = fbm(p * 2.3 - vec2(uTime * .07, -uTime * .02));
-  vec3 n = normalize(vec3((w1 - .5) * .5 + (w2 - .5) * .3, 1., (w2 - .5) * .5));
-  vec3 v = normalize(uCamPos - vW);
-  float fres = pow(1. - max(dot(n, v), 0.), 4.);
-  vec3 deep = mix(vec3(.05,.17,.24), vec3(.08,.12,.2), uNight);
-  vec3 shallow = vec3(.17,.40,.40);
-  vec3 col = mix(shallow, deep, smoothstep(.02, .45, dep));
-  vec3 sky = mix(uSkyHorizon, uSkyTop, .35);
-  col = mix(col, sky, fres * .75);
-  vec3 h = normalize(uSunDir + v);
-  col += uSunColor * pow(max(dot(n, h), 0.), 180.) * 2.2 * (1. - uNight * .7);
-  // surf where the bottom rises to the shore
-  float shore = smoothstep(.16, .02, dep) * inside;
-  float foam = shore * smoothstep(.55, .75, fbm(vW.xz * .25 + vec2(uTime * .3, 0.)) + sin(dep * 60. - uTime * 1.6) * .25);
-  col = mix(col, vec3(.92,.94,.9), clamp(foam, 0., 1.) * .8);
+  vec3 toCam = uCamPos - vW; float dist = length(toCam); vec3 v = toCam / dist;
+  vec2 g = waves(vW.xz, dist);
+  vec3 n = normalize(vec3(-g.x, 1., -g.y));
+  // Schlick fresnel for water (F0 = 0.02)
+  float cosv = max(dot(n, v), 0.);
+  float F = .02 + .98 * pow(1. - cosv, 5.);
+  // what the water reflects: the painted sky, the marine layer on the horizon, the sun
+  vec3 r = reflect(-v, n); r.y = abs(r.y);
+  vec3 sky = mix(uSkyHorizon, uSkyTop, pow(clamp(r.y, 0., 1.), .5));
+  sky = mix(sky, uFogColor, exp(-r.y * 9.) * .75);
+  float sd = max(dot(r, uSunDir), 0.);
+  vec3 sun = uSunColor * (pow(sd, 1400.) * 40. + pow(sd, 120.) * 1.4 + pow(sd, 12.) * .12) * (1. - uNight * .85);
+  // the body of the bay: green-grey in the shallows, deep slate further out, lit from above
+  vec3 shallow = vec3(.11, .23, .21), deep = vec3(.035, .085, .105);
+  vec3 body = mix(shallow, deep, smoothstep(.02, .5, dep));
+  body *= uAmbient * 1.1 + uSunColor * max(uSunDir.y, 0.) * .45 * (1. - uNight);
+  // light through the crests of the swell
+  body += vec3(.05, .12, .1) * clamp(g.x * 2. + g.y, 0., 1.) * (1. - uNight) * (1. - F);
+  vec3 col = mix(body, sky, F) + sun;
+  // city lights on the water at night, broken up by the chop
+  col += vec3(1., .72, .42) * uNight * .05 * smoothstep(.55, .95, vnoise(vec2(vW.x * .06, vW.z * .9) + g * 3.)) * smoothstep(1500., 200., dist);
+  // surf where the bottom comes up to meet the shore
+  float shore = smoothstep(.1, .01, dep) * inside;
+  float lines = sin(dep * 90. - uTime * 1.3 + fbm(vW.xz * .08) * 6.);
+  float foam = shore * smoothstep(.55, .95, lines * .5 + .5) * (.6 + .4 * fbm(vW.xz * .3 + uTime * .1));
+  col = mix(col, vec3(.9, .93, .92) * (uAmbient + uSunColor * .6), clamp(foam, 0., 1.) * .75);
   gl_FragColor = vec4(fogIt(col, vW), 1.);` + FINISH + '\n}'
   });
   const g = new THREE.PlaneGeometry(60000, 60000, 1, 1); g.rotateX(-Math.PI / 2);
@@ -122,66 +157,123 @@ void main(){
   return m;
 }
 
-export function makeStreets(city) {
+/* Streets: asphalt between curbs, raised sidewalks with a curb face, crosswalks where streets meet.
+   Where two streets cross, only one paves the intersection and the sidewalks stop at the corner. */
+export function makeStreets(city, skip) {
   const group = new THREE.Group();
   const mat = new THREE.ShaderMaterial({
     uniforms: U, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6,
-    vertexShader: /* glsl */`attribute vec3 aInfo; varying vec3 vW; varying vec3 vInfo; void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; vInfo = aInfo; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    vertexShader: /* glsl */`attribute vec4 aInfo; varying vec3 vW; varying vec4 vInfo; varying vec3 vN;
+    void main(){ vec4 w = modelMatrix * vec4(position,1.); vW = w.xyz; vInfo = aInfo; vN = normal; gl_Position = projectionMatrix * viewMatrix * w; }`,
     fragmentShader: GLSL_COMMON + /* glsl */`
-varying vec3 vW; varying vec3 vInfo;   // x: across 0..1, y: metres along, z: kind (0 sidewalk, 1 road) + width*0.01
+varying vec3 vW; varying vec4 vInfo; varying vec3 vN;   // x: across 0..1, y: metres along, z: kind + crosswalk/2, w: street width
 void main(){
-  float kind = floor(vInfo.z + .001), width = fract(vInfo.z + .001) * 100.;
-  float a = vInfo.x, along = vInfo.y, nz = vnoise(vW.xz * 1.3);
+  float kind = floor(vInfo.z + .25), a = vInfo.x, along = vInfo.y;
+  float cross = clamp((vInfo.z - kind) * 2., 0., 1.);
+  float nz = vnoise(vW.xz * 1.3), big = fbm(vW.xz * .15);
+  vec3 n = normalize(vN);
   vec3 col;
-  if (kind < .5) {
-    col = mix(vec3(.66,.63,.58), vec3(.72,.69,.63), nz);
-    float joint = step(.94, fract(along / 1.6)) + step(.97, fract(a * 4.));
-    col *= 1. - .12 * min(joint, 1.);
-  } else {
-    col = mix(vec3(.19,.2,.23), vec3(.25,.25,.27), nz * .7 + fbm(vW.xz * .2) * .3);
-    float edge = min(a, 1. - a) * width;
-    col = mix(vec3(.55,.54,.5), col, smoothstep(.25, .45, edge));          // gutter
-    if (width >= 23.) { float c = abs(a - .5) * width; col = mix(col, vec3(.86,.72,.25), (1. - smoothstep(.1, .2, abs(c - .2))) * .9); }
-    else { float c = abs(a - .5) * width; col = mix(col, vec3(.85,.85,.8), (1. - smoothstep(.06, .12, c)) * step(.5, fract(along / 9.)) * .8); }
+  if (kind < .5) {                                   // sidewalk: poured concrete in panels
+    col = mix(vec3(.64,.62,.58), vec3(.72,.70,.65), nz * .6 + big * .4);
+    float joint = (1. - smoothstep(.0, .04, abs(fract(along / 1.5) - .5) * 2. - .96)) ;
+    col *= 1. - .10 * step(.965, abs(fract(along / 1.5) - .5) * 2.);
+    col *= 1. - .06 * smoothstep(.7, 1., fbm(vW.xz * .7));   // weather stains
+  } else if (kind < 1.5) {                           // asphalt
+    float width = floor(vInfo.w + .5);
+    col = mix(vec3(.17,.175,.19), vec3(.24,.24,.25), nz * .5 + big * .5);
+    col *= 1. - .08 * smoothstep(.6, .9, fbm(vW.xz * .4 + 3.));  // patches
+    float w = width;
+    float c = abs(a - .5) * w;
+    // lane lines: a double yellow on the big streets, a white dash on the rest
+    if (w >= 22.) col = mix(col, vec3(.86,.70,.22), (1. - smoothstep(.08, .16, abs(c - .2))) * .85 * (1. - cross));
+    else col = mix(col, vec3(.84,.84,.8), (1. - smoothstep(.05, .1, c)) * step(.55, fract(along / 9.)) * .75 * (1. - cross));
+    // continental crosswalk bars
+    float bars = step(.45, fract(a * w / 1.4));
+    col = mix(col, vec3(.88,.88,.84), bars * smoothstep(.2, .6, cross) * .9);
+    // tyre-worn darker lanes
+    col *= 1. - .05 * smoothstep(.2, .0, abs(fract(a * w / 3.6) - .5));
+  } else {                                            // curb face
+    col = vec3(.70,.69,.66) * (.9 + .1 * nz);
   }
-  vec3 lit = lightIt(col, vec3(0.,1.,0.), 1.);
+  vec3 lit = lightItS(col, n, 1., shadowAt(vW, n));
   gl_FragColor = vec4(fogIt(lit, vW), 1.);` + FINISH + '\n}'
   });
-  // one geometry per 1.5 km chunk so off-screen streets are culled
   const CH = 1500, buckets = new Map();
-  const bucket = (x, z) => { const k = Math.floor((x + city.half) / CH) * 100 + Math.floor((z + city.half) / CH); if (!buckets.has(k)) buckets.set(k, { pos: [], info: [], idx: [] }); return buckets.get(k); };
-  function ribbon(B, pts, halfW, lift, kind, width) {
-    const base = B.pos.length / 3; let along = 0;
-    for (let i = 0; i < pts.length; i++) {
-      const p = pts[i], a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
-      let tx = b[0] - a[0], tz = b[1] - a[1]; const L = Math.hypot(tx, tz) || 1; tx /= L; tz /= L;
-      if (i) along += Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]);
-      for (const s of [-1, 1]) {
-        const x = p[0] - tz * halfW * s, z = p[1] + tx * halfW * s;
-        B.pos.push(x, Math.max(city.heightAt(x, z), p[2]) + lift, z);
-        B.info.push(s < 0 ? 0 : 1, along, kind + width * 0.01);
-      }
-      if (i) { const q = base + (i - 1) * 2; B.idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
+  const bucket = (x, z) => { const k = Math.floor((x + city.half) / CH) * 100 + Math.floor((z + city.half) / CH); if (!buckets.has(k)) buckets.set(k, { pos: [], nor: [], info: [], idx: [] }); return buckets.get(k); };
+  const ROAD = 0.12, WALK = 0.3, SW = 3.2, hits = [];
+  // for each sample: is it inside another street's roadway? inside another street's sidewalk band?
+  function classify(si, x, z) {
+    let inRoad = false, inWalk = false, yield_ = false;
+    for (const h of city.streetsAt(x, z, hits)) {
+      if (h.si === si) continue;
+      const a = Math.abs(h.d), roadHalf = h.half - SW;
+      if (a < roadHalf) { inRoad = true; const other = city.streets[h.si]; if (other.width > city.streets[si].width || (other.width === city.streets[si].width && h.si < si)) yield_ = true; }
+      else inWalk = true;
     }
+    return { inRoad, inWalk, yield_ };
   }
-  for (const s of city.streets) {
-    // resample to ~8 m so the ribbon follows the hills
-    const pts = [];
+  for (let si = 0; si < city.streets.length; si++) {
+    const s = city.streets[si];
+    const pts = []; let probe = null;
     for (let i = 1; i < s.pts.length; i++) {
-      const [ax, az] = s.pts[i - 1], [bx, bz] = s.pts[i], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 8));
-      for (let k = i === 1 ? 0 : 1; k <= n; k++) { const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n; pts.push([x, z, city.heightAt(x, z)]); }
+      // probe every 2 m, but only keep a point every 8 m, or wherever what's underfoot changes (a corner, a crosswalk)
+      const [ax, az] = s.pts[i - 1], [bx, bz] = s.pts[i], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 2));
+      for (let k = i === 1 ? 0 : 1; k <= n; k++) {
+        const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n, c = classify(si, x, z), sk = !!(skip && skip(x, z));
+        const last = pts[pts.length - 1], key = (c.inRoad ? 1 : 0) + (c.inWalk ? 2 : 0) + (c.yield_ ? 4 : 0) + (sk ? 8 : 0);
+        const cur = { x, z, y: city.heightAt(x, z), c, skip: sk, key };
+        if (last && key !== last.key && probe && probe !== last) pts.push(probe);   // end the old stretch exactly at the change
+        const far = !last || Math.hypot(x - last.x, z - last.z) >= 8 || k === n;
+        if (far || key !== last.key) pts.push(cur);
+        probe = cur;
+      }
     }
     if (pts.length < 2) continue;
-    const B = bucket(pts[0][0], pts[0][1]);
-    ribbon(B, pts, s.width / 2, 0.32, 0, s.width);
-    ribbon(B, pts, s.width / 2 - 3.2, 0.4, 1, s.width - 6.4);
+    // tangents
+    for (let i = 0; i < pts.length; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)]; const L = Math.hypot(b.x - a.x, b.z - a.z) || 1; pts[i].tx = (b.x - a.x) / L; pts[i].tz = (b.z - a.z) / L; }
+    let along = 0; for (let i = 0; i < pts.length; i++) { if (i) along += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z); pts[i].along = along; }
+    const half = s.width / 2, roadHalf = half - SW;
+    const B = bucket(pts[0].x, pts[0].z);
+    // one strip between offsets o0..o1 (metres from the centre line, + to the right) at a height, with a per-point keep test
+    const strip = (o0, o1, lift, kind, keep, cw) => {
+      let prev = -1;
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        const base = B.pos.length / 3;
+        for (const [o, u] of [[o0, 0], [o1, 1]]) {
+          const x = p.x + p.tz * o, z = p.z - p.tx * o;
+          B.pos.push(x, Math.max(city.heightAt(x, z), p.y - 0.5) + lift, z); B.nor.push(0, 1, 0);
+          B.info.push(u, p.along, kind + (cw ? cw(p) : 0) * 0.5, s.width);
+        }
+        if (prev >= 0 && keep(pts[i - 1]) && keep(p)) B.idx.push(prev, base, prev + 1, prev + 1, base, base + 1);
+        prev = base;
+      }
+    };
+    // curb face: a vertical strip at offset o from road height up to sidewalk height, facing the road
+    const curb = (o, keep) => {
+      let prev = -1; const face = Math.sign(o);
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i], base = B.pos.length / 3, x = p.x + p.tz * o, z = p.z - p.tx * o, g = Math.max(city.heightAt(x, z), p.y - 0.5);
+        const nx = -p.tz * face, nz = p.tx * face;
+        B.pos.push(x, g + ROAD, z, x, g + WALK, z); B.nor.push(nx, 0, nz, nx, 0, nz); B.info.push(0, p.along, 2, 0, 1, p.along, 2, 0);
+        if (prev >= 0 && keep(pts[i - 1]) && keep(p)) { if (face > 0) B.idx.push(prev, base, prev + 1, prev + 1, base, base + 1); else B.idx.push(prev, prev + 1, base, prev + 1, base + 1, base); }
+        prev = base;
+      }
+    };
+    const roadKeep = p => !p.skip && !p.c.yield_;
+    const walkKeep = p => !p.skip && !p.c.inRoad;
+    strip(-roadHalf, roadHalf, ROAD, 1, roadKeep, p => (p.c.inWalk && !p.c.inRoad ? 1 : 0));
+    strip(-half, -roadHalf, WALK, 0, walkKeep);
+    strip(roadHalf, half, WALK, 0, walkKeep);
+    curb(-roadHalf, walkKeep); curb(roadHalf, walkKeep);
   }
   for (const B of buckets.values()) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(B.pos, 3));
-    g.setAttribute('aInfo', new THREE.Float32BufferAttribute(B.info, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(B.nor, 3));
+    g.setAttribute('aInfo', new THREE.Float32BufferAttribute(B.info, 4));
     g.setIndex(B.idx); g.computeBoundingSphere();
-    group.add(new THREE.Mesh(g, mat));
+    const m = new THREE.Mesh(g, mat); m.receiveShadow = true; group.add(m);
   }
   return group;
 }
