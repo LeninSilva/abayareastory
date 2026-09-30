@@ -10,3 +10,10 @@ writeFileSync('index.html', html);
 const version = Date.now().toString(36);
 writeFileSync('sw.js', readFileSync('src/sw.template.js', 'utf8').replace('__VERSION__', version));
 console.log(`index.html ${(html.length / 1024).toFixed(0)} KB, script ${(js.length / 1024).toFixed(0)} KB`);
+
+// The deployable site: everything a static host needs, in public/ (Vercel's default output folder).
+import { rmSync, mkdirSync, cpSync } from 'node:fs';
+rmSync('public', { recursive: true, force: true });
+mkdirSync('public', { recursive: true });
+for (const f of ['index.html', 'sw.js', 'manifest.webmanifest', 'icons', 'data']) cpSync(f, 'public/' + f, { recursive: true });
+console.log('public/ ready');
