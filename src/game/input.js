@@ -3,7 +3,7 @@
 const KEYMAP = {
   KeyE: 'interact', Enter: 'interact', KeyF: 'ability', KeyQ: 'cycle', Space: 'jump', ShiftLeft: 'sprint', ShiftRight: 'sprint',
   KeyB: 'bike', KeyM: 'map', Escape: 'menu', Tab: 'menu', KeyJ: 'case', KeyI: 'case', KeyC: 'case', KeyH: 'horn', KeyR: 'block', KeyX: 'attack',
-  Digit1: 'weapon1', Digit2: 'weapon2', Digit3: 'weapon3', Digit4: 'weapon4', Digit5: 'weapon5', Digit6: 'weapon6', KeyV: 'camera', KeyG: 'jet', KeyZ: 'descend', ControlLeft: 'descend', ControlRight: 'descend'
+  Digit1: 'weapon1', Digit2: 'weapon2', Digit3: 'weapon3', Digit4: 'weapon4', Digit5: 'weapon5', Digit6: 'weapon6', KeyV: 'camera', KeyP: 'people', KeyO: 'char', KeyG: 'jet', KeyZ: 'descend', ControlLeft: 'descend', ControlRight: 'descend'
 };
 const MOVEKEYS = { KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
 

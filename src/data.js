@@ -1,5 +1,5 @@
 // Loads data/jiquilpan.bin + data/jiquilpan.json and answers spatial questions about the town and the valley.
-import { CLEAR, HALF, PLACES, barrio } from './geo.js';
+import { CLEAR, HALF, PLACES, barrio, CERRO_ROAD } from './geo.js';
 
 export const SIDEWALK = 1.6;   // banquetas in Jiquilpan are narrow
 
@@ -46,8 +46,14 @@ export class City {
       const pts = []; for (let k = so[s]; k < so[s + 1]; k++) pts.push([sp[k * 2], sp[k * 2 + 1]]);
       this.streets.push({ pts, width: si[s * 3], kind: si[s * 3 + 1], name: meta.streetNames[si[s * 3 + 2]] || '' });
     }
+    // the stone road up the cerro (not in the open map data: see geo.js), and its link to Calle Amadeo Betancourt
+    this.cerroRoad = { pts: CERRO_ROAD.map(p => [p[0], p[1]]), width: 6, kind: 3, name: 'Camino al Cerro de San Francisco', rocky: true };
+    this.streets.push(this.cerroRoad, { pts: [[504, 1383], [476, 1382]], width: 6, kind: 3, name: 'Camino al Cerro de San Francisco', rocky: true });
     const t = S('trees'), keep = [], clear0 = CLEAR.map(([x, z, hw, hd]) => ({ x, z, hw, hd }));
-    for (let k = 0; k < t.length / 4; k++) { const x = t[k * 4], z = t[k * 4 + 1]; if (!clear0.some(c => Math.abs(x - c.x) < c.hw && Math.abs(z - c.z) < c.hd)) keep.push(x, z, t[k * 4 + 2], t[k * 4 + 3]); }
+    const road = CERRO_ROAD, onRoad = (x, z) => { if (x < 340 || x > 2340 || z < 1300 || z > 5140) return false; for (let i = 0; i + 1 < road.length; i++) { const [ax, az] = road[i], [bx, bz] = road[i + 1], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1, u = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)); if ((ax + dx * u - x) ** 2 + (az + dz * u - z) ** 2 < 36) return true; } return false; };
+    for (let k = 0; k < t.length / 4; k++) { const x = t[k * 4], z = t[k * 4 + 1]; if (!clear0.some(c => Math.abs(x - c.x) < c.hw && Math.abs(z - c.z) < c.hd) && !onRoad(x, z)) keep.push(x, z, t[k * 4 + 2], t[k * 4 + 3]); }
+    // jacarandas: Jiquilpan's streets go purple in spring; a good share of the street laureles are really jacarandas
+    for (let k = 0; k < keep.length; k += 4) { const x = keep[k], z = keep[k + 1], h = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1; if (keep[k + 2] === 0 && Math.hypot(x + 60, z + 20) < 1700 && h < 0.4) keep[k + 2] = 4; }
     this.trees = Float32Array.from(keep);
     this._segIndex();
     this._anchor(S);
@@ -105,6 +111,27 @@ export class City {
       if (Math.abs(d) <= st.width / 2) out.push({ si: a[n], d, half: st.width / 2, tx: dx / L, tz: dz / L });
     }
     return out;
+  }
+  /** the closest street (of the given kinds) within r: { st, x, z on its centreline, tx, tz along it, nx, nz toward (x, z), dist, half } */
+  nearestStreet(x, z, r = 60, kinds = [0]) {
+    const C = this.segCell, seen = new Set(); let best = null, bd = r;
+    for (let j = Math.floor((z - r) / C); j <= Math.floor((z + r) / C); j++) for (let i = Math.floor((x - r) / C); i <= Math.floor((x + r) / C); i++) {
+      const a = this.segGrid.get(i * 100000 + j); if (!a) continue;
+      for (let n = 0; n < a.length; n += 2) {
+        const key = a[n] * 10000 + a[n + 1]; if (seen.has(key)) continue; seen.add(key);
+        const st = this.streets[a[n]]; if (!kinds.includes(st.kind)) continue;
+        const [ax, az] = st.pts[a[n + 1]], [bx, bz] = st.pts[a[n + 1] + 1], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1;
+        const u = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)), px = ax + dx * u, pz = az + dz * u, d = Math.hypot(x - px, z - pz);
+        if (d < bd) { bd = d; const L = Math.sqrt(L2), tx = dx / L, tz = dz / L, sd = ((x - ax) * dz - (z - az) * dx) / L >= 0 ? 1 : -1; best = { st, x: px, z: pz, tx, tz, nx: tz * sd, nz: -tx * sd, dist: d, half: st.width / 2 }; }
+      }
+    }
+    return best;
+  }
+  /** a storefront on the street nearest (x, z): the point on the building line; ang is the rotation.y that turns a group whose front is local -z to face the street */
+  storefront(x, z) {
+    const s = this.nearestStreet(x, z, 80); if (!s) return { x, z, ang: 0, sx: x, sz: z };
+    const o = s.half + 0.25, fx = s.x + s.nx * o, fz = s.z + s.nz * o;
+    return { x: fx, z: fz, ang: Math.atan2(s.nx, s.nz), sx: s.x + s.nx * (s.half - 0.8), sz: s.z + s.nz * (s.half - 0.8), street: s };
   }
   onRoad(x, z) { for (const h of this.streetsAt(x, z, this._tmp || (this._tmp = []))) if (this.streets[h.si].kind === 0 && Math.abs(h.d) < h.half - SIDEWALK + 0.2) return true; return false; }
   // ground height: fine near town, coarser in the hills, coarsest across the valley; blended at the seams

@@ -192,5 +192,5 @@ export const GENERIC = {
   where: ['The map in your pocket knows more than I do. The gold diamond, no?']
 };
 
-// the people on the sidewalks, made as you meet them (see citizens.js); the voices look here too
+// the people on the sidewalks, made as you meet them (see citizens.js); conversations look here too
 export const EXTRAS = {};

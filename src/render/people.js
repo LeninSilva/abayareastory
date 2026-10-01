@@ -40,6 +40,11 @@ export function makePerson(spec = {}) {
   if (s.accessory === 'apron') { const a = mesh(G.box(0.34, 0.6, 0.02), M(0xefe8da), 0, 0.12, 0.15); torso.add(a); }
   if (s.accessory === 'scarf') torso.add(mesh(G.cyl(0.13, 0.15, 0.1, 12), M(0xa33a2e), 0, 0.62, 0));
   if (s.accessory === 'bag') { const b = mesh(G.box(0.26, 0.22, 0.09), M(0x6b4a30), -0.26, 0.05, 0.02); torso.add(b); }
+  if (s.belly) { const b = mesh(G.sphere(0.2 + s.belly * 0.06, 16, 12), M(s.coat && s.coat !== true ? s.top : s.top), 0, 0.16, 0.08 + s.belly * 0.05); b.scale.set(1.05, 0.95, 0.9); torso.add(b); }
+  if (s.sash) { const sa = mesh(G.box(0.1, 0.62, 0.36), M(s.sash), 0, 0.3, 0.02); sa.rotation.z = 0.55; sa.scale.set(1, 1, 1 + (s.belly || 0) * 0.4); torso.add(sa); }
+  if (s.accessory === 'rebozo' || s.accessory === 'sarape') { const r = mesh(G.cyl(0.21, 0.3, 0.5, 14), M(s.accColor || 0x26346e), 0, 0.42, 0); r.scale.z = 0.8; torso.add(r); if (s.accessory === 'rebozo') { const t = mesh(G.box(0.12, 0.55, 0.03), M(s.accColor || 0x26346e), 0.12, 0.05, 0.16); torso.add(t); } }
+  if (s.accessory === 'necklace' || s.accessory === 'amulet') torso.add(mesh(new THREE.TorusGeometry(0.11, 0.012, 6, 16), mat(s.accColor || 0xd8d8e0, { metalness: 0.7, roughness: 0.3 }), 0, 0.58, 0.06));
+  if (s.accessory === 'belt') torso.add(mesh(G.cyl(0.2, 0.2, 0.06, 14), M(s.accColor || 0x6a4a2a), 0, -0.02, 0));
   // arms (pivot at shoulder)
   const arms = [];
   for (const side of [-1, 1]) {

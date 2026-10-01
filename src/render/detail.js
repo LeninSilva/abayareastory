@@ -38,8 +38,37 @@ const box = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).tra
 function colored(g, c) { const n = g.attributes.position.count, a = new Float32Array(n * 3), col = new THREE.Color(c); for (let i = 0; i < n; i++) a.set([col.r, col.g, col.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; }
 function strip(g) { for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'color') g.deleteAttribute(k); return g; }
 
-/* ---------------- cars: three kinds, four parts each ---------------- */
+/* ---------------- cars: sedan, SUV, van, scooter (Italika-style), taxi, ranch pickup, scooter with rider; four parts each ---------------- */
+export const KIND = { sedan: 0, suv: 1, van: 2, moto: 3, taxi: 4, pickup: 5, rider: 6 };
+function motoParts(rider) {
+  // forward +x: a step-through scooter, 1.8 m long
+  const body = [box(0.9, 0.12, 0.34, -0.05, 0.36, 0), box(0.16, 0.7, 0.42, 0.5, 0.62, 0), box(0.62, 0.3, 0.4, -0.42, 0.62, 0), box(0.5, 0.12, 0.3, -0.35, 0.83, 0), box(0.26, 0.12, 0.3, 0.72, 0.4, 0)];
+  const glass = [box(0.04, 0.3, 0.36, 0.56, 1.1, 0)];
+  const wheels = [new THREE.CylinderGeometry(0.24, 0.24, 0.1, 14).rotateX(Math.PI / 2).translate(0.68, 0.24, 0), new THREE.CylinderGeometry(0.24, 0.24, 0.1, 14).rotateX(Math.PI / 2).translate(-0.62, 0.24, 0),
+    box(0.06, 0.06, 0.62, 0.5, 1.02, 0)];   // handlebar
+  if (rider) {   // a rider in a dark jacket and a helmet
+    wheels.push(box(0.34, 0.5, 0.36, -0.28, 1.14, 0), new THREE.SphereGeometry(0.15, 12, 8).translate(-0.22, 1.56, 0), box(0.5, 0.12, 0.12, 0.05, 0.84, 0.15), box(0.5, 0.12, 0.12, 0.05, 0.84, -0.15),
+      box(0.5, 0.08, 0.08, 0.15, 1.12, 0.2).rotateZ(-0.3), box(0.5, 0.08, 0.08, 0.15, 1.12, -0.2).rotateZ(-0.3));
+  }
+  const lights = [colored(box(0.05, 0.1, 0.14, 0.6, 0.92, 0), 0xfff6e0), colored(box(0.05, 0.08, 0.16, -0.74, 0.7, 0), 0xff2a18)];
+  return { body: mergeGeometries(body.map(strip)), glass: mergeGeometries(glass.map(strip)), wheels: mergeGeometries(wheels.map(strip)), lights: mergeGeometries(lights.map(strip)), L: 1.8, W: 0.7 };
+}
+function pickupParts() {
+  const L = 5.2, W = 1.9, r = 0.38, ax = 1.7;
+  const body = [box(L, 0.6, W, 0, 0.72, 0), box(2.3, 0.75, W, 1.3, 1.35, 0), box(L * 0.96, 0.08, W * 0.97, 0.9, 1.04, 0),
+    box(2.6, 0.5, 0.08, -1.2, 1.27, W / 2 - 0.04), box(2.6, 0.5, 0.08, -1.2, 1.27, -W / 2 + 0.04), box(0.08, 0.5, W, -2.5, 1.27, 0), box(0.2, 0.08, 0.26, 1.9, 1.3, W / 2 + 0.06), box(0.2, 0.08, 0.26, 1.9, 1.3, -W / 2 - 0.06)];
+  const glass = [frustum(0.3, 2.2, 1.35, 1.95, W * 0.46, 0.45, 1.75, W * 0.4)];
+  const wheels = []; for (const sx of [-1, 1]) for (const sz of [-1, 1]) wheels.push(new THREE.CylinderGeometry(r, r, 0.26, 14).rotateX(Math.PI / 2).translate(sx * ax, r, sz * (W / 2 - 0.1)));
+  const lights = []; for (const sz of [-1, 1]) { lights.push(colored(box(0.05, 0.14, 0.34, L / 2 + 0.02, 0.92, sz * (W / 2 - 0.3)), 0xfff6e0)); lights.push(colored(box(0.05, 0.2, 0.16, -L / 2 - 0.02, 0.95, sz * (W / 2 - 0.12)), 0xff2a18)); }
+  return { body: mergeGeometries(body.map(strip)), glass: mergeGeometries(glass.map(strip)), wheels: mergeGeometries(wheels.map(strip)), lights: mergeGeometries(lights.map(strip)), L, W };
+}
 function carParts(kind) {
+  if (kind === 3 || kind === 6) return motoParts(kind === 6);
+  if (kind === 5) return pickupParts();
+  if (kind === 4) {   // a taxi: the sedan with a lit roof sign
+    const p = carParts(0), sign = colored(box(0.36, 0.2, 0.7, -0.05, 1.56, 0), 0xfff1b0);
+    const lights = mergeGeometries([p.lights, strip(sign)]); p.lights = lights; return p;
+  }
   // forward is +x, up is +y, width along z
   const S = [
     { L: 4.5, W: 1.8, b0: 0.3, b1: 0.92, c1: 1.42, cb: [-1.2, 1.3], ct: [-0.85, 0.65], r: 0.32, ax: 1.38 },    // sedan
@@ -72,7 +101,7 @@ export class CarKit {
       lights: new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })
     };
     this.group = new THREE.Group();
-    this.kinds = [0, 1, 2].map(k => {
+    this.kinds = [0, 1, 2, 3, 4, 5, 6].map(k => {
       const parts = carParts(k), meshes = {};
       for (const part of ['body', 'glass', 'wheels', 'lights']) {
         const m = new THREE.InstancedMesh(parts[part], this.mats[part], capacity);
@@ -124,6 +153,10 @@ export function makeDetail(city, renderer, quality) {
     pole: inst(mergeGeometries([new THREE.CylinderGeometry(0.1, 0.17, 9.2, 8).translate(0, 4.6, 0), new THREE.BoxGeometry(0.1, 0.1, 1.4).translate(0, 8.9, 0), new THREE.CylinderGeometry(0.04, 0.04, 1.95, 6).rotateZ(Math.PI / 2 - 0.08).translate(0.97, 8.2, 0)].map(strip)), lampPole, 2500),
     head: inst(mergeGeometries([new THREE.BoxGeometry(0.7, 0.16, 0.34).translate(0, 0, 0)].map(strip)), lampPole, 2500),
     glow: inst(new THREE.BoxGeometry(0.56, 0.03, 0.26), lampGlow, 2500),
+    // the centro's colonial lamps: a white post on a red base, four globes on scrolled arms
+    cpost: inst(mergeGeometries([new THREE.CylinderGeometry(0.07, 0.09, 3.6, 8).translate(0, 2.3, 0), new THREE.CylinderGeometry(0.12, 0.12, 0.2, 8).translate(0, 4.1, 0), new THREE.BoxGeometry(1.0, 0.05, 0.05).translate(0, 3.9, 0), new THREE.BoxGeometry(0.05, 0.05, 1.0).translate(0, 3.9, 0)].map(strip)), landmarkMaterial({ color: 0xf2efe8, roughness: 0.6 }), 1500),
+    cbase: inst(mergeGeometries([new THREE.CylinderGeometry(0.16, 0.2, 0.55, 8).translate(0, 0.27, 0), new THREE.CylinderGeometry(0.1, 0.13, 0.5, 8).translate(0, 0.75, 0)].map(strip)), landmarkMaterial({ color: 0xa8281e, roughness: 0.6 }), 1500),
+    cglobe: inst(mergeGeometries([[0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5], [0, 0]].map(([x, z], i) => new THREE.SphereGeometry(i < 4 ? 0.17 : 0.2, 10, 8).translate(x, i < 4 ? 4.12 : 4.42, z))), lampGlow, 1500),
     dish: inst(mergeGeometries([new THREE.SphereGeometry(0.38, 12, 6, 0, Math.PI * 2, 0, 0.9).rotateX(-Math.PI / 2 - 0.5), new THREE.CylinderGeometry(0.03, 0.03, 0.9, 5).translate(0, -0.45, 0)].map(strip)), prop, 1500)
   };
   const bays = boxInstances(new Array(CAP / 4).fill(0).map(() => ({ x: 0, y: -9999, z: 0, w: 1, h: 1, d: 1, ang: 0, style: 1, seed: 0, houses: 1, kind: 1 })));
@@ -215,7 +248,7 @@ export function makeDetail(city, renderer, quality) {
       const [px, pz, tx, tz] = at(LAMP_PH + k * LAMP_SP), side = k % 2 ? 1 : -1, o = side * (roadHalf + 0.45);
       const x = px + tz * o, z = pz - tx * o;
       if (others(x, z, 0) || !city.isLand(x, z) || isReserved(x, z, 2)) continue;
-      out.lamps.push([x, city.heightAt(x, z) + 0.3, z, Math.atan2(tx * side, -tz * side), roadHalf + 0.45 - (roadHalf - LAMP_REACH)]);
+      out.lamps.push([x, city.heightAt(x, z) + 0.3, z, Math.atan2(tx * side, -tz * side), roadHalf + 0.45 - (roadHalf - LAMP_REACH), Math.hypot(x + 60, z + 20) < 520 ? 1 : 0]);
     }
     if (roadHalf >= 2.8) {
       seg = 0;
@@ -225,7 +258,13 @@ export function makeDetail(city, renderer, quality) {
         if (others(x, z, 6) || !city.isLand(x, z) || isReserved(x, z, 5)) continue;
         const dir = side > 0 ? 1 : -1, ang = Math.atan2(tz * dir, tx * dir);
         const y0 = city.heightAt(x - tx * dir * 2, z - tz * dir * 2), y1 = city.heightAt(x + tx * dir * 2, z + tz * dir * 2);
-        const kind = hash(si, n, side + 11) < 0.6 ? 0 : hash(si, n, side + 13) < 0.8 ? 1 : 2;
+        const r = hash(si, n, side + 11), far = Math.hypot(px + 60, pz + 20) > 900;
+        if (r < 0.16) {   // an Italika scooter, nosed in against the curb, sometimes two
+          const mo = side * (roadHalf - 0.55), mx = px + tz * mo, mz = pz - tx * mo, ma = ang + side * 1.25;
+          for (let m = 0; m < (hash(si, n, 31) < 0.3 ? 2 : 1); m++) out.cars.push([mx + tx * m * 0.9, city.heightAt(mx, mz) + 0.05, mz + tz * m * 0.9, ma, 0, 3, [0xc02820, 0x1a1a1c, 0x2850a0, 0xe8e8e6, 0xd86a1a][Math.floor(hash(si, n, 37 + m) * 5)]]);
+          continue;
+        }
+        const kind = r < 0.62 ? 0 : hash(si, n, side + 13) < (far ? 0.5 : 0.75) ? (hash(si, n, 41) < 0.5 ? 1 : 5) : 2;
         out.cars.push([x, (y0 + y1) / 2 + 0.12, z, ang, Math.atan2(y1 - y0, 4), kind, CAR_COLORS[Math.floor(hash(si, n, side + 17) * CAR_COLORS.length)]]);
       }
     }
@@ -273,8 +312,13 @@ export function makeDetail(city, renderer, quality) {
     const keep = new Set();
     for (const si of sis) {
       let d = scache.get(si); if (!d) scache.set(si, d = dressStreet(si));
-      d.lamps.forEach(([x, y, z, ang, arm], k) => {
+      d.lamps.forEach(([x, y, z, ang, arm, colonial], k) => {
         if ((x - px) ** 2 + (z - pz) ** 2 > r2) return;
+        if (colonial) {
+          put(P.cbase, x, y - 0.3, z, ang, 1, 1, 1); put(P.cpost, x, y - 0.3, z, ang, 1, 1, 1); put(P.cglobe, x, y - 0.3, z, ang, 1, 1, 1);
+          const key = 'l' + si + ':' + k; keep.add(key); if (!liveColl.has(key)) liveColl.set(key, city.colliders.addCircle(x, z, 0.16, y - 1, y + 4, 'lamp'));
+          return;
+        }
         put(P.pole, x, y, z, ang, 1, 1, 1);
         const hx = x + Math.cos(ang) * (arm + 0.2), hz = z + Math.sin(ang) * (arm + 0.2);
         put(P.head, hx, y + 8.25, hz, ang, 1, 1, 1); put(P.glow, hx, y + 8.16, hz, ang, 1, 1, 1);
@@ -285,7 +329,7 @@ export function makeDetail(city, renderer, quality) {
         if ((x - px) ** 2 + (z - pz) ** 2 > r2) return;
         const key = 'c' + si + ':' + k; if (taken.has(key)) return;
         cars.add(x, y, z, ang, pitch, kind, c); live.push({ key, x, y, z, ang, pitch, kind, color: c }); keep.add(key);
-        if (!liveColl.has(key)) { const K = cars.kinds[kind]; liveColl.set(key, city.colliders.addBox(x, z, K.L, K.W, ang, y - 1, y + (kind === 2 ? 2.2 : 1.6), 'car')); }
+        if (!liveColl.has(key)) { const K = cars.kinds[kind]; liveColl.set(key, city.colliders.addBox(x, z, K.L, K.W, ang, y - 1, y + (kind === 2 ? 2.2 : kind === 3 ? 1.1 : 1.6), 'car')); }
       });
     }
     for (const [key, c] of liveColl) if (!keep.has(key)) { city.colliders.remove(c); liveColl.delete(key); }

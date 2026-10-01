@@ -142,14 +142,15 @@ void main(){
 }
 
 /* ---------------- streets ---------------- */
-// surfaces: 0 asphalt, 1 cobblestone (empedrado), 2 dirt, 3 stone paving, 4 poured concrete
+// surfaces: 0 asphalt, 1 cobblestone (empedrado), 2 dirt, 3 stone paving, 4 poured concrete, 5 laja (flagstone), 6 rocky mountain road
 function surfaceOf(st, x, z) {
   const d = Math.hypot(x + 60, z + 20), h = Math.abs(Math.sin(st.pts.length * 12.9898 + st.pts[0][0] * 0.0137) * 43758.5453) % 1;
-  if (st.kind === 4) return 3;
+  if (st.rocky) return 6;
+  if (st.kind === 4) return d < 750 ? 5 : 3;
   if (st.kind === 1 || st.kind === 3) return d < 700 ? 3 : 2;
   if (st.kind === 2) return 3;
   if (st.width >= 12.5) return 0;
-  if (d < 750) return h < 0.85 ? 1 : 4;
+  if (d < 750) return h < 0.55 ? 5 : h < 0.88 ? 1 : 4;
   if (d < 1700) return h < 0.35 ? 1 : h < 0.8 ? 4 : 0;
   return h < 0.45 ? 2 : h < 0.75 ? 4 : 1;
 }
@@ -209,6 +210,17 @@ void main(){
     } else if (surf < 2.5) {                         // terracería: packed earth and gravel, ruts
       col = mix(vec3(.50,.40,.30), vec3(.60,.50,.38), nz * .6 + big * .4) * (.9 + .15 * vnoise(vW.xz * 9.) * fine);
       col *= 1. - .1 * (1. - smoothstep(.2, .6, abs(abs(c) - 1.)));
+    } else if (surf > 4.5 && surf < 5.5) {           // laja: big irregular flagstones, rust and ochre, thin dark joints
+      vec3 cb = cobble(vW.xz / .75);
+      vec3 stone = mix(vec3(.55,.36,.28), vec3(.72,.52,.40), cb.y) * mix(.82, 1.12, cb.z);
+      stone = mix(stone, vec3(.62,.56,.50), step(.78, cb.z) * .6);
+      col = mix(mix(vec3(.24,.20,.18), stone, smoothstep(.015, .06, cb.x)), mix(vec3(.58,.42,.33), vec3(.64,.48,.38), nz), (1. - fine) * .8);
+    } else if (surf > 5.5) {                         // the cerro road: loose rock and dust, stones pushed to the edges
+      vec3 cb = cobble(vW.xz / .55);
+      vec3 rock = mix(vec3(.40,.37,.34), vec3(.60,.56,.50), cb.y) * mix(.8, 1.1, cb.z);
+      vec3 dust = mix(vec3(.54,.44,.33), vec3(.64,.54,.42), nz * .6 + big * .4);
+      float rocks = smoothstep(.35, .75, cb.z + abs(c) / (w * .5 + .01) * .45) * smoothstep(.02, .1, cb.x);
+      col = mix(dust, rock, rocks * fine + .35 * (1. - fine));
     } else if (surf < 3.5) {                         // stone paving (andadores, the malecón)
       vec2 q = vec2(along / .6, a * w / .4 + floor(along / .6) * .5);
       col = mix(vec3(.60,.52,.44), vec3(.70,.62,.52), hash12(floor(q))) ;
@@ -233,6 +245,8 @@ void main(){
     if (surf > .5 && surf < 1.5) { n = bump(n, vW, 5., .45); rough = .42; }
     else if (surf < .5) { n = bump(n, vW, 9., .1); rough = .62; }
     else if (surf < 2.5) { n = bump(n, vW, 3., .35); rough = .95; }
+    else if (surf > 4.5 && surf < 5.5) { n = bump(n, vW, 2.2, .32); rough = .55; }
+    else if (surf > 5.5) { n = bump(n, vW, 2.4, .7); rough = .92; }
     else n = bump(n, vW, 4., .12);
   } else n = bump(n, vW, 7., .06);
   float shS = shadowAt(vW, n);

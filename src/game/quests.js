@@ -24,6 +24,7 @@ export const CLUES = {
 export const CHAPTERS = [
   { id: 'llegada', title: 'Prologue: The Last Call', steps: [
     { text: 'Find Tía Cuca at her gaspachos cart on the Jardín.', talk: 'cuca', chips: [
+      { label: 'Tía, sit down. Let me sell the gaspachos for a while; you\'ve been on your feet all day.', tone: 'kind', stay: true, fx: { aff: { cuca: 8 } }, reply: '(She looks at you for a long second, then sits on her little stool and lets you serve two schoolgirls and a priest.) Your grandfather used to do that. Exactly that. Ay, criatura. Give me a minute and I\'ll tell you everything.' },
       { label: 'Tía, what happened to my grandfather?', reply: 'Ay, criatura. The police say he walked up the cerro and fell. Three days they looked. Three! Then the Comandante said "procedures" and went to the football. I don\'t believe it. Aurelio walked that cerro since he was nine.', stay: true },
       { label: 'He called me. He said he found what Cuco hid.', reply: 'Cuco? Our father? Dios mío. Then it\'s true, what he was chasing. Here: his house key. And this... he left it in my kitchen with a note: "For the grandchild. Tell them to hold on tight." It\'s a mochila with two fire extinguishers on it. He built it. It flies, criatura. Don\'t tell the priest.', fx: { clues: ['key', 'jetpack'], jetpack: true, card: ['Tía Cuca hands you a heavy backpack of brass pipes and red cylinders, and a key on a string.', 'Press <b>G</b> (🚀 on touch) to fly with Aurelio\'s mochila cohete. Hold <b>Shift</b> to boost: it winds up to nearly 600 km/h. Press G again to land.', 'Walk up to any parked car and press <b>E</b> to drive it.'] } }
     ] }
@@ -37,8 +38,9 @@ export const CHAPTERS = [
       'Pinned to the wall, a photograph from 1938: the stadium\'s portada, half-built, and a grinning boy with a chisel. On the back: "Cuco, 18/III/1938."',
       'By the door, a cream business card, "Lic. Octavio Barragán, Manantiales del Cerro S.A.", and a tyre track too wide for a car.'], fx: { clues: ['sketch', 'photo', 'card'] } } },
     { text: 'Report the break-in to Comandante Luna at the Presidencia.', talk: 'luna', chips: [
-      { label: 'Someone broke into my grandfather\'s house.', reply: 'Joven... thieves see an empty house, they go in. I\'ll send a patrol. The investigation into your grandfather is closed. The cerro is steep.', stay: true },
-      { label: 'This was on the floor. Barragán\'s card.', need: 'card', reply: 'The licenciado visits many people. He wants to buy half the town. That\'s not a crime, joven. (He lowers his voice.) A black pickup was on the trail road that night. I never told you that. Friday is the cabildo. After Friday, maybe I remember more.' }
+      { label: 'Do your job, Comandante, or I\'ll tell the whole Jardín you didn\'t.', tone: 'brave', stay: true, fx: { aff: { luna: -6 } }, reply: '(His jaw works.) Joven, I have done this job for twenty-six years. ...Fine. Fine. I\'m listening. Lower your voice.' },
+      { label: 'Someone broke into my grandfather\'s house.', tone: 'honest', reply: 'Joven... thieves see an empty house, they go in. I\'ll send a patrol. The investigation into your grandfather is closed. The cerro is steep.', stay: true },
+      { label: 'This was on the floor. Barragán\'s card.', need: 'card', tone: 'honest', reply: 'The licenciado visits many people. He wants to buy half the town. That\'s not a crime, joven. (He lowers his voice.) A black pickup was on the trail road that night. I never told you that. Friday is the cabildo. After Friday, maybe I remember more.' }
     ] },
     { text: 'Get wheels from your cousin Rosa at the Taller El Pistón, or fly there.', talk: 'rosa', chips: [
       { label: 'Rosa! I need your help.', reply: '¡Primo! ¡Prima! You look terrible. Abuelo came here twice to borrow my tape measure and a chisel. He was measuring the stadium\'s portada. He said, "The General\'s words are hollow, Rosita." Take the green sedan out front. Go slow on the empedrado. And Güero Mendoza, Barragán\'s driver, has a black pickup. If you see it, drive faster.', fx: { car: 'rosa', card: ['Rosa tosses you the keys to a battered green sedan.', 'Drive: <b>W/S</b> or the left stick to accelerate and brake, <b>A/D</b> to steer, <b>Space</b> for the handbrake, <b>Shift</b> for a little more. <b>E</b> gets you in and out.'] } }
@@ -57,7 +59,8 @@ export const CHAPTERS = [
   ] },
   { id: 'archivo', title: 'Chapter Three: The Book of 1940', steps: [
     { text: 'Ask Padre Tomás at the Parroquia de San Francisco for the parish book of 1940.', talk: 'padre', chips: [
-      { label: 'Padre, I need to see the book of 1940. Page 18.', reply: 'Page 18. Hijo, hija, you are the third person this month to ask for that page. Your grandfather. Then the maestra from the university, last week. Nobody opened that book for fifty years, and now it\'s the most popular book in Jiquilpan. Come. The archive is behind the sacristy. Don\'t touch the candles.' }
+      { label: 'Padre, I\'m with the university, like the maestra. I need the book of 1940.', tone: 'lie', fx: { aff: { padre: -5 } }, reply: '(He peers at you over his glasses.) The university sends very young researchers now. And very bad liars. ...Come on. Your grandfather would have lied better. The archive is behind the sacristy. Don\'t touch the candles.' },
+      { label: 'Padre, I need to see the book of 1940. Page 18.', tone: 'honest', fx: { aff: { padre: 4 } }, reply: 'Page 18. Hijo, hija, you are the third person this month to ask for that page. Your grandfather. Then the maestra from the university, last week. Nobody opened that book for fifty years, and now it\'s the most popular book in Jiquilpan. Come. The archive is behind the sacristy. Don\'t touch the candles.' }
     ] },
     { text: 'Read page 18 of the book of 1940, in the archive behind the sacristy.', inspect: { spot: 'parroquiaDoor', label: 'Open the book of 1940 to page 18', cards: [
       'Baptisms, 1940, in the priest\'s spidery ink. Page 18 is ordinary: a Juana, a Rigoberto, twins named for saints.',
@@ -71,7 +74,8 @@ export const CHAPTERS = [
       'The natural resources of the country must serve its own prosperity. To hand them to foreign interests is to betray the homeland.',
       'The stadium is named for 18 March 1938, the day Cárdenas nationalized Mexico\'s oil. Cuco\'s photograph was taken that same day, on this scaffold.'], fx: { clues: ['quote'], ach: 'recursos' } } },
     { text: 'Ask Chema, the old groundskeeper, about the portada.', talk: 'chema', chips: [
-      { label: 'My grandfather came here with a chisel, didn\'t he?', reply: 'He did. Two weeks ago. He tapped every stone on the right pylon like a doctor listening to a chest, until one rang hollow. The stone with the añil flower carved on it, low, on the inside. He sat right there and cried a little. Then he said, "Not yet, Chema. Not until I know it\'s safe." I promised to say nothing. So I\'m saying nothing. Loudly.' }
+      { label: 'Tell me what you know, old man, or I\'ll tell the town you let him go up there alone.', tone: 'cruel', fx: { aff: { chema: -15 } }, reply: '(The old goalkeeper flinches as if you\'d kicked a ball at his face.) ...He came with a chisel. Tapped the right pylon until a stone rang hollow, the one with the añil flower, low, inside. That\'s all. Go. You have his nose, not his heart.' },
+      { label: 'My grandfather came here with a chisel, didn\'t he?', tone: 'kind', fx: { aff: { chema: 6 } }, reply: 'He did. Two weeks ago. He tapped every stone on the right pylon like a doctor listening to a chest, until one rang hollow. The stone with the añil flower carved on it, low, on the inside. He sat right there and cried a little. Then he said, "Not yet, Chema. Not until I know it\'s safe." I promised to say nothing. So I\'m saying nothing. Loudly.' }
     ] },
     { text: 'Find the hollow stone with the carved indigo flower, low on the right pylon.', inspect: { spot: 'portadaStone', label: 'Tap the stone with the indigo flower', cards: [
       'The stone rings hollow. It has been cut and reset with lime that crumbles under your thumb.',
@@ -84,8 +88,8 @@ export const CHAPTERS = [
       { id: 'emeterio', talk: 'emeterio', chips: [{ label: 'What happened in 1938 to the town\'s water?', reply: 'Ah. Sit. In 1938 the General\'s government gave this town the rights to the springs of the Cerro de San Francisco: the Ojo del Añil, above all. It was written in a register kept here, and a title given to the town. But the register\'s page for the Ojo was cut out, years ago, with a razor. Whoever holds the original title holds the spring, joven. Without it, the company says the water belongs to no one. And what belongs to no one is for sale.', fx: { clues: ['register'] } }] },
       { id: 'petra', talk: 'petra', chips: [{ label: 'Doña Petra, my grandfather was looking for a spring. The Ojo del Añil.', reply: '(She looks at your hands, not your face.) Jiquilpan means the place of the jiquilite, the plant that makes añil. My grandmothers dyed cloth blue in the water up there. The cave above the spring opens only for someone who carries Cuco\'s key. Do you carry it? Good. Then you still need a reason. Go and find your reason, then come up.', fx: { clues: ['petra'] } }] },
       { id: 'barragan', talk: 'barragan', chips: [
-        { label: 'I won\'t sell anything to you.', reply: 'Mi estimado, I haven\'t offered anything yet. (He smiles.) Güero gets carried away, I apologize for him. Let\'s be practical: the maestra from the museum has already promised me whatever your grandfather was chasing, for a new wing. So you see, you are late. Enjoy the town.', fx: { clues: ['offer'], flag: 'refused' } },
-        { label: 'How much would it be worth to you?', reply: '(He writes a number on the back of a card and slides it over. It has many zeros.) For the key, and whatever it opens. Before Friday. Güero will find you; don\'t trouble yourself. And between us, the maestra already promised me the same thing. First come, first paid.', fx: { clues: ['offer'], flag: 'tempted' } }
+        { label: 'I won\'t sell anything to you.', tone: 'honest', reply: 'Mi estimado, I haven\'t offered anything yet. (He smiles.) Güero gets carried away, I apologize for him. Let\'s be practical: the maestra from the museum has already promised me whatever your grandfather was chasing, for a new wing. So you see, you are late. Enjoy the town.', fx: { clues: ['offer'], flag: 'refused' } },
+        { label: 'How much would it be worth to you?', tone: 'lie', reply: '(He writes a number on the back of a card and slides it over. It has many zeros.) For the key, and whatever it opens. Before Friday. Güero will find you; don\'t trouble yourself. And between us, the maestra already promised me the same thing. First come, first paid.', fx: { clues: ['offer'], flag: 'tempted' } }
       ] }
     ], need: 3 },
     { text: 'Search Maestra Inés\'s office at the museum.', inspect: { spot: 'museoDoor', label: 'Search the maestra\'s office', cards: [
@@ -93,8 +97,8 @@ export const CHAPTERS = [
       'In the bottom drawer, under a folder marked "PROYECTO: ALA NUEVA" (new wing), is a battered notebook you know at once. Your grandfather\'s.',
       'Every clue you have followed is in it, in his square engineer\'s hand. On the last page, underlined twice: "Petra sabe." Petra knows.'], fx: { clues: ['notebook'] } } },
     { text: 'Confront Maestra Inés. She is at the Biblioteca.', talk: 'ines', chips: [
-      { label: 'You took his notebook. Why? You must have been afraid of something.', reply: '(Her face falls.) I went to his house the morning he vanished, to help. The door was already broken. I took the notebook so Barragán wouldn\'t. Then he came to me with his new wing, and I... I told myself history would be safe in a glass case. I was wrong. If you find the title, I will stand in front of the cabildo and swear to what it is. I know a real 1938 seal when I see one.', fx: { flag: 'inesAlly', ach: 'caraacara' } },
-      { label: 'You\'re a thief, and you sold my grandfather to Barragán.', reply: '(Her voice goes cold.) I kept his notebook safe while the police did nothing. Think what you like. Take it and go.', fx: { flag: 'inesHostile', ach: 'caraacara' } }
+      { label: 'You took his notebook. Why? You must have been afraid of something.', tone: 'kind', fx0: { aff: { ines: 10 } }, reply: '(Her face falls.) I went to his house the morning he vanished, to help. The door was already broken. I took the notebook so Barragán wouldn\'t. Then he came to me with his new wing, and I... I told myself history would be safe in a glass case. I was wrong. If you find the title, I will stand in front of the cabildo and swear to what it is. I know a real 1938 seal when I see one.', fx: { flag: 'inesAlly', ach: 'caraacara' } },
+      { label: 'You\'re a thief, and you sold my grandfather to Barragán.', tone: 'cruel', reply: '(Her voice goes cold.) I kept his notebook safe while the police did nothing. Think what you like. Take it and go.', fx: { flag: 'inesHostile', ach: 'caraacara' } }
     ] }
   ] },
   { id: 'cerro', title: 'Chapter Six: The Indigo Cave', steps: [
@@ -110,9 +114,9 @@ export const CHAPTERS = [
   ] },
   { id: 'cabildo', title: 'Chapter Seven: The Open Council', steps: [
     { text: 'The cabildo has come out under the arches of the Presidencia. Decide what happens to the title.', talk: 'luna', chips: [
-      { label: 'Read the title aloud, to the whole town.', ending: 'pueblo', reply: 'Comandante Luna takes off his cap, looks at the seals, and for once in his life says it loudly: "Let the young one read." You read it under the arches. The plaza goes silent, then roars.' },
+      { label: 'Read the title aloud, to the whole town.', ending: 'pueblo', tone: 'honest', fx: { trait: { heart: 10, fame: 15 } }, reply: 'Comandante Luna takes off his cap, looks at the seals, and for once in his life says it loudly: "Let the young one read." You read it under the arches. The plaza goes silent, then roars.' },
       { label: 'Give the box to the museum, where it will be safe.', ending: 'museo', reply: 'You hand the box to Maestra Inés. "It will be safe," she says. It will. In a glass case. The cabildo votes anyway.' },
-      { label: 'Sell it to Barragán.', need: 'tempted', needText: 'you would have to have listened to his price', ending: 'trato', reply: 'Barragán counts out the envelope without looking up. "Practical," he says. "I like practical people."' }
+      { label: 'Sell it to Barragán.', tone: 'cruel', fx: { trait: { heart: -15, word: -10 }, money: 60000 }, need: 'tempted', needText: 'you would have to have listened to his price', ending: 'trato', reply: 'Barragán counts out the envelope without looking up. "Practical," he says. "I like practical people."' }
     ] }
   ] }
 ];
@@ -153,13 +157,16 @@ export class Story {
     if (!chips) return [];
     return chips.filter(c => !(this.s.used || []).includes(c.label)).map(c => {
       const locked = c.need && !this.has(c.need);
-      return { quest: true, label: c.label, locked, lockedText: c.needText || (c.need ? 'you need to know more first' : ''), run: () => this.pick(c) };
+      return { quest: true, tone: c.tone, label: c.label, locked, lockedText: c.needText || (c.need ? 'you need to know more first' : ''), run: () => this.pick(c) };
     });
   }
   pick(c) {
     const s = this.s; if (c.need && !this.has(c.need)) return { reply: null };
     (s.used = s.used || []).push(c.label);
-    if (c.fx) this.h.fx(c.fx);
+    // two ways to say the same thing: once one is chosen, its twin disappears too
+    const st0 = this.step(); if (st0 && st0.chips && !c.stay) for (const o of st0.chips) if (o !== c && !o.stay && !o.ending) s.used.push(o.label);
+    if (c.tone) this.h.tone(c.tone);
+    if (c.fx) this.h.fx(c.fx); if (c.fx0) this.h.fx(c.fx0);
     if (c.ending) { this.h.ending(c.ending); return { reply: c.reply }; }
     if (c.sub) { (s.any = s.any || []).push(c.sub); const st = this.step(); if (s.any.length >= (st.need || st.any.length)) this.advance(); else this.h.changed(); return { reply: c.reply }; }
     if (!c.stay) this.advance(); else this.h.changed();

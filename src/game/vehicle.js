@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { CarKit } from '../render/detail.js';
 
-const DIMS = [{ L: 4.5, W: 1.8, wb: 2.7 }, { L: 4.7, W: 1.9, wb: 2.9 }, { L: 5.1, W: 1.95, wb: 3.3 }];
+const DIMS = [{ L: 4.5, W: 1.8, wb: 2.7 }, { L: 4.7, W: 1.9, wb: 2.9 }, { L: 5.1, W: 1.95, wb: 3.3 }, { L: 1.8, W: 0.7, wb: 1.3 }, { L: 4.5, W: 1.8, wb: 2.7 }, { L: 5.2, W: 1.9, wb: 3.4 }, { L: 1.8, W: 0.7, wb: 1.3 }];
 
 export class Vehicles {
   constructor(city, renderer) {

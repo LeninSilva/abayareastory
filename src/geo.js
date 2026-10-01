@@ -18,7 +18,7 @@ export const PLACES = {
   parroquia:  { name: 'Parroquia de San Francisco', x: -18, z: -48, r: 30 },
   biblioteca: { name: 'Biblioteca Gabino Ortiz', x: 38, z: -89, r: 24 },
   presidencia:{ name: 'Presidencia Municipal', x: -132, z: 92, r: 26 },
-  plazaSur:   { name: 'Plaza Aguadora', x: -118, z: 10, r: 30 },
+  plazaSur:   { name: 'Plaza Aguadora and its fountain', x: -152, z: -1, r: 22 },
   casaLC:     { name: 'Casa de Lázaro Cárdenas', x: 38, z: 22, r: 24 },
   estadio:    { name: 'Estadio 18 de Marzo', x: -45, z: 360, r: 60 },
   portada:    { name: 'Portada del Estadio 18 de Marzo', x: -40, z: 300, r: 14 },
@@ -26,7 +26,7 @@ export const PLACES = {
   bosque:     { name: 'Parque Juárez (the Bosque)', x: 222, z: 900, r: 120 },
   museo:      { name: 'Museo Vida y Obra de Lázaro Cárdenas (UNAM)', x: 284, z: 489, r: 30 },
   monumento:  { name: 'Monumento al General Lázaro Cárdenas', x: 372, z: 8, r: 18 },
-  guadalupe:  { name: 'Santuario de Guadalupe', x: -806, z: -647, r: 30 },
+  guadalupe:  { name: 'Santuario de Guadalupe (the nuns\' sanctuary)', x: -806, z: -647, r: 30 },
   cayetano:   { name: 'Templo de San Cayetano', x: 414, z: -238, r: 26 },
   santaAnita: { name: 'Capilla de Santa Anita', x: -300, z: -169, r: 18 },
   toros:      { name: 'Plaza de Toros Alberto Balderas', x: 1149, z: 424, r: 45 },
@@ -35,13 +35,32 @@ export const PLACES = {
   sendero:    { name: 'Trailhead to the Cerro de San Francisco', x: 380, z: 1350, r: 30 },
   petra:      { name: 'Doña Petra\'s house on the trail', x: 700, z: 2250, r: 20 },
   cueva:      { name: 'La Cueva del Añil (the indigo cave)', x: 1560, z: 4520, r: 22 },
-  cumbre:     { name: 'Summit of the Cerro de San Francisco (2,470 m)', x: 1841, z: 5071, r: 40 }
+  cumbre:     { name: 'Summit of the Cerro de San Francisco (2,483 m)', x: 1841, z: 5071, r: 40 },
+  // added from the real map (Overture Maps) and from people who know the town
+  jardinPaz:  { name: 'Jardín de la Paz', x: -58, z: -567, r: 34 },
+  cremeria:   { name: 'La Cremería (by the Jardín de la Paz)', x: -40, z: -628, r: 12 },
+  panteon:    { name: 'Panteón Municipal', x: -330, z: -1331, r: 55 },
+  casita:     { name: 'La Casita de Piedra', x: -100, z: 640, r: 18 },
+  azulPortal: { name: 'Azul Portal (restaurant under the arches)', x: -127, z: -44, r: 14 },
+  sitioAbasolo:{ name: 'Sitio de taxis, Calle Abasolo', x: -45, z: -9, r: 12 },
+  sitioFajardo:{ name: 'Sitio de taxis, Avenida Fajardo', x: -92, z: -24, r: 12 },
+  sanFrancisco:{ name: 'San Francisco del Cerro (the hamlet on the summit)', x: 1790, z: 5010, r: 60 },
+  ranchoNovoa: { name: 'Rancho de Novoa', x: 1153, z: 2417, r: 34 },
+  ranchoSalazar:{ name: 'Rancho de los Salazar', x: 1113, z: 3685, r: 34 },
+  boutique:   { name: 'Boutique Rosa Mexicano (clothes)', x: -206, z: -24, r: 8 },
+  sombreros:  { name: 'Sombrerería La Texana (hats and boots)', x: -178, z: -18, r: 8 },
+  peluqueria: { name: 'Peluquería Don Beto (barber and salon)', x: -214, z: -68, r: 8 },
+  mercado:    { name: 'Mercado de Artesanías', x: -135, z: 41, r: 14 },
+  floreria:   { name: 'Florería Las Jacarandas', x: -60, z: -8, r: 8 },
+  notaria:    { name: 'Bienes Raíces Jiquilpan (land for sale)', x: -196, z: -86, r: 8 },
+  ferreteria: { name: 'Ferretería y Materiales El Albañil', x: -92, z: -86, r: 8 },
+  bache:      { name: 'The famous bache of Calle Morelos', x: 94, z: -200, r: 10 }
 };
 
 /* Landmark sites where generated houses must not stand (the hand-built models go there). [x, z, halfW, halfD, ang] */
 export const CLEAR = [
   [-178, -52, 40, 34, 0],        // Jardín
-  [-118, 12, 34, 38, 0],         // Plaza Aguadora
+  [-152, -1, 17, 15, 0],         // Plaza Aguadora
   [-10, -48, 44, 18, 0],         // Parroquia and its atrio
   [38, -89, 18, 9, 0],           // Biblioteca
   [38, 22, 11, 14, 0],           // Casa de Lázaro Cárdenas
@@ -53,14 +72,21 @@ export const CLEAR = [
   [-806, -647, 18, 30, 0],       // Guadalupe
   [414, -238, 18, 8, 0],         // San Cayetano
   [1149, 424, 40, 40, 0],        // Plaza de toros
-  [560, 330, 14, 12, 0]          // Rosa's garage
+  [560, 330, 14, 12, 0],         // Rosa's garage
+  [-58, -567, 36, 30, 0],        // Jardín de la Paz
+  [-100, 640, 14, 12, 0],        // Casita de Piedra
+  [-127, -44, 9, 17, 0],         // Azul Portal
+  [-330, -1331, 48, 42, 0]       // Panteón
 ];
 
 /* Where the barrios are, roughly, for who lives where and what the map calls a place. */
 export function barrio(x, z) {
   const d = Math.hypot(x + 60, z + 20);
   if (d < 420) return 'Centro';
+  if (z > 4700) return 'San Francisco del Cerro';
   if (z > 2000) return 'Cerro de San Francisco';
+  if (z < -1150 && z > -1500 && x > -600 && x < 0) return 'El Panteón';
+  if (z < -440 && z > -1150 && x > -300 && x < 250) return 'La Paz';
   if (z > 700) return 'El Bosque';
   if (x > 900 && z > 100) return 'Salida a Morelia';
   if (z < -1400) return 'Rumbo a Sahuayo';
@@ -69,3 +95,7 @@ export function barrio(x, z) {
   if (x < -300) return 'Poniente';
   return 'Oriente';
 }
+
+/* The camino empedrado up the Cerro de San Francisco: from the trailhead to the hamlet on the summit, planned on the
+   elevation model to keep the grade climbable (about 12% on average, with a few steep ramps). Stones and dust, few cars. */
+export const CERRO_ROAD = [[384,1349],[384,1376],[388,1404],[398,1426],[420,1414],[431,1395],[451,1379],[476,1382],[504,1395],[504,1426],[520,1443],[555,1448],[595,1458],[627,1465],[634,1493],[613,1527],[598,1555],[590,1580],[593,1611],[602,1643],[607,1670],[607,1693],[607,1717],[615,1743],[626,1765],[643,1787],[651,1811],[651,1834],[672,1848],[677,1870],[696,1887],[721,1899],[751,1911],[771,1923],[787,1940],[803,1958],[808,1984],[815,2011],[825,2043],[829,2070],[829,2093],[843,2117],[862,2129],[893,2140],[914,2152],[926,2173],[949,2173],[971,2190],[984,2212],[1002,2229],[1024,2240],[1046,2252],[1067,2264],[1088,2281],[1105,2299],[1118,2323],[1131,2345],[1160,2367],[1185,2390],[1199,2414],[1207,2440],[1207,2464],[1188,2479],[1169,2492],[1177,2523],[1196,2549],[1227,2564],[1244,2581],[1246,2605],[1267,2623],[1258,2646],[1269,2670],[1258,2693],[1269,2717],[1258,2740],[1265,2764],[1237,2781],[1216,2799],[1199,2826],[1191,2846],[1199,2873],[1189,2895],[1185,2917],[1185,2940],[1189,2965],[1199,3008],[1206,3042],[1207,3064],[1207,3087],[1207,3111],[1209,3137],[1216,3164],[1227,3200],[1238,3243],[1244,3267],[1251,3300],[1251,3323],[1233,3345],[1209,3348],[1180,3334],[1157,3323],[1135,3311],[1144,3333],[1155,3355],[1125,3355],[1105,3364],[1110,3387],[1093,3405],[1063,3417],[1043,3428],[1029,3452],[1021,3475],[1000,3493],[979,3505],[960,3522],[931,3534],[917,3561],[910,3587],[901,3618],[921,3631],[926,3661],[939,3683],[940,3705],[965,3717],[996,3706],[1021,3702],[1054,3711],[1085,3721],[1110,3725],[1132,3725],[1157,3734],[1178,3745],[1202,3750],[1191,3771],[1216,3772],[1238,3772],[1235,3795],[1233,3817],[1216,3834],[1201,3855],[1180,3887],[1170,3909],[1194,3914],[1194,3943],[1227,3946],[1256,3934],[1280,3922],[1305,3914],[1334,3918],[1374,3928],[1394,3940],[1369,3958],[1347,3969],[1326,3981],[1305,3999],[1319,4017],[1315,4043],[1305,4075],[1324,4087],[1349,4078],[1349,4108],[1374,4117],[1397,4111],[1420,4108],[1423,4130],[1413,4152],[1393,4187],[1377,4222],[1367,4255],[1363,4281],[1363,4305],[1363,4328],[1377,4308],[1399,4299],[1419,4287],[1450,4275],[1475,4268],[1500,4271],[1514,4289],[1516,4311],[1533,4328],[1533,4352],[1533,4375],[1511,4393],[1494,4415],[1483,4437],[1472,4461],[1461,4484],[1461,4508],[1450,4527],[1430,4546],[1405,4558],[1374,4569],[1355,4581],[1341,4605],[1369,4605],[1394,4596],[1423,4600],[1463,4611],[1495,4618],[1522,4615],[1539,4597],[1550,4578],[1562,4556],[1587,4555],[1619,4558],[1642,4564],[1682,4575],[1717,4587],[1742,4594],[1767,4596],[1789,4596],[1820,4600],[1850,4611],[1875,4618],[1872,4641],[1850,4643],[1866,4662],[1839,4666],[1814,4675],[1793,4689],[1817,4690],[1839,4690],[1818,4709],[1845,4714],[1867,4714],[1889,4714],[1911,4714],[1934,4714],[1956,4714],[1978,4714],[2003,4722],[2024,4736],[2000,4737],[1975,4741],[1945,4752],[1923,4775],[1897,4787],[1881,4803],[1906,4808],[1928,4808],[1950,4808],[1929,4827],[1956,4831],[1989,4840],[2014,4852],[1989,4869],[2006,4893],[2031,4905],[2048,4921],[2048,4944],[2048,4968],[2023,4972],[1993,4977],[1953,4987],[1921,4994],[1899,5000],[1884,5019],[1861,5034],[1845,5052],[1831,5066]];

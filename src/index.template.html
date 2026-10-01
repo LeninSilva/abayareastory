@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>Añil</title>
-<meta name="description" content="A mystery in Jiquilpan de Juárez, Michoacán. Fly, drive, and follow the clues.">
-<meta name="theme-color" content="#1c2a4a">
+<meta name="description" content="A mystery and a life in Jiquilpan de Juárez, Michoacán. Fly, drive, make friends, fall in love, build a house.">
+<meta name="theme-color" content="#141a33">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>/*CSS*/</style>
 </head>
 <body>
@@ -19,41 +19,50 @@
 <!-- title -->
 <section id="title" class="screen show">
   <div class="title-inner">
+    <p class="kicker">Jiquilpan de Juárez · Michoacán</p>
     <h1>AÑIL</h1>
-    <p class="tag">A mystery in Jiquilpan de Juárez, Michoacán.<br><span style="opacity:.75">Your grandfather found what his father hid in 1940. Then he vanished on the cerro.</span></p>
-    <label class="field">Your name <input id="name-input" maxlength="24" autocomplete="off" placeholder="Your name"></label>
-    <div class="row">
-      <button id="btn-new" class="primary">Begin</button>
-      <button id="btn-continue" hidden>Continue</button>
+    <p class="tag">Your grandfather found what his father hid in 1940. Then he vanished on the cerro.</p>
+    <div class="title-card">
+      <label class="field"><span>Your name</span><input id="name-input" maxlength="24" autocomplete="off" placeholder="Your name"></label>
+      <div class="field"><span id="gender-label">You are Aurelio's</span>
+        <div id="gender" class="seg" role="group" aria-labelledby="gender-label">
+          <button type="button" data-g="m" aria-pressed="false">grandson</button><button type="button" data-g="f" aria-pressed="false">granddaughter</button><button type="button" data-g="x" aria-pressed="true">grandchild</button>
+        </div>
+      </div>
+      <div class="row">
+        <button id="btn-new" class="primary">Begin</button>
+        <button id="btn-continue" hidden>Continue</button>
+      </div>
     </div>
     <div class="row small">
       <button id="btn-title-settings">Settings</button>
       <button id="btn-about">About</button>
     </div>
-    <p class="hint" id="title-hint">Move with WASD or the left side of the screen. Look with the mouse or the right side. E to talk, examine or drive. G to fly.</p>
+    <p class="hint" id="title-hint">WASD or the left of the screen to move · mouse or the right to look · E to talk, examine or drive · V third person · G to fly</p>
   </div>
 </section>
 
 <!-- loading -->
 <section id="loading" class="screen"><div class="load-inner"><p id="load-text">Unfolding the town…</p><div class="bar"><i id="load-bar"></i></div></div></section>
 
-<!-- cutscene / story cards -->
-<section id="card" class="screen" role="dialog" aria-live="polite"><div class="card-inner"><p id="card-text"></p><button id="card-next" class="primary">Continue</button></div></section>
+<!-- story cards -->
+<section id="card" class="screen" role="dialog" aria-live="polite"><div class="card-inner"><p id="card-text"></p><div id="card-dots" aria-hidden="true"></div><button id="card-next" class="primary">Continue</button></div></section>
 
 <!-- HUD -->
 <div id="hud" hidden>
+  <div id="place" class="glass"><span id="place-name"></span><span id="clock"></span><span class="who"><b id="money">$0</b><span id="ptitle"></span></span></div>
   <div id="compass" aria-hidden="true"><div id="compass-strip"></div><div id="compass-mark"></div></div>
   <div id="objective" role="status"></div>
-  <div id="place"><span id="place-name"></span><span id="clock"></span></div>
   <canvas id="minimap" width="180" height="180" aria-hidden="true"></canvas>
+  <button id="btn-pause" class="corner" aria-label="Menu">☰</button>
   <div id="cross"></div>
   <div id="prompt" hidden></div>
+  <div id="pulses" aria-hidden="true"></div>
   <div id="jetinfo" hidden aria-live="off"></div>
   <div id="raceinfo" hidden aria-live="polite"></div>
   <div id="subtitle" hidden></div>
   <div id="toasts" aria-live="polite"></div>
   <button id="stuck" hidden>Stuck? Tap here (or press U) to step free</button>
-  <button id="btn-pause" class="corner" aria-label="Menu">☰</button>
   <div id="flash"></div>
 </div>
 
@@ -68,31 +77,36 @@
     <button data-action="sprint" class="tb" aria-label="Run, boost">⚡</button>
     <button data-action="horn" class="tb sm caronly" aria-label="Horn">📯</button>
     <button data-action="jet" class="tb sm" aria-label="Jetpack: fly, or land">🚀</button>
-    <button data-action="case" class="tb sm" aria-label="Case file">📁</button>
+    <button data-action="camera" class="tb sm" aria-label="Switch first and third person">👁</button>
+    <button data-action="case" class="tb sm" aria-label="The mystery">🔎</button>
     <button data-action="map" class="tb sm" aria-label="Map">🗺</button>
   </div>
 </div>
 
-<!-- dialogue -->
+<!-- conversation -->
 <section id="dialogue" hidden role="dialog" aria-label="Conversation">
-  <header><div id="dlg-face"></div><div><h2 id="dlg-name"></h2><p id="dlg-title"></p></div><button id="dlg-close" aria-label="Leave the conversation">Leave</button></header>
+  <header><div id="dlg-face" aria-hidden="true"></div><div class="who"><h2 id="dlg-name"></h2><p id="dlg-title"></p><div id="dlg-meta"></div></div><button id="dlg-close" aria-label="Leave the conversation">Leave</button></header>
   <div id="dlg-log" aria-live="polite"></div>
-  <div id="dlg-chips"></div>
-  <form id="dlg-form" autocomplete="off"><input id="dlg-input" placeholder="Say anything…" maxlength="400"><button id="dlg-send" type="submit">Say</button><button id="dlg-stop" type="button" hidden>Stop</button></form>
-  <p id="dlg-mode"></p>
+  <div id="dlg-chips" role="group" aria-label="What to say"></div>
+  <p id="dlg-help"></p>
 </section>
+
+<!-- side panel: shops, land, barber, builder -->
+<aside id="side" hidden role="dialog" aria-labelledby="panel-title">
+  <header><div><h2 id="panel-title"></h2><p id="panel-sub"></p></div><b id="panel-money"></b><button id="panel-x" aria-label="Close">Done</button></header>
+  <div id="panel-body"></div>
+</aside>
 
 <!-- menu -->
 <section id="menu" hidden role="dialog" aria-label="Menu">
-  <nav id="tabs">
-    <button data-tab="map">Map</button><button data-tab="case">Case file</button><button data-tab="goals">Goals</button>
-    <button data-tab="notes">Field Notes</button><button data-tab="settings">Settings</button>
-    <button id="menu-close" class="close" aria-label="Back to the city">Resume ✕</button>
-  </nav>
+  <nav id="tabs" aria-label="Menu sections"></nav>
   <div id="panel">
     <div data-panel="map"><div id="map-wrap"><canvas id="map"></canvas><div id="map-tools"><button id="map-in" aria-label="Zoom in">＋</button><button id="map-out" aria-label="Zoom out">－</button><button id="map-me" aria-label="Center on me">◎</button><button id="map-clear">Clear marker</button></div><div id="map-info"></div></div></div>
     <div data-panel="case"></div>
-    <div data-panel="goals"></div>
+    <div data-panel="journal"></div>
+    <div data-panel="people"></div>
+    <div data-panel="you"></div>
+    <div data-panel="property"></div>
     <div data-panel="notes"></div>
     <div data-panel="settings"></div>
   </div>

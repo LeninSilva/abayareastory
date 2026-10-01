@@ -7,7 +7,7 @@
 // the indigo cave). Where the real building's exact form isn't known, the model follows the town's own idiom.
 import * as THREE from 'three';
 import { landmarkMaterial } from './shaders.js';
-import { PLACES } from '../geo.js';
+import { PLACES, CERRO_ROAD } from '../geo.js';
 import { makePerson } from './people.js';
 
 const MATS = new Map();
@@ -48,13 +48,37 @@ function bronzeDoorTex() {
 }
 
 /* a church in the Michoacán manner: whitewashed nave, a cantera facade and portal, bell tower(s), a tiled dome */
+/* a curved baroque gable (the mixtilinear crest of Michoacán facades), extruded to face -x */
+function gable(W, Hc, depth, m) {
+  const s = new THREE.Shape(), h = W / 2;
+  s.moveTo(-h, 0); s.lineTo(-h, Hc * .25);
+  s.quadraticCurveTo(-h * .78, Hc * .25, -h * .7, Hc * .45); s.quadraticCurveTo(-h * .55, Hc * .62, -h * .35, Hc * .6);
+  s.quadraticCurveTo(-h * .25, Hc * .58, -h * .2, Hc * .8); s.quadraticCurveTo(-h * .12, Hc, 0, Hc);
+  s.quadraticCurveTo(h * .12, Hc, h * .2, Hc * .8); s.quadraticCurveTo(h * .25, Hc * .58, h * .35, Hc * .6);
+  s.quadraticCurveTo(h * .55, Hc * .62, h * .7, Hc * .45); s.quadraticCurveTo(h * .78, Hc * .25, h, Hc * .25); s.lineTo(h, 0); s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false, curveSegments: 8 }); geo.translate(0, 0, -depth / 2); geo.rotateY(Math.PI / 2);
+  return new THREE.Mesh(geo, m);
+}
 function church(o) {
   const g = new THREE.Group(), L = o.length, W = o.width, H = o.height;
   const wall = M(o.wall || WHITE), stone = M(o.stone || CANTERA), dark = M(0x2a211c), dome = M(o.domeColor || 0xc8a24a, { roughness: .5, metalness: .1 });
+  const trim = o.trim ? M(o.trim) : stone, tower = o.towerStone ? M(o.towerStone) : stone;
   box(g, L, H, W, L / 2, 0, 0, wall);                                   // nave runs +x from the facade at x = 0
-  box(g, L + .3, .6, W + .3, L / 2, H, 0, stone);                        // cornice
-  box(g, 1.2, H + 2.5, W + 1, -.3, 0, 0, stone);                         // facade slab
-  box(g, 1.3, H * .12, W * .5, -.4, H + 2.5, 0, stone);                  // espadaña crest
+  box(g, L + .3, .6, W + .3, L / 2, H, 0, o.trim ? trim : stone);        // cornice
+  box(g, 1.2, H + 2.5, W + 1, -.3, 0, 0, o.facade ? M(o.facade) : stone);  // facade slab
+  if (o.curved) {
+    const gb = gable(W + 1, H * .42, 1.2, o.facade ? M(o.facade) : stone); gb.position.set(-.3, H + 2.5, 0); g.add(gb);
+    const rim = gable(W + 1.5, H * .42 + .35, .9, trim); rim.position.set(-.05, H + 2.35, 0); g.add(rim);
+    box(g, 1.4, .45, W + 1.4, -.3, H + 2.3, 0, trim);
+  } else box(g, 1.3, H * .12, W * .5, -.4, H + 2.5, 0, stone);          // espadaña crest
+  if (o.quoins) for (const sz of [-1, 1]) for (let k = 0; k * .9 < H + 2.2; k++) box(g, 1.25, .5, k % 2 ? .9 : 1.5, -.32, k * .9, sz * (W / 2 + .2 - (k % 2 ? .45 : .75) + .5), trim);
+  if (o.trim) for (let k = 1; k < 5; k++) for (const sz of [-1, 1]) box(g, .7, H, .35, L * k / 5, 0, sz * (W / 2 + .1), trim);   // pilasters along the nave
+  if (o.clock) {
+    const face = new THREE.Mesh(new THREE.CircleGeometry(1.05, 24), M(0xf4f0e6)); face.position.set(-.94, H * .86, -W * .3); face.rotation.y = -Math.PI / 2; g.add(face);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, .13, 6, 24), trim); ring.position.set(-.95, H * .86, -W * .3); ring.rotation.y = -Math.PI / 2; g.add(ring);
+    const hand = (len, a) => { const h2 = new THREE.Mesh(new THREE.BoxGeometry(.05, len, .07), dark); h2.position.set(-.97, H * .86 + Math.cos(a) * len / 2, -W * .3 + Math.sin(a) * len / 2); h2.rotation.x = -a; g.add(h2); };
+    hand(.6, .5); hand(.85, 2.1);
+  }
   // portal: an arched door with stone jambs
   box(g, .5, H * .55, W * .34, -.9, 0, 0, stone);
   const door = new THREE.Mesh(new THREE.PlaneGeometry(W * .2, H * .38), o.doorMat || M(0x3a2414)); door.position.set(-1.16, H * .19, 0); door.rotation.y = -Math.PI / 2; g.add(door);
@@ -69,17 +93,20 @@ function church(o) {
   const towers = o.towers === 2 ? [-1, 1] : o.towers === 1 ? [o.towerSide || -1] : [];
   for (const s of towers) {
     const tx = 1.5, tz = s * (W / 2 + 1.2), TW = o.towerW || 5.2;
-    box(g, TW, H + 2, TW, tx, 0, tz, stone);
-    for (let tier = 0; tier < 2; tier++) {
-      const y = H + 2 + tier * 5.2, s2 = TW * (1 - tier * .18);
-      box(g, s2, 4.4, s2, tx, y, tz, tier ? wall : stone);
+    box(g, TW, H + 2, TW, tx, 0, tz, o.towerStone ? tower : stone);
+    for (let tier = 0; tier < (o.tiers || 2); tier++) {
+      const y = H + 2 + tier * 5.2, s2 = TW * (1 - tier * .16);
+      box(g, s2, 4.4, s2, tx, y, tz, o.towerStone ? tower : tier ? wall : stone);
       for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const op = new THREE.Mesh(new THREE.PlaneGeometry(s2 * .4, 2.6), dark); op.position.set(tx + dx * (s2 / 2 + .02), y + 1.9, tz + dz * (s2 / 2 + .02)); op.rotation.y = dx ? (dx > 0 ? Math.PI / 2 : -Math.PI / 2) : (dz > 0 ? 0 : Math.PI); g.add(op); }
-      box(g, s2 + .5, .4, s2 + .5, tx, y + 4.4, tz, stone);
+      box(g, s2 + .5, .4, s2 + .5, tx, y + 4.4, tz, o.towerStone ? M(0x4e2a22) : stone);
+      if (o.towerStone) for (const [dx, dz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const pin = new THREE.Mesh(new THREE.ConeGeometry(.28, 1.1, 6), tower); pin.position.set(tx + dx * s2 / 2, y + 5.3, tz + dz * s2 / 2); g.add(pin); }
       // a bell
       const bell = new THREE.Mesh(new THREE.CylinderGeometry(.35, .6, .9, 12, 1, true), M(BRONZE, { metalness: .6, roughness: .4, side: THREE.DoubleSide })); bell.position.set(tx, y + 1.8, tz); g.add(bell);
     }
-    const cup = new THREE.Mesh(new THREE.SphereGeometry(TW * .34, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), dome); cup.position.set(tx, H + 12.8, tz); g.add(cup);
-    cyl(g, .05, .05, 2.2, tx, H + 12.8 + TW * .34, tz, M(IRON)); box(g, .9, .08, .08, tx, H + 14.3 + TW * .34, tz, M(IRON));
+    const ty = H + 2 + (o.tiers || 2) * 5.2 + .4;
+    const cup = new THREE.Mesh(new THREE.SphereGeometry(TW * .34, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), o.towerStone ? tower : dome); cup.position.set(tx, ty, tz); g.add(cup);
+    if (o.towerStone) cyl(g, .45, .55, 1.2, tx, ty + TW * .3, tz, tower, 8);
+    cyl(g, .05, .05, 2.2, tx, ty + TW * .34 + (o.towerStone ? 1 : 0), tz, M(IRON)); box(g, .9, .08, .08, tx, ty + 1.5 + TW * .34 + (o.towerStone ? 1 : 0), tz, M(IRON));
   }
   // the dome over the crossing, on a drum
   if (o.dome) {
@@ -92,31 +119,87 @@ function church(o) {
   return g;
 }
 
-/* the kiosco: an octagonal bandstand on a raised base, iron columns and a crowned roof */
+/* iron lace for railings, fences and bench backs */
+let LACE = null;
+function laceTex() {
+  if (LACE) return LACE;
+  const c = document.createElement('canvas'); c.width = 128; c.height = 64; const x = c.getContext('2d');
+  x.strokeStyle = '#fff'; x.lineWidth = 3; x.strokeRect(2, 2, 124, 60);
+  for (let i = 0; i < 4; i++) { const cx = 16 + i * 32; x.beginPath(); x.ellipse(cx, 32, 10, 20, 0, 0, 7); x.stroke(); x.beginPath(); x.arc(cx, 32, 4, 0, 7); x.stroke(); x.beginPath(); x.moveTo(cx + 16, 4); x.lineTo(cx + 16, 60); x.stroke(); }
+  LACE = new THREE.CanvasTexture(c); LACE.wrapS = THREE.RepeatWrapping; return LACE;
+}
+function laceMat(rep = 1) { const t = laceTex().clone(); t.needsUpdate = true; t.repeat.set(rep, 1); return landmarkMaterial({ color: 0x1a1a1c, map: t, alphaTest: .5, side: THREE.DoubleSide, metalness: .5, roughness: .5 }); }
+
+/* the kiosco of the Jardín: an octagonal bandstand on a white base with chocolate panels and oval niches,
+   black iron columns and lace railings, a dark roof with a golden underside, stairs with an iron rail */
 function kiosco() {
-  const g = new THREE.Group(), R = 5.2;
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(R + .3, R + .5, 1.3, 8), M(CANTERA)); base.position.y = .65; g.add(base);
-  const floor = new THREE.Mesh(new THREE.CylinderGeometry(R, R, .1, 8), M(0xb8a898)); floor.position.y = 1.35; g.add(floor);
+  const g = new THREE.Group(), R = 5.2, BR = 0x4a2a1e;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(R + .3, R + .5, 1.6, 8), M(0xf2efe6)); base.position.y = .8; base.rotation.y = Math.PI / 8; g.add(base);
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2 + Math.PI / 4, x = Math.cos(a) * (R + .42), z = Math.sin(a) * (R + .42);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.2, 2.9), M(BR)); panel.position.set(x, .8, z); panel.rotation.y = -a; g.add(panel);
+    const oval = new THREE.Mesh(new THREE.CircleGeometry(.36, 16), M(0xf2efe6)); oval.scale.y = 1.5; oval.position.set(Math.cos(a) * (R + .46), .82, Math.sin(a) * (R + .46)); oval.rotation.y = -a + Math.PI / 2; g.add(oval);
+  }
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(R, R, .1, 8), M(0xb8a898)); floor.position.y = 1.65; floor.rotation.y = Math.PI / 8; g.add(floor);
+  const lace = laceMat(2);
   for (let i = 0; i < 8; i++) {
     const a = i / 8 * Math.PI * 2 + Math.PI / 8, x = Math.cos(a) * (R - .3), z = Math.sin(a) * (R - .3);
-    cyl(g, .09, .11, 4, x, 1.35, z, M(0x2e4a3a, { metalness: .5, roughness: .5 }), 8);
-    // railings between the columns, except the stair side
-    if (i !== 0) { const b = i / 8 * Math.PI * 2 + Math.PI / 8 + Math.PI / 8, rr = new THREE.Mesh(new THREE.BoxGeometry(.05, .9, 2 * (R - .3) * Math.sin(Math.PI / 8)), M(0x2e4a3a, { metalness: .5 })); rr.position.set(Math.cos(b) * (R - .35), 1.8, Math.sin(b) * (R - .35)); rr.rotation.y = -b; g.add(rr); }
+    cyl(g, .08, .1, 4, x, 1.65, z, M(0x1a1a1c, { metalness: .5, roughness: .5 }), 8);
+    // lace railings between the columns, except the stair side; lace brackets under the eaves
+    const b = a + Math.PI / 8, len = 2 * (R - .3) * Math.sin(Math.PI / 8);
+    if (i !== 0) { const rr = new THREE.Mesh(new THREE.PlaneGeometry(len, .95), lace); rr.position.set(Math.cos(b) * (R - .35), 2.15, Math.sin(b) * (R - .35)); rr.rotation.y = -b + Math.PI / 2; g.add(rr); }
+    const br = new THREE.Mesh(new THREE.PlaneGeometry(len, .5), lace); br.position.set(Math.cos(b) * (R - .35), 5.35, Math.sin(b) * (R - .35)); br.rotation.y = -b + Math.PI / 2; g.add(br);
   }
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(R + .9, 2.2, 8, 1, true), M(0x3d6a52, { side: THREE.DoubleSide, metalness: .3, roughness: .5 })); roof.position.y = 6.45; roof.rotation.y = Math.PI / 8; g.add(roof);
-  const fr = new THREE.Mesh(new THREE.CylinderGeometry(R + .9, R + .9, .35, 8, 1, true), M(0xe8e2d4, { side: THREE.DoubleSide })); fr.position.y = 5.35; fr.rotation.y = Math.PI / 8; g.add(fr);
-  const lan = new THREE.Mesh(new THREE.CylinderGeometry(.6, .7, 1.1, 8), M(0xe8e2d4)); lan.position.y = 8; g.add(lan);
-  const top = new THREE.Mesh(new THREE.ConeGeometry(.8, 1, 8), M(0x3d6a52, { metalness: .3 })); top.position.y = 9.05; g.add(top);
-  // steps on the east side
-  for (let s = 0; s < 4; s++) box(g, 1.1, .33 * (s + 1), 2.4, R + 1.4 - s * .35, 0, 0, M(CANTERA));
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(R + .9, 2.2, 8, 1, true), M(0x2e3640, { side: THREE.FrontSide, metalness: .3, roughness: .5 })); roof.position.y = 6.75; roof.rotation.y = Math.PI / 8; g.add(roof);
+  const under = new THREE.Mesh(new THREE.ConeGeometry(R + .85, 2.15, 8, 1, true), M(0xd8a848, { side: THREE.BackSide })); under.position.y = 6.72; under.rotation.y = Math.PI / 8; g.add(under);
+  const fr = new THREE.Mesh(new THREE.CylinderGeometry(R + .9, R + .9, .35, 8, 1, true), M(0x1a1a1c, { side: THREE.DoubleSide })); fr.position.y = 5.65; fr.rotation.y = Math.PI / 8; g.add(fr);
+  const lan = new THREE.Mesh(new THREE.CylinderGeometry(.6, .7, 1.1, 8), M(0xf2efe6)); lan.position.y = 8.3; g.add(lan);
+  const top = new THREE.Mesh(new THREE.ConeGeometry(.8, 1, 8), M(0x2e3640, { metalness: .3 })); top.position.y = 9.35; g.add(top);
+  // stairs on the east side, white with brown risers, an iron rail each side
+  for (let s = 0; s < 5; s++) box(g, 1.1, .33 * (s + 1), 2.6, R + 1.8 - s * .4, 0, 0, M(s % 2 ? 0xf2efe6 : 0xe6e0d4));
+  for (const sz of [-1, 1]) { const rl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .9), lace); rl.position.set(R + 1, 1.5, sz * 1.35); rl.rotation.z = -.36; g.add(rl); box(g, .5, 1.9, .5, R + 2.5, 0, sz * 1.5, M(0xf2efe6)); box(g, .62, .1, .62, R + 2.5, 1.9, sz * 1.5, M(BR)); }
   return g;
 }
 
+/* a wrought-iron bench, black, with a lace back and scrolled arms */
 function bench(g, x, z, ry, y) {
   const b = new THREE.Group(); b.position.set(x, y, z); b.rotation.y = ry;
-  box(b, 1.8, .06, .45, 0, .42, 0, M(0x2e4a3a, { metalness: .5 })); box(b, 1.8, .45, .05, 0, .48, -.2, M(0x2e4a3a, { metalness: .5 }));
-  for (const s of [-.8, .8]) box(b, .05, .42, .4, s, 0, 0, M(0x1a1a1a));
+  const ir = M(0x161618, { metalness: .5, roughness: .45 });
+  for (let k = 0; k < 4; k++) box(b, 1.9, .04, .08, 0, .44, -.16 + k * .1, ir);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(1.9, .5), laceMat(2)); back.position.set(0, .78, -.22); back.rotation.x = -.15; b.add(back);
+  for (const s of [-.92, .92]) { box(b, .06, .44, .44, s, 0, 0, ir); const arm = new THREE.Mesh(new THREE.TorusGeometry(.11, .02, 6, 12, Math.PI), ir); arm.position.set(s, .55, .02); arm.rotation.y = Math.PI / 2; b.add(arm); }
   g.add(b);
+}
+/* a low iron fence of little arches around a lawn */
+function fence(g, w, d, x, z, h = .45) {
+  const m = laceMat(1);
+  for (const [len, px, pz, ry] of [[w, x, z - d / 2, 0], [w, x, z + d / 2, 0], [d, x - w / 2, z, Math.PI / 2], [d, x + w / 2, z, Math.PI / 2]]) {
+    const t = laceTex().clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, Math.round(len / 1.2)), 1);
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(len, h), landmarkMaterial({ color: 0x1a1a1c, map: t, alphaTest: .5, side: THREE.DoubleSide, metalness: .5 })); f.position.set(px, h / 2 + .12, pz); f.rotation.y = ry; g.add(f);
+  }
+}
+/* a laurel with its trunk whitewashed to the knee, as in every jardín of Michoacán */
+function laurel(g, x, z, y, s = 1) {
+  const t = new THREE.Group(); t.position.set(x, y, z); t.scale.setScalar(s);
+  cyl(t, .22, .3, 1.3, 0, 0, 0, M(0xf2efe6), 8); cyl(t, .18, .22, 2.4, 0, 1.3, 0, M(0x5b4331), 8);
+  for (const [cx, cy, cz, r] of [[0, 4.4, 0, 2.3], [1.2, 3.9, .5, 1.6], [-1.1, 4, -.6, 1.7], [.2, 5.4, -.3, 1.4]]) { const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), M(0x3c6a2c, { roughness: .9 })); c.position.set(cx, cy, cz); c.scale.y = .8; t.add(c); }
+  g.add(t); return t;
+}
+
+/* an arcade of portales: white arches with a red trim and a red guardapolvo, along +x, facing -z */
+function arcade(g, len, x0, z, wallC = 0xefe9dc, trimC = 0x8a2a1e, h = 4.2, depth = 3.2) {
+  const n = Math.max(2, Math.round(len / 3.6)), sp = len / n, W = M(wallC), T = M(trimC);
+  for (let k = 0; k <= n; k++) { box(g, .7, h, .7, x0 - len / 2 + k * sp, 0, z - depth, W); box(g, .74, .9, .74, x0 - len / 2 + k * sp, 0, z - depth, T); }
+  for (let k = 0; k < n; k++) { const a = new THREE.Mesh(new THREE.TorusGeometry(sp / 2 - .35, .2, 6, 14, Math.PI), T); a.position.set(x0 - len / 2 + (k + .5) * sp, h - sp / 2 + .35, z - depth - .36); g.add(a); }
+  box(g, len + .7, 1.2, .8, x0, h - .2, z - depth, W); box(g, len + .7, .35, depth + .8, x0, h + 1, z - depth / 2, W); box(g, len + .7, .2, .85, x0, h + .3, z - depth, T);
+}
+let STONE = null;
+function stoneTex() {
+  if (STONE) return STONE;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256; const x = c.getContext('2d');
+  x.fillStyle = '#3e3a36'; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 90; i++) { const cx = Math.random() * 256, cy = Math.random() * 256, r = 10 + Math.random() * 18; const v = 70 + Math.random() * 50; x.fillStyle = `rgb(${v},${v - 6},${v - 12})`; x.beginPath(); for (let k = 0; k < 6; k++) { const a = k / 6 * 6.28 + Math.random() * .5; x.lineTo(cx + Math.cos(a) * r * (0.7 + Math.random() * .4), cy + Math.sin(a) * r * (0.7 + Math.random() * .4)); } x.fill(); }
+  STONE = new THREE.CanvasTexture(c); STONE.wrapS = STONE.wrapT = THREE.RepeatWrapping; STONE.colorSpace = THREE.SRGBColorSpace; return STONE;
 }
 function lantern(g, x, z, y, glow) {
   cyl(g, .06, .09, 3.4, x, y, z, M(0x1a1a1a, { metalness: .6 }), 8);
@@ -140,35 +223,51 @@ export function makeLandmarks(city) {
       box(g, 24.4, .55, .35, qx * 19, 0, qz * 16 - 9, M(CANTERA)); box(g, 24.4, .55, .35, qx * 19, 0, qz * 16 + 9, M(CANTERA));
       for (let k = 0; k < 3; k++) bench(g, qx * (8 + k * 6), qz * 6.2, qz > 0 ? Math.PI : 0, .1);
       for (let k = 0; k < 4; k++) { const tx = qx * (10 + (k % 2) * 16), tz = qz * (10 + Math.floor(k / 2) * 10); lantern(g, tx, tz, .1, glow); }
+      fence(g, 23, 17, qx * 19, qz * 16);
+      for (let k = 0; k < 3; k++) laurel(g, qx * (12 + k * 6), qz * (13 + (k % 2) * 4), .5, .95 + (k % 2) * .15);
     }
     g.add(kiosco());
     place(g, x, z);
-    col.addSolid(x, z, 11, 11, 0, y - 1, y + 1.4, 'kiosco');     // the bandstand floor is walkable
-    for (let st = 0; st < 4; st++) col.addSolid(x + 5.2 + 1.4 - st * .35, z, 1.1, 2.4, 0, y - 1, y + .33 * (st + 1), 'step');
-    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; col.addCircle(x + Math.cos(a) * 4.9, z + Math.sin(a) * 4.9, .12, y + 1.3, y + 5.4, 'kiosco'); }
+    col.addSolid(x, z, 11, 11, 0, y - 1, y + 1.7, 'kiosco');     // the bandstand floor is walkable
+    for (let st = 0; st < 5; st++) col.addSolid(x + 5.2 + 1.8 - st * .4, z, 1.1, 2.6, 0, y - 1, y + .33 * (st + 1), 'step');
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; col.addCircle(x + Math.cos(a) * 4.9, z + Math.sin(a) * 4.9, .12, y + 1.6, y + 5.7, 'kiosco'); }
     for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) col.addSolid(x + qx * 19, z + qz * 16, 24, 18, 0, y - 1, y + .5, 'garden');
-    spots.kiosco = [x, y + 1.4, z];
+    spots.kiosco = [x, y + 1.7, z];
   }
-  /* ---- the Plaza Aguadora and its fountain: a woman carrying water ---- */
+  /* ---- the Plaza Aguadora: terracotta paving, the fountain of the water-carrier under her little temple,
+         a great tree hung with paper lanterns ---- */
   {
-    const { x, z } = P('plazaSur'), y = H(x, z), g = new THREE.Group();
-    box(g, 58, .22, 64, 0, -.1, 0, M(0xc0b2a0));
-    cyl(g, 4.2, 4.4, .7, 0, 0, 0, M(CANTERA), 24);
-    const water = new THREE.Mesh(new THREE.CylinderGeometry(3.9, 3.9, .1, 24), M(0x3a6a78, { roughness: .1, metalness: .2 })); water.position.y = .55; g.add(water);
-    cyl(g, .9, 1.1, 1.6, 0, .6, 0, M(CANTERA), 12);
-    const statue = makePerson({ skin: BRONZE, hair: BRONZE, top: BRONZE, bottom: BRONZE, dress: true, shoes: BRONZE, height: 1.1, hairStyle: 'bun' });
-    statue.traverse(o => { if (o.isMesh) o.material = M(0x6a5236, { metalness: .6, roughness: .45 }); });
-    statue.position.y = 2.2; g.add(statue);
-    const pot = new THREE.Mesh(new THREE.SphereGeometry(.3, 12, 10), M(0x6a5236, { metalness: .6, roughness: .45 })); pot.position.set(.3, 4.1, 0); pot.scale.y = 1.2; g.add(pot);
-    for (let k = 0; k < 6; k++) bench(g, Math.cos(k) * 12, Math.sin(k) * 12, -k + Math.PI / 2, 0);
-    for (const [lx, lz] of [[-20, -20], [20, -20], [-20, 20], [20, 20], [0, -26], [0, 26]]) lantern(g, lx, lz, 0, glow);
-    place(g, x, z); col.addCircle(x, z, 4.4, y - 1, y + 3.5, 'fountain');
+    const { x, z } = P('plazaSur'), y = H(x, z), g = new THREE.Group(), OR = 0xc8703a, OR2 = 0xd88a52;
+    box(g, 34, .22, 30, 0, -.1, 0, M(0xa8583e));
+    for (let k = 0; k < 3; k++) cyl(g, 5.6 - k * .5, 5.7 - k * .5, .22, 0, k * .22, 0, M(k % 2 ? OR2 : OR), 28);   // three round steps
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(4.3, 4.3, .8, 28, 1, true), M(OR, { side: THREE.DoubleSide })); rim.position.y = .66 + .4; g.add(rim);
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(4.3, .18, 6, 28), M(OR2)); lip.rotation.x = Math.PI / 2; lip.position.y = 1.46; g.add(lip);
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(4.1, 4.1, .1, 28), M(0x3a6a78, { roughness: .08, metalness: .25 })); water.position.y = 1.2; g.add(water);
+    // the temple: a square base, four columns, arches, a little dome
+    box(g, 2.6, 1.6, 2.6, 0, .66, 0, M(OR)); box(g, 3, .25, 3, 0, 2.26, 0, M(OR2));
+    for (const [cx, cz] of [[-1.15, -1.15], [1.15, -1.15], [-1.15, 1.15], [1.15, 1.15]]) cyl(g, .16, .19, 2.6, cx, 2.5, cz, M(OR2), 10);
+    for (const ry of [0, Math.PI / 2]) for (const sg of [-1, 1]) { const ar = new THREE.Mesh(new THREE.TorusGeometry(1.0, .16, 6, 14, Math.PI), M(OR)); ar.position.set(ry ? sg * 1.15 : 0, 4.6, ry ? 0 : sg * 1.15); ar.rotation.y = ry; g.add(ar); }
+    box(g, 2.9, .5, 2.9, 0, 5.4, 0, M(OR2));
+    const dm = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(OR)); dm.position.y = 5.9; g.add(dm);
+    cyl(g, .25, .3, .6, 0, 7.05, 0, M(OR2), 8);
+    const statue = makePerson({ skin: BRONZE, hair: BRONZE, top: BRONZE, bottom: BRONZE, dress: true, shoes: BRONZE, height: .95, hairStyle: 'bun' });
+    statue.traverse(o => { if (o.isMesh) o.material = M(0x5a4630, { metalness: .6, roughness: .45 }); });
+    statue.position.y = 2.5; g.add(statue);
+    const pot = new THREE.Mesh(new THREE.SphereGeometry(.26, 12, 10), M(0x5a4630, { metalness: .6, roughness: .45 })); pot.position.set(.28, 4.15, 0); pot.scale.y = 1.2; g.add(pot);
+    // the great tree with its paper lanterns, and the benches around
+    const tr = laurel(g, -9, 8, 0, 1.5); tr.scale.set(1.6, 1.45, 1.6);
+    const lantMat = new THREE.MeshBasicMaterial({ color: 0xffa048 }); root.userData.paperLanterns = lantMat;
+    for (let k = 0; k < 16; k++) { const a = k * 2.4, r = 1.5 + (k % 4) * .8; const l = new THREE.Mesh(new THREE.SphereGeometry(.24, 10, 8), lantMat); l.position.set(-9 + Math.cos(a) * r * 1.6, 4.4 + (k % 3) * .6, 8 + Math.sin(a) * r * 1.6); g.add(l); }
+    for (let k = 0; k < 6; k++) bench(g, Math.cos(k + .5) * 9, Math.sin(k + .5) * 9, -(k + .5) + Math.PI / 2, 0);
+    for (const [lx, lz] of [[-14, -12], [14, -12], [14, 12], [0, -13]]) lantern(g, lx, lz, 0, glow);
+    place(g, x, z); col.addCircle(x, z, 4.5, y - 1, y + 3.5, 'fountain'); col.addCircle(x - 9 * 1, z + 8, .5, y - 1, y + 4, 'tree');
     spots.aguadora = [x, y, z];
   }
   /* ---- the Parroquia de San Francisco, facing west onto its atrio ---- */
   {
     const { x, z } = P('parroquia'), fx = x - 26, y = H(fx, z);
-    const c = church({ length: 54, width: 16, height: 16, towers: 1, towerSide: -1, dome: true, domeColor: 0xd8b04a, towerW: 5.6 });
+    // ochre walls, almagre (red-orange) quoins and pilasters, a curved gable, a clock, and a tower of dark cantera
+    const c = church({ length: 54, width: 16, height: 16, towers: 1, towerSide: -1, dome: true, domeColor: 0xd8b04a, towerW: 5.6, wall: 0xeac46a, facade: 0xecc86c, trim: 0xc4501e, towerStone: 0x6e3c30, curved: true, quoins: true, clock: true, tiers: 3, doorMat: M(0x4a2c18) });
     place(c, fx, z, 0);
     col.addBox(fx + 27, z, 55, 18, 0, y - 2, y + 17, 'landmark'); col.addBox(fx + 1.5, z - 9.2, 5.8, 5.8, 0, y - 2, y + 32, 'landmark');
     // the atrio: a low wall with a gate, a stone cross
@@ -231,29 +330,71 @@ export function makeLandmarks(city) {
   /* ---- the Estadio 18 de Marzo and its portada ---- */
   {
     const s = P('estadio'), y = H(s.x, s.z), g = new THREE.Group();
-    const pitch = new THREE.Mesh(new THREE.BoxGeometry(68, .15, 100), landmarkMaterial({ map: pitchTex(), roughness: .95 })); pitch.position.y = .05; g.add(pitch);
+    const pitch = new THREE.Mesh(new THREE.BoxGeometry(68, .15, 100), landmarkMaterial({ map: pitchTex(), roughness: .97 })); pitch.position.y = .05; g.add(pitch);
     for (const sz of [-1, 1]) { const goal = new THREE.Group(); box(goal, 7.3, .12, .12, 0, 2.44, 0, M(0xf4f4f4)); for (const sx of [-1, 1]) box(goal, .12, 2.44, .12, sx * 3.65, 0, 0, M(0xf4f4f4)); goal.position.set(0, 0, sz * 50); g.add(goal); }
-    // the perimeter wall and the stands (gradas), a roofed grandstand on the west
+    // the green basketball court beside the field, with its two hoops
+    const court = new THREE.Mesh(new THREE.BoxGeometry(15, .16, 26), landmarkMaterial({ map: courtTex(), roughness: .7 })); court.position.set(26, .1, -36); g.add(court);
+    for (const sz of [-1, 1]) { cyl(g, .08, .08, 3.4, 26, 0, -36 + sz * 13.6, M(0xe8e8e8), 6); box(g, 1.8, 1.05, .06, 26, 3.0, -36 + sz * 13.1, M(0xf4f4f4)); const rim2 = new THREE.Mesh(new THREE.TorusGeometry(.23, .02, 6, 14), M(0xd86a1a)); rim2.rotation.x = Math.PI / 2; rim2.position.set(26, 3.05, -36 + sz * 12.75); g.add(rim2); }
+    // the perimeter wall
     for (const [w, d, px, pz] of [[84, .4, 0, -60], [84, .4, 0, 60], [.4, 120, -42, 0], [.4, 120, 42, 0]]) box(g, w, 3, d, px, 0, pz, M(0xe6ded0));
-    for (let r = 0; r < 7; r++) { box(g, 3, .5 * (r + 1), 80, -40 + r * 1.3 - 3, 0, 0, M(0xb0aaa0)); box(g, 3, .5 * (r + 1), 60, 40 - r * 1.3 + 3, 0, 0, M(0xb0aaa0)); }
-    box(g, 12, .3, 60, -44, 8.5, 0, M(0x9aa0a4, { metalness: .5 })); for (let k = -3; k <= 3; k++) cyl(g, .12, .12, 8.5, -49, 0, k * 9, M(0x8a8e90), 8);
-    for (const [lx, lz] of [[-40, -58], [40, -58], [-40, 58], [40, 58]]) { cyl(g, .25, .35, 22, lx, 0, lz, M(0x8a8e90), 8); box(g, 4, 2.2, .5, lx, 22, lz, M(0x3a3a3a)); }
+    // west: the roofed grandstand, white concrete steps under corrugated roofing on red columns with diagonal braces
+    for (let r = 0; r < 8; r++) box(g, 1.1, .45 * (r + 1), 76, -36.5 - r * 1.1, 0, 0, M(r % 2 ? 0xe8e4dc : 0xdcd6cc));
+    const RED = M(0x8a2a24, { metalness: .3, roughness: .6 });
+    for (let k = -4; k <= 4; k++) { cyl(g, .16, .16, 8.6, -36.2, 0, k * 9, RED, 8); cyl(g, .16, .16, 10.5, -45.2, 0, k * 9, RED, 8); const br = new THREE.Mesh(new THREE.BoxGeometry(.16, 5.6, .16), RED); br.position.set(-38.8, 6.6, k * 9); br.rotation.z = -1.0; g.add(br); }
+    const roofS = new THREE.Mesh(new THREE.BoxGeometry(11, .12, 80), landmarkMaterial({ map: corrTex(), color: 0x8a9298, metalness: .55, roughness: .45 })); roofS.position.set(-40.6, 9.6, 0); roofS.rotation.z = -.17; g.add(roofS);
+    const sign = plaque(g, ['ESTADIO 18 DE MARZO'], 18, 1.9, -35.4, 10.7, 0, -Math.PI / 2, { bg: '#f4f2ec', fg: '#9a1e18', border: false, size: 150, h: 200, w: 1400, weight: 700 });
+    box(g, .2, 2.2, 19, -35.55, 9.6, 0, M(0xf4f2ec));
+    box(g, 4.5, 3.2, 5.4, -35.6, 0, 0, M(0xf2efe8)); const tun = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.4), M(0x1a1612)); tun.position.set(-33.33, 1.2, 0); tun.rotation.y = Math.PI / 2; g.add(tun);
+    // chain-link fence on red posts, and a red curb, between the stands and the field
+    const chain = landmarkMaterial({ map: chainTex(), alphaTest: .4, side: THREE.DoubleSide, color: 0xb8bcc0, metalness: .5 });
+    const cf = new THREE.Mesh(new THREE.PlaneGeometry(76, 1.6), chain); cf.material.map.repeat.set(76, 2); cf.position.set(-35.2, .8, 0); cf.rotation.y = Math.PI / 2; g.add(cf);
+    for (let k = -8; k <= 8; k++) cyl(g, .05, .05, 1.7, -35.2, 0, k * 4.6, RED, 6);
+    box(g, .4, .25, 76, -35, 0, 0, RED);
+    // east: open stands painted green and white
+    for (let r = 0; r < 7; r++) box(g, 1.1, .45 * (r + 1), 56, 35.5 + r * 1.1, 0, 0, M(r % 2 ? 0x2e8a4a : 0xf0f0ea));
+    for (let k = -3; k <= 3; k++) cyl(g, .1, .1, 5, 43.5, 3.2, k * 9, M(0xf0f0ea), 6);
+    box(g, 9, .12, 60, 39.5, 8.2, 0, M(0xd8dcde, { metalness: .5 }));
+    // floodlights at the corners
+    for (const [lx, lz] of [[-40, -58], [40, -58], [-40, 58], [40, 58]]) { cyl(g, .25, .35, 22, lx, 0, lz, M(0xd8dcd8), 8); box(g, 4, 2.2, .5, lx, 22, lz, M(0x3a3a3a)); }
     place(g, s.x, s.z);
     for (const [w, d, px, pz] of [[84, 1, 0, -60], [84, 1, 0, 60], [1, 120, -42, 0], [1, 120, 42, 0]]) if (pz !== -60) col.addBox(s.x + px, s.z + pz, w, d, 0, y - 1, y + 3, 'wall');
     col.addBox(s.x - 25, s.z - 60, 34, 1, 0, y - 1, y + 3, 'wall'); col.addBox(s.x + 25, s.z - 60, 34, 1, 0, y - 1, y + 3, 'wall');
-    // the portada: two pylons, an arch and a frieze with the name; Cárdenas' words on a plaque beside the gate
-    const p = P('portada'), py = H(p.x, p.z), pg = new THREE.Group(), st = M(0xd8c4a8), st2 = M(0xb89c80);
-    for (const sx of [-1, 1]) { box(pg, 3.2, 9.5, 3.2, sx * 6.2, 0, 0, st); box(pg, 3.8, .7, 3.8, sx * 6.2, 9.5, 0, st2); box(pg, 3.6, 1.2, 3.6, sx * 6.2, 0, 0, st2); const ball = new THREE.Mesh(new THREE.SphereGeometry(.9, 14, 10), st2); ball.position.set(sx * 6.2, 11, 0); pg.add(ball); }
-    const arch = new THREE.Mesh(new THREE.TorusGeometry(4.6, .75, 8, 24, Math.PI), st); arch.position.set(0, 5.4, 0); pg.add(arch);
-    box(pg, 15.6, 2.6, 2.2, 0, 7.4, 0, st);
-    plaque(pg, ['ESTADIO 18 DE MARZO'], 13, 1.9, 0, 8.7, 1.12, 0, { bg: '#d8c4a8', fg: '#5a2a1a', border: false, size: 150, h: 220 });
-    plaque(pg, ['ESTADIO 18 DE MARZO'], 13, 1.9, 0, 8.7, -1.12, Math.PI, { bg: '#d8c4a8', fg: '#5a2a1a', border: false, size: 150, h: 220 });
-    const quote = plaque(pg, [{ text: '“LOS RECURSOS NATURALES DEL PAÍS', small: true }, { text: 'DEBEN SERVIR PARA SU PROPIA PROSPERIDAD.', small: true }, { text: 'ENTREGARLOS A INTERESES EXTRAÑOS', small: true }, { text: 'ES TRAICIONAR LA PATRIA.”', small: true }, { text: '— GRAL. LÁZARO CÁRDENAS', small: true }], 3, 2.2, -6.2, 4.4, -1.62, Math.PI, { w: 900, h: 660, bg: '#8a6a44', fg: '#f2e2c0', size: 96 });
-    quote.material.metalness = .5; quote.material.roughness = .45;
-    const gate = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.6), landmarkMaterial({ map: gateTex(), alphaTest: .5, side: THREE.DoubleSide, metalness: .5, roughness: .5 })); gate.position.set(0, 1.8, -.4); pg.add(gate);
+    // the portada: a whitewashed wall with pink cantera pilasters and finials, a scalloped cantera parapet,
+    // a tall central arch lettered 18 DE MARZO, a bronze eagle on top, and the General's words painted in script
+    const p = P('portada'), py = H(p.x, p.z), pg = new THREE.Group(), CA = M(0xb8806a), CA2 = M(0x9a6452), WH = M(0xf2efe8);
+    const pil = (x, h, w = 1.3) => { box(pg, w, h, 1.5, x, 0, 0, CA); box(pg, w + .3, .35, 1.7, x, h, 0, CA2); box(pg, w + .2, .6, 1.6, x, 0, 0, CA2);
+      const urn = new THREE.Mesh(new THREE.SphereGeometry(.42, 12, 8), CA); urn.scale.y = 1.25; urn.position.set(x, h + .8, 0); pg.add(urn); const tip = new THREE.Mesh(new THREE.ConeGeometry(.2, .6, 8), CA2); tip.position.set(x, h + 1.45, 0); pg.add(tip); };
+    // wall panels (with a gap for the arch)
+    box(pg, 8.4, 6.2, .9, -7.8, 0, 0, WH); box(pg, 8.4, 6.2, .9, 7.8, 0, 0, WH);
+    box(pg, 2.6, 8.3, .9, -3.8, 0, 0, WH); box(pg, 2.6, 8.3, .9, 3.8, 0, 0, WH); box(pg, 5, 1.7, .9, 0, 6.6, 0, WH);
+    for (const sx of [-1, 1]) {
+      const cr = gable(8.4, 2.2, .9, WH); cr.rotation.y = -Math.PI / 2; cr.position.set(sx * 7.8, 6.2, 0); pg.add(cr);
+      const rim = gable(8.6, 2.45, .7, CA); rim.rotation.y = -Math.PI / 2; rim.position.set(sx * 7.8, 6.05, .12); pg.add(rim);
+      pil(sx * 2.6, 9.6, 1.4); pil(sx * 5.1, 7.4); pil(sx * 12.1, 6.6, 1.5);
+      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), M(0x5a3a26)); win.position.set(sx * 8, 1.4, -.47); win.rotation.y = Math.PI; pg.add(win);
+    }
+    const crest = gable(5.2, 2.6, .9, WH); crest.rotation.y = -Math.PI / 2; crest.position.set(0, 8.3, 0); pg.add(crest);
+    const crestRim = gable(5.5, 2.9, .7, CA); crestRim.rotation.y = -Math.PI / 2; crestRim.position.set(0, 8.15, .12); pg.add(crestRim);
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(2.3, .55, 8, 24, Math.PI), CA); arch.position.set(0, 5.1, 0); pg.add(arch);
+    for (const sx of [-1, 1]) box(pg, 1.1, 5.1, 1.2, sx * 2.3, 0, 0, CA);
+    box(pg, .8, 1, 1.3, 0, 7.1, 0, CA2);
+    plaque(pg, ['18 DE MARZO'], 4, .7, 0, 6.15, -.62, Math.PI, { bg: '#b8806a', fg: '#4a2014', border: false, size: 150, h: 200, w: 1100 });
+    // the eagle
+    const eg = new THREE.Group(), BZ = M(0x8a6a3a, { metalness: .65, roughness: .4 });
+    box(eg, .9, .5, .9, 0, 0, 0, CA2);
+    const body = new THREE.Mesh(new THREE.SphereGeometry(.42, 12, 10), BZ); body.scale.set(.8, 1.3, .7); body.position.y = 1.05; eg.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(.2, 10, 8), BZ); head.position.set(0, 1.75, -.12); eg.add(head);
+    for (const sx of [-1, 1]) { const w = new THREE.Mesh(new THREE.BoxGeometry(1.6, .5, .1), BZ); w.position.set(sx * .95, 1.5, 0); w.rotation.z = sx * .6; eg.add(w); const f = new THREE.Mesh(new THREE.BoxGeometry(.9, .35, .08), BZ); f.position.set(sx * 1.6, 2.15, 0); f.rotation.z = sx * .9; eg.add(f); }
+    eg.position.y = 10.6; pg.add(eg);
+    // the General's words, painted in black script on the white panels
+    const script = { bg: '#f2efe8', fg: '#1a1612', border: false, font: 'Cormorant Garamond, Georgia, serif', weight: 600, w: 1024, h: 420, size: 74 };
+    const quote = plaque(pg, ['Los recursos naturales del', 'país deben servir para su', 'propia prosperidad'], 6, 2.5, -7.8, 4, -.47, Math.PI, script);
+    plaque(pg, ['Entregarlos a intereses', 'extraños es traicionar', 'la patria'], 6, 2.5, 7.8, 4, -.47, Math.PI, script);
+    quote.material.roughness = .9;
+    const gate = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 3.6), landmarkMaterial({ map: gateTex(), alphaTest: .5, side: THREE.DoubleSide, metalness: .5, roughness: .5 })); gate.position.set(0, 1.8, .2); pg.add(gate);
     place(pg, p.x, p.z, 0);
-    for (const sx of [-1, 1]) col.addBox(p.x + sx * 6.2, p.z, 3.4, 3.4, 0, py - 1, py + 10, 'landmark');
-    spots.portadaQuote = [p.x - 6.2, py, p.z - 3.2]; spots.portadaStone = [p.x + 6.2, py, p.z - 2.6];
+    for (const [cx, w] of [[-7.8, 8.4], [7.8, 8.4], [-3.4, 1.8], [3.4, 1.8], [-12.1, 1.5], [12.1, 1.5]]) col.addBox(p.x + cx, p.z, w, 1.6, 0, py - 1, py + 9, 'landmark');
+    spots.portadaQuote = [p.x - 7.8, py, p.z - 2.4]; spots.portadaStone = [p.x + 2.6, py, p.z - 1.6];
   }
   /* ---- the Plaza de la Feria: a round plaza of rings ---- */
   {
@@ -274,7 +415,9 @@ export function makeLandmarks(city) {
   }
   /* ---- the churches of the barrios ---- */
   {
-    const gp = P('guadalupe'), g1 = church({ length: 40, width: 14, height: 15, towers: 2, dome: true, domeColor: 0x3a6aa0, towerW: 4.6 });
+    // the Santuario de Guadalupe: red brick, a tall brick tower, and a great salmon-pink dome with its lantern
+    const gp = P('guadalupe'), g1 = church({ length: 40, width: 14, height: 15, towers: 1, towerSide: -1, dome: true, domeColor: 0xe0907e, towerW: 5, wall: 0xa8563c, facade: 0xb05c40, trim: 0x8a4430, towerStone: 0x9a4a34, tiers: 3, curved: true });
+    g1.traverse(o => { if (o.isMesh && o.geometry.type === 'SphereGeometry' && o.position.y > 15 && o.position.y < 25) o.scale.set(1.25, 1.35, 1.25); });
     place(g1, gp.x, gp.z - 20, -Math.PI / 2); const y1 = H(gp.x, gp.z);   // facing north onto Calle Constitución
     col.addBox(gp.x, gp.z, 17, 42, 0, y1 - 2, y1 + 16, 'landmark');
     const sc = P('cayetano'), g2 = church({ length: 32, width: 11, height: 12, towers: 1, towerSide: 1, dome: false, domeColor: 0xc88a3a, towerW: 4 });
@@ -284,6 +427,12 @@ export function makeLandmarks(city) {
     place(g3, sa.x - 9, sa.z, 0); const y3 = H(sa.x, sa.z);
     col.addBox(sa.x, sa.z, 19, 9, 0, y3 - 2, y3 + 9, 'landmark');
     spots.guadalupeDoor = [gp.x, y1, gp.z - 22]; spots.cayetanoDoor = [sc.x - 18, y2, sc.z];
+    // the nuns' convent beside the Santuario: two storeys around a cloister, an arcade on the ground floor
+    { const cg = new THREE.Group(); box(cg, 22, 7.2, 14, 0, 0, 0, M(0xefe6d6)); box(cg, 22.2, .9, 14.2, 0, 0, 0, M(0x8a2a1e)); box(cg, 22.6, .4, 14.6, 0, 7.2, 0, M(TILE));
+      arcade(cg, 18, 0, -7.4, 0xefe6d6, 0x8a2a1e);
+      for (let k = 0; k < 6; k++) { const w = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.5), M(0x2a2018)); w.position.set(-8 + k * 3.2, 5.2, -7.03); w.rotation.y = Math.PI; cg.add(w); }
+      plaque(cg, ['CONVENTO', { text: 'Hermanas del Santuario de Guadalupe', small: true }], 5, 1, 0, 6.3, -7.05, Math.PI, { bg: '#e8dcc8' });
+      place(cg, gp.x + 22, gp.z - 4, 0); col.addBox(gp.x + 22, gp.z - 4, 22, 14, 0, y1 - 2, y1 + 7.6, 'roof'); }
   }
   /* ---- the Plaza de Toros Alberto Balderas ---- */
   {
@@ -310,14 +459,17 @@ export function makeLandmarks(city) {
     place(g, x, z); col.addBox(x, z, 44, 22, 0, y - 2, y + 8, 'roof');
     spots.museoDoor = [x, y, z - 13.5];
   }
-  /* ---- the Bosque's gate ---- */
+  /* ---- the Bosque's gate: a wall of dark volcanic stone with two arches and a scalloped top ---- */
   {
-    const b = P('bosque'), gx = b.x - 60, gz = b.z - 150, g = new THREE.Group();
-    for (const s of [-1, 1]) box(g, 1.6, 5, 1.6, s * 5, 0, 0, M(CANTERA));
-    box(g, 12, 1.4, 1.2, 0, 5, 0, M(CANTERA));
-    plaque(g, ['PARQUE JUÁREZ'], 8, 1.1, 0, 5.7, .62, 0, { bg: '#c0a292', border: false });
+    const b = P('bosque'), gx = b.x - 60, gz = b.z - 150, g = new THREE.Group(), ST = landmarkMaterial({ map: stoneTex(), roughness: .95 }), RIM = M(0x3a3632);
+    box(g, 2.4, 4.6, 1.4, 0, 0, 0, ST); for (const sx of [-1, 1]) { box(g, 3.6, 4.6, 1.4, sx * 5.6, 0, 0, ST); box(g, 1.2, 2.6, 1.6, sx * 1.6, 0, 0, RIM); box(g, 1.2, 2.6, 1.6, sx * 3.6, 0, 0, RIM); }
+    box(g, 14.8, 1.4, 1.4, 0, 4.6, 0, ST);
+    for (const sx of [-1, 1]) { const ar = new THREE.Mesh(new THREE.TorusGeometry(1.25, .32, 6, 16, Math.PI), RIM); ar.position.set(sx * 2.6, 2.7, -.72); g.add(ar); }
+    const crest = gable(14.8, 2.6, 1.3, ST); crest.rotation.y = -Math.PI / 2; crest.position.set(0, 6, 0); g.add(crest);
+    const crestR = gable(15.1, 2.85, 1.0, RIM); crestR.rotation.y = -Math.PI / 2; crestR.position.set(0, 5.9, .2); g.add(crestR);
+    const peep = new THREE.Mesh(new THREE.PlaneGeometry(.6, .9), M(0xdfe8ee)); peep.position.set(0, 7.2, -.71); peep.rotation.y = Math.PI; g.add(peep);
     place(g, gx, gz);
-    for (const s of [-1, 1]) col.addBox(gx + s * 5, gz, 1.6, 1.6, 0, H(gx, gz) - 1, H(gx, gz) + 6, 'landmark');
+    for (const sx of [-1, 0, 1]) col.addBox(gx + sx * 5.2, gz, sx ? 4.2 : 2.4, 1.6, 0, H(gx, gz) - 1, H(gx, gz) + 7, 'landmark');
   }
   /* ---- the summit of the Cerro de San Francisco: a white cross and a relay mast ---- */
   {
@@ -338,7 +490,7 @@ export function makeLandmarks(city) {
     place(g, t.x, t.z, t.ry || 0); col.addBox(t.x, t.z, 14, 12, t.ry ? -t.ry : 0, y - 2, y + 5.8, 'roof');
     spots.taller = [t.x - Math.sin(t.ry || 0) * 9, y, t.z - Math.cos(t.ry || 0) * 9];
     const pe = P('petra'), py = H(pe.x, pe.z), h2 = new THREE.Group();
-    box(h2, 7, 3, 5, 0, 0, 0, M(0xa8805c)); const roof = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 3.6, 8, 3), M(TILE)); roof.rotation.z = Math.PI / 2; roof.rotation.x = Math.PI / 2; roof.scale.set(1, 1, .5); roof.position.y = 3.6; h2.add(roof);
+    box(h2, 7, 3, 5, 0, 0, 0, M(0xa8805c)); const roof = prism(6, 1.8, 8, M(TILE)); roof.rotation.y = Math.PI / 2; roof.position.y = 3; h2.add(roof);
     const hd = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2), M(0x3a2414)); hd.position.set(0, 1, -2.52); hd.rotation.y = Math.PI; h2.add(hd);
     for (let k = 0; k < 14; k++) { const pl = new THREE.Mesh(new THREE.IcosahedronGeometry(.45, 0), M(0x3a6a5a)); pl.position.set(-4 + (k % 7) * 1.3, .35, -4.5 - Math.floor(k / 7) * 1.2); h2.add(pl); }
     for (let k = 0; k < 4; k++) { const pot = new THREE.Mesh(new THREE.SphereGeometry(.35, 10, 8), M(0x9a5a34)); pot.position.set(3.8, .3, -1 + k * .8); h2.add(pot); }
@@ -352,21 +504,252 @@ export function makeLandmarks(city) {
     place(c2, cv.x, cv.z);
     spots.cueva = [cv.x, cy, cv.z - 1.5];
   }
+  root.userData.taxiKit = [];
+  extras(city, root, spots, glow, place, H);
   root.userData.spots = spots;
-  root.userData.update = (t, night) => { glow.color.setScalar(.6 + night * 2.6); if (root.userData.blink) root.userData.blink.visible = Math.sin(t * 3) > 0; };
+  root.userData.update = (t, night) => { const u = root.userData; glow.color.setScalar(.6 + night * 2.6); if (u.blink) u.blink.visible = Math.sin(t * 3) > 0; if (u.blink2) u.blink2.visible = Math.sin(t * 2.2 + 1) > 0; if (u.paperLanterns) u.paperLanterns.color.setRGB(1, .63, .28).multiplyScalar(.7 + night * 2.2); if (u.warmLights) u.warmLights.color.setRGB(1, .85, .63).multiplyScalar(.6 + night * 2.8); };
   return root;
 }
 
 function pitchTex() {
+  // the field of the 18 de Marzo is mostly earth now, with tufts of grass and lime lines that fade
   const c = document.createElement('canvas'); c.width = 256; c.height = 384; const x = c.getContext('2d');
-  for (let i = 0; i < 12; i++) { x.fillStyle = i % 2 ? '#4f8a34' : '#468030'; x.fillRect(0, i * 32, 256, 32); }
-  x.strokeStyle = '#f0f0e8'; x.lineWidth = 3; x.strokeRect(8, 8, 240, 368); x.beginPath(); x.moveTo(8, 192); x.lineTo(248, 192); x.stroke();
+  x.fillStyle = '#9a7a5a'; x.fillRect(0, 0, 256, 384);
+  for (let i = 0; i < 2600; i++) { const g = Math.random(); x.fillStyle = g < .35 ? `rgba(110,130,60,${.25 + Math.random() * .4})` : `rgba(${g < .7 ? '80,60,40' : '170,150,120'},${Math.random() * .25})`; x.fillRect(Math.random() * 256, Math.random() * 384, 2 + Math.random() * 7, 2 + Math.random() * 7); }
+  x.globalAlpha = .55; x.strokeStyle = '#f0f0e8'; x.lineWidth = 3; x.strokeRect(8, 8, 240, 368); x.beginPath(); x.moveTo(8, 192); x.lineTo(248, 192); x.stroke();
   x.beginPath(); x.arc(128, 192, 34, 0, 7); x.stroke(); x.strokeRect(68, 8, 120, 60); x.strokeRect(68, 316, 120, 60);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function courtTex() {
+  const c = document.createElement('canvas'); c.width = 160; c.height = 280; const x = c.getContext('2d');
+  x.fillStyle = '#1e7a5a'; x.fillRect(0, 0, 160, 280); x.strokeStyle = '#f0f0e8'; x.lineWidth = 3; x.strokeRect(8, 8, 144, 264);
+  x.beginPath(); x.moveTo(8, 140); x.lineTo(152, 140); x.stroke(); x.fillStyle = '#f0f0e8'; x.beginPath(); x.arc(80, 140, 16, 0, 7); x.fill();
+  for (const y of [8, 272]) { x.strokeRect(56, y === 8 ? 8 : 214, 48, 58); x.beginPath(); x.arc(80, y === 8 ? 66 : 214, 50, y === 8 ? 0 : Math.PI, y === 8 ? Math.PI : 2 * Math.PI); x.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function corrTex() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d');
+  for (let i = 0; i < 64; i++) { const v = 150 + Math.sin(i / 64 * Math.PI * 16) * 50; x.fillStyle = `rgb(${v},${v},${v})`; x.fillRect(0, i, 64, 1); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 30); return t;
+}
+function chainTex() {
+  const c = document.createElement('canvas'); c.width = 32; c.height = 32; const x = c.getContext('2d');
+  x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, 16); x.lineTo(16, 0); x.lineTo(32, 16); x.lineTo(16, 32); x.closePath(); x.stroke();
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
 function gateTex() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d');
   x.fillStyle = '#1a2a22'; for (let i = 0; i < 256; i += 12) x.fillRect(i, 10, 4, 118); x.fillRect(0, 10, 256, 6); x.fillRect(0, 64, 256, 5);
   for (let i = 6; i < 256; i += 24) { x.beginPath(); x.moveTo(i, 10); x.lineTo(i + 6, 0); x.lineTo(i + 12, 10); x.fill(); }
   const t = new THREE.CanvasTexture(c); return t;
+}
+
+/* a gable roof: a triangular prism w wide, h high, L long (along z), sitting on y = 0 */
+function prism(w, h, L, m) {
+  const sh = new THREE.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(0, h); sh.closePath();
+  const geo = new THREE.ExtrudeGeometry(sh, { depth: L, bevelEnabled: false }); geo.translate(0, 0, -L / 2); return new THREE.Mesh(geo, m);
+}
+/* a cow, for the ranchos (and for the one that runs away) */
+export function makeCow(color = 0xe8dcc0, spots = 0x3a2a1a) {
+  const g = new THREE.Group(), body = M(color), dark = M(spots);
+  box(g, 1.7, .8, .7, 0, .75, 0, body); box(g, .5, .45, .4, 1.0, 1.15, 0, body); box(g, .2, .2, .36, 1.3, 1.08, 0, M(0xd8a8a0));
+  for (const [x, z] of [[.6, .22], [.6, -.22], [-.6, .22], [-.6, -.22]]) box(g, .14, .75, .14, x, 0, z, body);
+  box(g, .5, .45, .72, -.2, .9, 0, dark); box(g, .35, .3, .72, .45, 1.05, .0, dark);
+  for (const sz of [-1, 1]) { const h = new THREE.Mesh(new THREE.ConeGeometry(.05, .25, 6), M(0xe8e0c8)); h.position.set(1.0, 1.45, sz * .16); h.rotation.x = sz * .5; g.add(h); }
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(.03, .03, .7, 5), body); tail.position.set(-.88, .9, 0); tail.rotation.z = .3; g.add(tail);
+  return g;
+}
+
+/* the places added after people who know Jiquilpan walked it with us */
+function extras(city, root, spots, glow, place, H) {
+  const col = city.colliders, P = id => PLACES[id];
+  /* ---- the Azul Portal: a blue colonial house with an arcade on the Jardín, tables under blue umbrellas, lit at night ---- */
+  {
+    const { x, z } = P('azulPortal'), y = H(x, z), g = new THREE.Group(), BLUE = 0x2f64b0;
+    box(g, 30, 8.4, 11, 0, 0, 5.5, M(BLUE)); box(g, 30.3, .5, 11.3, 0, 8.4, 5.5, M(0xf2efe8)); box(g, 30.1, .9, 11.1, 0, 0, 5.5, M(0x8a6a4a));
+    arcade(g, 28, 0, 0, BLUE, 0xf2efe8, 4.4, 3.4);
+    for (let k = 0; k < 7; k++) { const wx = -12 + k * 4; const w = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2), M(0x2a2018)); w.position.set(wx, 6.4, -.03); w.rotation.y = Math.PI; g.add(w);
+      box(g, 1.6, .1, .6, wx, 5.3, -.3, M(0x1a1a1c)); const rl = new THREE.Mesh(new THREE.PlaneGeometry(1.6, .8), laceMat(1)); rl.position.set(wx, 5.75, -.6); g.add(rl);
+      box(g, 1.6, .18, .1, wx, 7.5, -.05, M(0xf2efe8)); }
+    plaque(g, ['AZUL PORTAL', { text: 'Restaurante · Café', small: true }], 6, 1.1, 0, 7.75, -.06, Math.PI, { bg: '#f2efe8', fg: '#1e3a78', border: false, weight: 700 });
+    const warm = new THREE.MeshBasicMaterial({ color: 0xffd8a0 }); root.userData.warmLights = warm;
+    for (let k = 0; k < 8; k++) { const l = new THREE.Mesh(new THREE.SphereGeometry(.18, 8, 6), warm); l.position.set(-14 + k * 4, 3.9, -3.4); g.add(l); }
+    for (let k = 0; k < 5; k++) { const tx = -11 + k * 5.5, tz = -6.4;
+      cyl(g, .5, .5, .05, tx, .75, tz, M(0xf4f4f0), 14); cyl(g, .05, .05, .75, tx, 0, tz, M(0x2a2a2a), 6);
+      for (const sx of [-1, 1]) box(g, .45, .45, .45, tx + sx * .8, 0, tz, M(0x2a2a2a));
+      const um = new THREE.Mesh(new THREE.ConeGeometry(1.5, .6, 8), M(0x2a5aa8)); um.position.set(tx, 2.6, tz); g.add(um); cyl(g, .03, .03, 2.5, tx, 0, tz, M(0xdddddd), 6); }
+    place(g, x, z, Math.PI / 2); col.addBox(x + 5.5, z, 11, 30, 0, y - 2, y + 9, 'roof');
+    for (let k = 0; k <= 8; k++) col.addCircle(x - 3.4, z - 14 + k * 3.5, .4, y - 1, y + 4.4, 'column');
+    spots.azulPortal = [x - 6, y, z];
+  }
+  /* ---- the Jardín de la Paz: paths in a cross, lawns with jacarandas, a fountain, and a dove on a pillar ---- */
+  {
+    const { x, z } = P('jardinPaz'), y = H(x, z), g = new THREE.Group();
+    box(g, 66, .2, 54, 0, -.1, 0, M(0xc2b4a2));
+    for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      box(g, 26, .4, 20, qx * 17, 0, qz * 14, M(0x4a7a2e)); fence(g, 25.5, 19.5, qx * 17, qz * 14);
+      for (let k = 0; k < 3; k++) jacarandaT(g, qx * (10 + k * 7), qz * (9 + (k % 2) * 8), .4);
+      for (let k = 0; k < 2; k++) bench(g, qx * (8 + k * 9), qz * 3.4, qz > 0 ? Math.PI : 0, .1);
+      lantern(g, qx * 4, qz * 4, .1, glow); lantern(g, qx * 30, qz * 25, .1, glow);
+    }
+    cyl(g, 3, 3.2, .7, 0, 0, 0, M(0xb8a898), 20); const w = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.7, .1, 20), M(0x3a6a78, { roughness: .1, metalness: .2 })); w.position.y = .6; g.add(w);
+    cyl(g, .4, .5, 2.4, 0, .6, 0, M(0xd8d0c4), 10);
+    const dove = new THREE.Group(); { const b = new THREE.Mesh(new THREE.SphereGeometry(.3, 10, 8), M(0xf4f4f0)); b.scale.set(1.4, .8, .8); dove.add(b); for (const sz of [-1, 1]) { const wg = new THREE.Mesh(new THREE.BoxGeometry(.4, .04, .7), M(0xf4f4f0)); wg.position.set(0, .15, sz * .4); wg.rotation.x = sz * .5; dove.add(wg); } const hd = new THREE.Mesh(new THREE.SphereGeometry(.14, 8, 6), M(0xf4f4f0)); hd.position.set(.42, .18, 0); dove.add(hd); }
+    dove.position.y = 3.2; g.add(dove);
+    plaque(g, ['JARDÍN DE LA PAZ'], 4, .8, 0, 1.5, -.52, Math.PI, { bg: '#d8d0c4', border: false });
+    // a bust in a shell-shaped niche on a whitewashed wall, two red columns, a bronze plaque
+    { const n = new THREE.Group(), R2 = M(0xc0442a); box(n, 5, 4.5, .6, 0, 0, .4, M(0xf2efe8));
+      for (const sx of [-1, 1]) { cyl(n, .3, .32, 3.4, sx * 1.7, .3, -.2, R2, 12); cyl(n, .4, .42, .3, sx * 1.7, 0, -.2, M(0xf2efe8), 12); }
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(1.7, 16, 8, 0, Math.PI, 0, Math.PI / 2), R2); shell.rotation.y = Math.PI / 2; shell.rotation.x = -Math.PI / 2; shell.rotation.set(-Math.PI / 2, 0, 0); shell.scale.set(1, .5, 1); shell.position.set(0, 3.7, .1); n.add(shell);
+      box(n, 1.2, 1.5, .9, 0, 0, -.1, R2); const bust = new THREE.Mesh(new THREE.SphereGeometry(.28, 12, 10), M(0x6a6a5a, { metalness: .5 })); bust.position.set(0, 1.9, -.1); n.add(bust); box(n, .8, .35, .5, 0, 1.5, -.1, M(0x6a6a5a, { metalness: .5 }));
+      cyl(n, 2.4, 2.4, .25, 0, 0, -.6, M(0xc0442a), 20); n.position.set(0, 0, -24); g.add(n); }
+    place(g, x, z); col.addCircle(x, z, 3.2, y - 1, y + 2.6, 'fountain');
+    for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) col.addSolid(x + qx * 17, z + qz * 14, 26, 20, 0, y - 1, y + .4, 'garden');
+  }
+  /* ---- storefronts for the shops: sign, awning, door ---- */
+  const shopFront = (id, sign, color, kind) => {
+    const pl = P(id), f = city.storefront(pl.x, pl.z), y = H(f.sx, f.sz), g = new THREE.Group();
+    const aw = new THREE.Mesh(new THREE.BoxGeometry(5, .06, 1.6), M(color)); aw.position.set(0, 2.7, -.75); aw.rotation.x = .28; g.add(aw);
+    plaque(g, [sign], 5.4, .7, 0, 3.4, -.08, Math.PI, { bg: '#f2efe8', fg: '#' + color.toString(16).padStart(6, '0'), border: false, weight: 800, font: 'Inter, Arial, sans-serif', w: 1400, h: 180, size: 110 });
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(2, 2.4), M(0x2a2018)); d.position.set(0, 1.2, -.06); d.rotation.y = Math.PI; g.add(d);
+    if (kind === 'hats') for (let k = 0; k < 3; k++) { const h = new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .03, 16), M([0xd8c8a0, 0x1e1c1a, 0x8a6a3a][k])); h.position.set(1.6, .9 + k * .5, -.3); g.add(h); cyl(g, .13, .15, .16, 1.6, .92 + k * .5, -.3, M([0xd8c8a0, 0x1e1c1a, 0x8a6a3a][k]), 10); }
+    if (kind === 'flowers') for (let k = 0; k < 8; k++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.22, 0), M([0xd02040, 0xf0c030, 0x8a74c8, 0xf4f4f0][k % 4])); b.position.set(-1.8 + (k % 4) * .35, .7 + Math.floor(k / 4) * .3, -.45); g.add(b); }
+    if (kind === 'clothes') for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .05), M([0xc02870, 0xbfd6e8, 0xf2ecdc][k])); m.position.set(1.4 + k * .1, 1.4, -.12 - k * .04); g.add(m); }
+    if (kind === 'cheese') for (let k = 0; k < 4; k++) cyl(g, .28, .28, .22, -1.6 + k * .3, .9, -.35, M(0xf0e6c0), 12);
+    g.position.set(f.x, y, f.z); g.rotation.y = f.ang; root.add(g);
+    spots['shop_' + id] = [f.sx, H(f.sx, f.sz), f.sz];
+  };
+  shopFront('boutique', 'BOUTIQUE ROSA MEXICANO', 0xc02870, 'clothes'); shopFront('sombreros', 'SOMBRERERÍA LA TEXANA', 0x6a4a2a, 'hats');
+  shopFront('peluqueria', 'PELUQUERÍA DON BETO', 0x2850a0); shopFront('mercado', 'MERCADO DE ARTESANÍAS', 0xb8801a, 'clothes');
+  shopFront('floreria', 'FLORERÍA LAS JACARANDAS', 0x7a5ab8, 'flowers'); shopFront('cremeria', 'CREMERÍA · QUESOS Y CREMA', 0x2a6a3a, 'cheese');
+  shopFront('notaria', 'BIENES RAÍCES · TERRENOS', 0x2d4a3a); shopFront('ferreteria', 'MATERIALES EL ALBAÑIL', 0xd86a1a);
+  /* ---- the taxi stands: a sign, a bench, white taxis waiting at the curb ---- */
+  const taxiKit = root.userData.taxiKit;
+  for (const id of ['sitioAbasolo', 'sitioFajardo']) {
+    const pl = P(id), f = city.storefront(pl.x, pl.z), st = f.street, y = H(f.sx, f.sz), g = new THREE.Group();
+    cyl(g, .06, .06, 2.6, 0, 0, 0, M(0x2a2a2a), 6); plaque(g, ['SITIO DE TAXIS', { text: id === 'sitioAbasolo' ? 'ABASOLO' : 'FAJARDO', small: true }], 1.6, .8, 0, 2.4, -.05, Math.PI, { bg: '#f2c500', fg: '#1a1a1a', border: false, weight: 800, font: 'Inter, Arial, sans-serif' });
+    bench(g, 1.6, .3, Math.PI, 0); g.position.set(f.sx, y, f.sz); g.rotation.y = f.ang; root.add(g);
+    if (st && taxiKit) for (let k = 0; k < 3; k++) { const o = st.half - 1.6 - 1.05, cx = st.x + st.nx * o + st.tx * (k * 5.4 - 5.4), cz = st.z + st.nz * o + st.tz * (k * 5.4 - 5.4); taxiKit.push([cx, H(cx, cz) + .12, cz, Math.atan2(st.tz, st.tx)]); }
+    spots[id] = [f.sx, y, f.sz];
+  }
+  /* ---- the bache of Calle Morelos ---- */
+  {
+    const pl = P('bache'), s = city.nearestStreet(pl.x, pl.z, 60), bx = s ? s.x : pl.x, bz = s ? s.z : pl.z, y = H(bx, bz);
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(1.4, 18), M(0x1e1a16, { roughness: .95 })); hole.rotation.x = -Math.PI / 2; hole.scale.set(1.3, 1, 1); hole.position.set(bx, y + .1, bz);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(.9, 16), M(0x4a5a5a, { roughness: .05, metalness: .3 })); water.rotation.x = -Math.PI / 2; water.position.set(bx + .2, y + .11, bz);
+    const patch = new THREE.Mesh(new THREE.CircleGeometry(1.5, 18), M(0x8a8a86)); patch.rotation.x = -Math.PI / 2; patch.scale.set(1.3, 1, 1); patch.position.set(bx, y + .1, bz); patch.visible = false;
+    root.add(hole, water, patch); root.userData.setBache = fixed => { hole.visible = water.visible = !fixed; patch.visible = !!fixed; };
+    spots.bache = [bx + (s ? s.nx * (s.half - .8) : 2), y, bz + (s ? s.nz * (s.half - .8) : 0)];
+  }
+  /* ---- the Franciscan friar in the Parroquia's atrio, among pines ---- */
+  {
+    const pp = P('parroquia'), fx = pp.x - 26, y = H(fx - 15, pp.z + 7), g = new THREE.Group();
+    box(g, 1.6, 2.2, 1.6, 0, 0, 0, M(CANTERA)); box(g, 1.9, .25, 1.9, 0, 2.2, 0, M(CANTERA_D));
+    const fr = makePerson({ height: 1.15, build: 1.15, dress: true, hat: 'veil', top: 0, bottom: 0 }); fr.traverse(o => { if (o.isMesh) o.material = M(0x6a6658, { roughness: .8 }); }); fr.position.y = 2.45; fr.rotation.y = -Math.PI / 2; g.add(fr);
+    box(g, 6, .3, 4, 0, 0, 0, M(0x4a7a2e));
+    g.position.set(fx - 15, y, pp.z + 8); root.add(g); col.addBox(fx - 15, pp.z + 8, 1.7, 1.7, 0, y - 1, y + 4.5, 'landmark');
+    for (const [px, pz] of [[fx - 18, pp.z - 8], [fx - 7, pp.z + 10], [fx - 19, pp.z + 10]]) { const t = new THREE.Group(); cyl(t, .25, .35, 3, 0, 0, 0, M(0x5b4331), 6); for (let k = 0; k < 4; k++) { const c = new THREE.Mesh(new THREE.ConeGeometry(2.6 - k * .5, 2.6, 9), M(0x2a4a2a)); c.position.y = 3 + k * 1.6; t.add(c); } t.position.set(px, H(px, pz), pz); root.add(t); col.addCircle(px, pz, .4, H(px, pz) - 1, H(px, pz) + 6, 'tree'); }
+  }
+  /* ---- the Panteón Municipal: white walls, an arched gate, rows of tombs, crosses and cypresses ---- */
+  {
+    const { x, z } = P('panteon'), y = H(x, z), g = new THREE.Group(), W2 = 92, D2 = 80;
+    for (const [w, d, px, pz] of [[W2, .5, 0, D2 / 2], [.5, D2, -W2 / 2, 0], [.5, D2, W2 / 2, 0], [W2 / 2 - 3, .5, -W2 / 4 - 1.5, -D2 / 2], [W2 / 2 - 3, .5, W2 / 4 + 1.5, -D2 / 2]]) {
+      box(g, w, 2.6, d, px, 0, pz, M(0xf2efe8)); box(g, w + .02, .7, d + .02, px, 0, pz, M(0x8a2a1e)); col.addBox(x + px, z + pz, w, d, 0, y - 2, y + 2.6, 'wall'); }
+    for (const sx of [-1, 1]) box(g, 1.2, 5, 1.2, sx * 3.2, 0, -D2 / 2, M(0xf2efe8));
+    const ga = new THREE.Mesh(new THREE.TorusGeometry(3.2, .5, 6, 16, Math.PI), M(0xf2efe8)); ga.position.set(0, 4.8, -D2 / 2); g.add(ga);
+    plaque(g, ['PANTEÓN MUNICIPAL'], 5, .8, 0, 6.4, -D2 / 2 - .62, Math.PI, { bg: '#f2efe8', fg: '#3a2a22', border: false });
+    const slab = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .5, 2.1), M(0xd8d2c8), 400), head = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1.1, .2), M(0xe8e4dc), 400), cross = new THREE.InstancedMesh(new THREE.BoxGeometry(.12, 1.3, .12), M(0xf4f4f0), 400), arm = new THREE.InstancedMesh(new THREE.BoxGeometry(.7, .12, .12), M(0xf4f4f0), 400);
+    const m4 = new THREE.Matrix4(), cc = new THREE.Color(); let n = 0;
+    const tint = [0xd8d2c8, 0xe8c0c8, 0xb8cde0, 0xf0e0b0, 0xd0e0c8, 0xe8e4dc];
+    for (let r = 0; r < 12; r++) for (let c = 0; c < 26; c++) {
+      if (Math.abs(c - 12.5) < 1.5) continue; const tx = -W2 / 2 + 4 + c * 3.25, tz = -D2 / 2 + 7 + r * 5.6; if (n >= 400) break;
+      const jit = Math.sin(r * 31 + c * 17) * .3;
+      m4.makeTranslation(tx + jit, .25, tz); slab.setMatrixAt(n, m4); slab.setColorAt(n, cc.setHex(tint[(r * 7 + c * 3) % tint.length]));
+      m4.makeTranslation(tx + jit, .9, tz + 1.0); head.setMatrixAt(n, m4);
+      m4.makeTranslation(tx + jit, 2.0, tz + 1.0); cross.setMatrixAt(n, m4); m4.makeTranslation(tx + jit, 2.3, tz + 1.0); arm.setMatrixAt(n, m4); n++;
+    }
+    for (const im of [slab, head, cross, arm]) { im.count = n; g.add(im); }
+    for (let k = 0; k < 5; k++) { const mx = -30 + k * 15, mz = 30; box(g, 3.4, 3.4, 3.4, mx, 0, mz, M(0xe8e4dc)); const dm = new THREE.Mesh(new THREE.SphereGeometry(1.4, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), M([0x8aa8c8, 0xd8b04a, 0xe8e4dc][k % 3])); dm.position.set(mx, 3.4, mz); g.add(dm); cyl(g, .05, .05, 1.2, mx, 4.8, mz, M(IRON)); col.addBox(x + mx, z + mz, 3.4, 3.4, 0, y - 1, y + 4, 'landmark'); }
+    for (let k = 0; k < 14; k++) { const cx = -W2 / 2 + 3 + (k % 7) * 14.5, cz = k < 7 ? -D2 / 2 + 3 : D2 / 2 - 3; const t = new THREE.Mesh(new THREE.ConeGeometry(.9, 7, 8), M(0x22402a)); t.position.set(cx, 3.6, cz); g.add(t); }
+    place(g, x, z); spots.panteon = [x, y, z - D2 / 2 - 3];
+    root.userData.panteonY = y;
+  }
+  /* ---- the Casita de Piedra: a house of volcanic stone under a tile roof, a porch on wooden posts, stone steps ---- */
+  {
+    const pl = P('casita'), f = city.storefront(pl.x, pl.z), g = new THREE.Group(), ST = landmarkMaterial({ map: stoneTex(), roughness: .95 });
+    const hx = f.x + Math.sin(f.ang) * 7, hz = f.z + Math.cos(f.ang) * 7, y = H(hx, hz);
+    box(g, 11, 3.4, 8, 0, 0, 0, ST);
+    const roof = prism(11, 2.6, 12, M(0x7a3a26)); roof.rotation.y = Math.PI / 2; roof.position.set(0, 3.4, -1.2); g.add(roof);
+    for (let k = 0; k < 4; k++) cyl(g, .14, .16, 3, -4.5 + k * 3, 0, -5.4, M(0x5a3a22), 8);
+    box(g, 11.4, .25, 2.6, 0, 0, -5.2, M(0x6a625a)); for (let k = 0; k < 3; k++) box(g, 3, .22, .7, 0, -.2 - k * .2, -6.8 - k * .7, M(0x5a524a));
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.3), M(0x3a2414)); d.position.set(0, 1.15, -4.02); d.rotation.y = Math.PI; g.add(d);
+    for (const sx of [-1, 1]) { const w = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.2), M(0x2a2018)); w.position.set(sx * 3, 1.7, -4.02); w.rotation.y = Math.PI; g.add(w); }
+    plaque(g, ['LA CASITA DE PIEDRA', { text: 'Artesanías · Rebozos · Añil', small: true }], 4, 1, 0, 3.05, -4.05, Math.PI, { bg: '#d8c8a8', fg: '#3a2a1a' });
+    for (let k = 0; k < 8; k++) { const a = new THREE.Group(); for (let l = 0; l < 7; l++) { const lf = new THREE.Mesh(new THREE.ConeGeometry(.12, 1.2, 4), M(0x5a7a4a)); lf.position.y = .5; lf.rotation.set(Math.cos(l) * .7, 0, Math.sin(l) * .7); a.add(lf); } a.position.set(-6 + (k % 4) * 4, 0, -8.6 - Math.floor(k / 4) * 1.6); g.add(a); }
+    g.position.set(hx, y, hz); g.rotation.y = f.ang; root.add(g); col.addBox(hx, hz, 11, 8, -f.ang, y - 2, y + 4.4, 'roof');
+    spots.casita = [hx - Math.sin(f.ang) * 7.5, y, hz - Math.cos(f.ang) * 7.5]; spots.shop_casita = spots.casita;
+  }
+  /* ---- San Francisco del Cerro: the chapel, the red-and-white antenna, two little stores, a few adobe houses ---- */
+  {
+    const road = CERRO_ROAD, N = road.length, at = (k, off) => { const a = road[Math.max(0, k - 1)], b = road[Math.min(N - 1, k + 1)], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1; return [road[k][0] + dz / L * off, road[k][1] - dx / L * off, Math.atan2(dz / L * -Math.sign(off), -dx / L * -Math.sign(off))]; };
+    const face = (k, off) => { const [px, pz] = at(k, off), [rx, rz] = road[k]; return [px, pz, Math.atan2(rx - px, rz - pz) + Math.PI]; };
+    // the chapel at the end of the road
+    { const [cx, cz, ry] = face(N - 3, 14), y = H(cx, cz), g = new THREE.Group();
+      box(g, 6.5, 5, 11, 0, 0, 0, M(0xf2efe8)); box(g, 6.8, .9, 11.3, 0, 0, 0, M(0x2a5aa8));
+      const roof = prism(7.4, 2.4, 11.8, M(TILE)); roof.position.set(0, 5, 0); g.add(roof);
+      box(g, 7, 7.8, .6, 0, 0, -5.6, M(0xf2efe8)); const esp = gable(5, 3, .6, M(0xf2efe8)); esp.rotation.y = -Math.PI / 2; esp.position.set(0, 7.8, -5.6); g.add(esp);
+      for (const sx of [-1, 1]) { const op = new THREE.Mesh(new THREE.PlaneGeometry(.9, 1.4), M(0x1a1612)); op.position.set(sx * 1.1, 8.9, -5.92); op.rotation.y = Math.PI; g.add(op); const bell = new THREE.Mesh(new THREE.CylinderGeometry(.2, .35, .55, 10, 1, true), M(BRONZE, { metalness: .6, side: THREE.DoubleSide })); bell.position.set(sx * 1.1, 8.9, -5.6); g.add(bell); }
+      cyl(g, .05, .05, 1.4, 0, 10.7, -5.6, M(IRON)); box(g, .7, .07, .07, 0, 11.6, -5.6, M(IRON));
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.8), M(0x5a3a22)); d.position.set(0, 1.4, -5.92); d.rotation.y = Math.PI; g.add(d);
+      plaque(g, ['CAPILLA DE SAN FRANCISCO'], 4, .55, 0, 3.4, -5.93, Math.PI, { bg: '#f2efe8', border: false });
+      g.position.set(cx, y, cz); g.rotation.y = ry; root.add(g); col.addBox(cx, cz, 7, 12, -ry, y - 2, y + 6, 'roof'); spots.capilla = [cx, y, cz]; }
+    // the antenna on the summit: a red-and-white lattice tower with a blinking light
+    { const [ax, az] = [P('cumbre').x + 22, P('cumbre').z + 14], y = H(ax, az), g = new THREE.Group();
+      for (let seg = 0; seg < 8; seg++) { const c = seg % 2 ? 0xf2f2f0 : 0xc8301e; for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4, r = 1.6 - seg * .16; cyl(g, .07, .07, 5, Math.cos(a) * r, seg * 5, Math.sin(a) * r, M(c), 4); }
+        for (let k = 0; k < 4; k++) { const br = new THREE.Mesh(new THREE.BoxGeometry(.05, 5.4, .05), M(c)); const a = k * Math.PI / 2, r = 1.6 - seg * .16; br.position.set(Math.cos(a) * r * .7, seg * 5 + 2.5, Math.sin(a) * r * .7); br.rotation.set(Math.sin(a) * .5, 0, Math.cos(a) * .5); g.add(br); } }
+      for (let k = 0; k < 3; k++) { const dish = new THREE.Mesh(new THREE.CylinderGeometry(.6, .6, .15, 14), M(0xe8e8e8)); dish.rotation.z = Math.PI / 2; dish.position.set(.9, 26 + k * 4, 0); dish.rotation.y = k * 2; g.add(dish); }
+      const bl = new THREE.Mesh(new THREE.SphereGeometry(.35, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3020 })); bl.position.y = 40.5; g.add(bl); root.userData.blink2 = bl;
+      box(g, 4, 2.6, 3, 5, 0, 0, M(0xd8d4cc));
+      g.position.set(ax, y, az); root.add(g); col.addBox(ax, az, 3.4, 3.4, 0, y - 1, y + 40, 'landmark'); }
+    // two little stores and the houses
+    const stores = [['TIENDITA DOÑA TOÑA', 0x2e7a3a, 0xe8e4d4], ['ABARROTES EL MIRADOR', 0x2a5aa8, 0xf0d070]];
+    stores.forEach(([name, c1, c2], i) => { const [hx, hz, ry] = face(N - 8 - i * 6, -12), y = H(hx, hz), g = new THREE.Group();
+      box(g, 7, 3.2, 6, 0, 0, 0, M(c2)); box(g, 7.1, 1, 6.1, 0, 0, 0, M(c1)); box(g, 7.4, .2, 6.4, 0, 3.2, 0, M(0x8a8a86));
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.2), M(0x1a1612)); d.position.set(0, 1.1, -3.02); d.rotation.y = Math.PI; g.add(d);
+      plaque(g, [name], 6, .7, 0, 2.7, -3.04, Math.PI, { bg: '#f2efe8', fg: '#' + c1.toString(16).padStart(6, '0'), border: false, weight: 800, font: 'Inter, Arial, sans-serif', w: 1400, h: 180, size: 100 });
+      for (let k = 0; k < 4; k++) cyl(g, .25, .25, .5, -2.6 + k * .55, 0, -3.6, M(0x1a3a8a), 10);
+      g.position.set(hx, y, hz); g.rotation.y = ry; root.add(g); col.addBox(hx, hz, 7, 6, -ry, y - 2, y + 3.4, 'roof');
+      if (i === 0) spots.tiendita = [hx - Math.sin(ry) * 5, y, hz - Math.cos(ry) * 5]; });
+    for (let k = 0; k < 6; k++) { const [hx, hz, ry] = face(N - 30 - k * 9, k % 2 ? 13 : -13), y = H(hx, hz), g = new THREE.Group();
+      box(g, 7, 3, 5.5, 0, 0, 0, M([0xa8805c, 0xb8906a, 0xd8c8a8, 0x9a7050][k % 4])); const rf = prism(6.3, 1.8, 7.8, M(TILE)); rf.rotation.y = Math.PI / 2; rf.position.y = 3; g.add(rf);
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(1, 2), M(0x3a2414)); d.position.set(0, 1, -2.77); d.rotation.y = Math.PI; g.add(d);
+      g.position.set(hx, y, hz); g.rotation.y = ry; root.add(g); col.addBox(hx, hz, 7, 5.5, -ry, y - 2, y + 4, 'roof'); }
+  }
+  /* ---- the ranchos on the stone road: adobe house, corral, trough, cows, a sign over the gate ---- */
+  for (const [id, sign] of [['ranchoNovoa', 'RANCHO DE NOVOA'], ['ranchoSalazar', 'RANCHO DE LOS SALAZAR']]) {
+    const pl = P(id), s = city.nearestStreet(pl.x, pl.z, 200, [3]), ry = s ? Math.atan2(s.nx, s.nz) : 0, y = H(pl.x, pl.z), g = new THREE.Group();
+    box(g, 13, 3.2, 7, 0, 0, 4, M(0xa8805c)); const rf = prism(8, 2.2, 13.8, M(TILE)); rf.rotation.y = Math.PI / 2; rf.position.set(0, 3.2, 4); g.add(rf);
+    for (let k = 0; k < 5; k++) cyl(g, .12, .14, 2.9, -5.6 + k * 2.8, 0, .1, M(0x5a3a22), 6); box(g, 13.4, .14, 3.2, 0, 2.9, 1.6, M(0x7a4a2a));
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.2), M(0x3a2414)); d.position.set(0, 1.1, .48); d.rotation.y = Math.PI; g.add(d);
+    // corral
+    for (let k = 0; k <= 8; k++) for (const [cx, cz] of [[-16 + k * 2.5, -8], [-16 + k * 2.5, 8]]) cyl(g, .08, .1, 1.5, cx - 4, 0, cz - 6, M(0x6a4a2a), 5);
+    for (const zz of [-14, 2]) for (const h of [.6, 1.2]) box(g, 20, .08, .06, -10, h, zz, M(0x7a5a3a));
+    box(g, 2.4, .5, .7, -10, 0, -6, M(0x8a8a86));
+    for (let k = 0; k < 3; k++) { const c = makeCow([0xe8dcc0, 0x5a3a24, 0x2a2420][k], [0x3a2a1a, 0xe8e0d0, 0xe8e0d0][k]); c.position.set(-16 + k * 4.5, 0, -9 + k * 2.5); c.rotation.y = k * 1.3; g.add(c); }
+    for (let k = 0; k < 3; k++) cyl(g, .6, .6, 1, 7 + k * 1.3, 0, -4, M(0xd8b860), 10);
+    // the gate with the rancho's name, on the road side
+    for (const sx of [-1, 1]) cyl(g, .15, .15, 4, sx * 3, 0, -13, M(0x5a3a22), 6); box(g, 7, .3, .3, 0, 4, -13, M(0x5a3a22));
+    plaque(g, [sign], 5.6, .7, 0, 3.4, -13.16, Math.PI, { bg: '#d8c8a0', fg: '#3a2414', border: false, weight: 700 });
+    g.position.set(pl.x, y, pl.z); g.rotation.y = ry; root.add(g);
+    const cs = Math.cos(ry), sn = Math.sin(ry), W = (lx, lz) => [pl.x + lx * cs + lz * sn, pl.z - lx * sn + lz * cs];
+    { const [hx, hz] = W(0, 4); col.addBox(hx, hz, 13, 7, -ry, y - 2, y + 4, 'roof'); }
+    spots[id] = [pl.x, y, pl.z];
+  }
+}
+/* a jacaranda in bloom */
+function jacarandaT(g, x, z, y) {
+  const t = new THREE.Group(); t.position.set(x, y, z);
+  cyl(t, .16, .24, 3.4, 0, 0, 0, M(0x5b4331), 7);
+  for (const [cx, cy, cz, r] of [[0, 4.6, 0, 2.0], [1.3, 4.2, .5, 1.5], [-1.2, 4.3, -.6, 1.6], [.3, 5.6, -.2, 1.2]]) { const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), M(0x8a6ad0, { roughness: .9 })); c.position.set(cx, cy, cz); c.scale.y = .75; t.add(c); }
+  g.add(t);
 }

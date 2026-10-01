@@ -24,18 +24,25 @@ import { Player } from './game/player.js';
 import { CHARACTERS, EXTRAS } from './game/story.js';
 import { Story, CHAPTERS, CLUES, ENDINGS } from './game/quests.js';
 import { PAGES, ACHIEVEMENTS } from './game/lore.js';
-import { Voices, parseTags } from './game/dialogue.js';
+import { Life, lifeDefaults } from './game/life.js';
+import { Talk } from './game/talk.js';
+import { SideQuests, QUEST } from './game/sidequests.js';
+import { MiniGames } from './game/minigames.js';
+import { LifeGame } from './game/lifegame.js';
+import { CAST } from './game/cast.js';
 import { Audio } from './game/audio.js';
 import { UI, LANDMARK_IDS, fmtT } from './game/ui.js';
 import { makeCitizen, REGULARS } from './game/citizens.js';
 import { Vehicles } from './game/vehicle.js';
 import { makeRaces, RaceRun } from './game/races.js';
 
+import { ITEMS } from './game/shops.js';
+const ITEM_NAMES = Object.fromEntries(Object.entries(ITEMS).map(([k, v]) => [k, v.name]));
 const SAVE_KEY = 'anil-save-v1', SET_KEY = 'anil-settings-v1';
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} } };
 const $ = id => document.getElementById(id);
 const mobile = matchMedia('(pointer: coarse)').matches;
-const DEFAULT_SETTINGS = { quality: mobile ? 'low' : 'medium', text: 'm', contrast: 'normal', reduced: false, timeScale: '1', sensitivity: 1, invertY: false, touch: 'auto', chase: 'normal', master: 0.8, music: 0.5, fx: 0.8, voice: 'auto', apiKey: '' };
+const DEFAULT_SETTINGS = { quality: mobile ? 'low' : 'medium', text: 'm', contrast: 'normal', reduced: false, timeScale: '1', sensitivity: 1, invertY: false, touch: 'auto', chase: 'normal', master: 0.8, music: 0.5, fx: 0.8 };
 
 class Game {
   constructor() {
@@ -44,7 +51,7 @@ class Game {
     this.audio = new Audio();
     this.input = new Input(this.canvas, $('touch-layer'));
     for (const b of document.querySelectorAll('#tbtns [data-action]')) this.input.bindButton(b);
-    this.voices = new Voices(this.settings);
+    this.life = new Life(this); this.talker = new Talk(this); this.side = new SideQuests(this); this.mini = new MiniGames(this); this.view = 'first'; this.gender = 'x';
     this.ui = new UI(this);
     this.started = false; this.paused = false; this.t = 0; this.talk = null; this.walkers = []; this.npcs = [];
     this.applySettings();
@@ -59,6 +66,7 @@ class Game {
     $('btn-continue').hidden = !save;
     $('name-input').value = (save && save.name) || '';
     $('name-input').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') $('btn-new').click(); });
+    for (const b of document.querySelectorAll('#gender button')) b.addEventListener('click', () => { this.gender = b.dataset.g; for (const o of document.querySelectorAll('#gender button')) o.setAttribute('aria-pressed', String(o === b)); });
     $('btn-new').addEventListener('click', () => { if (store.get(SAVE_KEY) && !confirm('Begin a new game? Your saved game will be replaced.')) return; this.begin(null); });
     $('btn-continue').addEventListener('click', () => this.begin(store.get(SAVE_KEY)));
     $('btn-title-settings').addEventListener('click', () => this.ui.openMenu('settings'));
@@ -69,7 +77,6 @@ class Game {
     ]));
   }
   setSetting(k, v) {
-    if (k === 'apiKey' && v === '••••••••') return;
     if (['reduced', 'invertY'].includes(k)) v = v === true || v === 'true';
     if (['sensitivity', 'master', 'music', 'fx'].includes(k)) v = +v;
     const qualityChanged = k === 'quality' && v !== this.settings.quality;
@@ -97,7 +104,9 @@ class Game {
     $('loading').classList.remove('show');
     this.newState(save);
     this.started = true; document.body.classList.toggle('touch', this.touchUI()); this.ui.showHUD(true);
-    this.placeNPCs();
+    this.placeNPCs(); this.refreshLots(); this.dressPlayer();
+    if (this.landmarks.userData.setBache) this.landmarks.userData.setBache(this.questDone('bache'));
+    this.ui.money(this.state.life.money, 0);
     const p = this.player;
     if (save && save.pos) {
       p.teleport(save.pos[0], save.pos[2], save.pos[1]); p.yaw = save.yaw || 0;
@@ -108,7 +117,8 @@ class Game {
         'Three nights ago your grandfather called you from Jiquilpan. You had not heard his voice in a year.',
         '"<em>Encontré lo que escondió Cuco.</em> I found what Cuco hid. Come before the cabildo votes on Friday." Then the line went dead.',
         'The next morning the police said Don Aurelio Valdovinos had gone walking on the Cerro de San Francisco and not come back. After three days they stopped looking.',
-        'You take the bus from Guadalajara, along the lake. It leaves you on the Jardín at dusk, under the bells of San Francisco.'
+        'You take the bus from Guadalajara, along the lake. It leaves you on the Jardín at dusk, under the bells of San Francisco.',
+        '<em>Jiquilpan is yours to live in.</em>\nFind your grandfather. Along the way, every choice you make will shape who you become: kind or cruel, honest or not. Make friends, fall in love, earn a living, buy land and build a house.'
       ], () => { this.tutorial(); this.unlock('bienvenido'); });
     }
     { const st = this.story.step(); if (st && (st.escape || st.timed)) this.stepStarted(st); }
@@ -119,10 +129,12 @@ class Game {
     this.ui.toast(touch ? 'Left thumb to walk, right thumb to look.' : 'WASD to walk. Click the view to look with the mouse.', 'good');
     setTimeout(() => this.ui.toast(touch ? 'The big button talks, examines and gets you into cars.' : 'E talks, examines, and gets you into any car. C opens the case file.', 'good'), 4500);
     setTimeout(() => this.ui.toast('Follow the gold diamond on the compass. Tía Cuca is at her cart on the Jardín.', 'good'), 9000);
+    setTimeout(() => this.ui.toast('People with a teal ! over their heads need a hand. A $ means a shop. V switches to third person.', 'good'), 14000);
   }
   newState(save) {
     const name = ($('name-input').value || '').trim() || (save && save.name) || 'Ana';
-    const s = save || { name, hour: 18.25, day: 1, ch: 0, st: 0, any: [], used: [], clues: [], flags: {}, met: [], ach: {}, pages: [], visited: [], talked: 0, odo: 0, flown: 0, races: {}, customWP: null, ending: null, pos: null, cars: [], jetpack: false };
+    if (save && !save.life) save.life = lifeDefaults('x');   // games saved before the life in Jiquilpan began
+    const s = save || { life: lifeDefaults(this.gender), name, hour: 18.25, day: 1, ch: 0, st: 0, any: [], used: [], clues: [], flags: {}, met: [], ach: {}, pages: [], visited: [], talked: 0, odo: 0, flown: 0, races: {}, customWP: null, ending: null, pos: null, cars: [], jetpack: false };
     this.state = s;
     this.story = new Story({
       state: () => this.state,
@@ -132,8 +144,10 @@ class Game {
       chapterStart: c => { this.ui.toast(c.title, 'quest'); this.audio.chime(); this.stepStarted(this.story.step()); },
       chapterDone: c => this.ui.toast('Solved: ' + c.title, 'good'),
       inspect: (ins, done) => this.inspect(ins, done),
-      ending: id => { this.pendingEnding = id; }
+      ending: id => { this.pendingEnding = id; },
+      tone: t => this.applyTone(t)
     });
+    this.taxi = null; this.view = 'first';
     const p = this.player; p.jet = false; p.driving = null; p.bike = false;
     this.vehicles.cars = []; this.vehicles.driving = null;
     for (const c of s.cars || []) this.vehicles.add({ x: c.x, z: c.z, y: this.city.heightAt(c.x, c.z) + 0.1, ang: c.ang, kind: c.kind, color: c.color });
@@ -185,6 +199,7 @@ class Game {
     this.vehicles = new Vehicles(city, R); this.surface.add(this.vehicles.group);
     this.chaseKit = new CarKit(R, 1); this.surface.add(this.chaseKit.group);
     this.player = new Player(city);
+    this.worldExtras();
     this.player.onLanded = ok => this.ui.toast(ok ? 'Down. (G or 🚀 to fly again.)' : 'No room to land here: find a street, a field or a flat roof.', ok ? undefined : 'warn');
     this.player.onCaught = () => { this.ui.toast('The mochila catches you. Hold Space to climb, or let it set you down.'); this.audio.jetStart(); };
     this.hands = makeHands(); this.handsScene.add(this.hands);
@@ -336,19 +351,25 @@ class Game {
       const mesh = makePerson(def.look); mesh.position.set(x, y, z); this.scene.add(mesh);
       this.npcs.push({ id: def.id, def, mesh, x, y, z, hx: x, hz: z, facing: q.seed % 7, visible: true, hostile: false, regular: true });
     });
+    this.placeCast();
     this.refreshNPCs();
     const spots = this.npcs.map(n => [n.x, n.z]).concat(PAGES.map(p => [p.x, p.z]), Object.values(PLACES).map(p => [p.x, p.z]), Object.values(this.spots).map(p => [p[0], p[2]]));
     this.detail.userData.reserve(spots);
   }
-  npcShown(id) { const s = this.state; if (id === 'aurelio') return !!s.flags.aurelioFound; return true; }
-  refreshNPCs() { for (const n of this.npcs) { n.visible = this.npcShown(n.id); n.mesh.visible = n.visible; } }
+  npcShown(n) { const s = this.state; if (n.id === 'aurelio') return !!s.flags.aurelioFound; if (CAST[n.id]) return this.castShown(n); return true; }
+  refreshNPCs() { for (const n of this.npcs) { n.visible = this.npcShown(n); n.mesh.visible = n.visible; } }
   npcHasQuest(id) { return this.story.chipsFor(id).some(c => !c.locked); }
 
   /* ---------------- the story's hooks ---------------- */
   applyFx(fx) {
     const s = this.state;
     for (const c of fx.clues || []) if (!s.clues.includes(c)) { s.clues.push(c); this.ui.toast('Clue: ' + CLUES[c].name, 'quest'); this.audio.chime(); }
-    if (fx.flag) s.flags[fx.flag] = true;
+    if (fx.flag) { s.flags[fx.flag] = true; s.life[fx.flag] = true; }
+    if (fx.aff) for (const [id, d] of Object.entries(fx.aff)) this.life.affinity(id, d);
+    if (fx.trait) for (const [k, d] of Object.entries(fx.trait)) this.life.trait(k, d);
+    if (fx.money) this.life.earn(fx.money, fx.moneyWhy || '');
+    if (fx.item) { this.life.add(fx.item); this.ui.toast('You receive: ' + (ITEM_NAMES[fx.item] || fx.item), 'good'); }
+    if (fx.clothes && !this.life.own(fx.clothes)) { s.life.owned.push(fx.clothes); this.life.wear(fx.clothes); this.ui.toast('New clothes (and you\'re wearing them). See You → Wardrobe.', 'good'); }
     if (fx.jetpack) s.jetpack = true;
     if (fx.ach) this.unlock(fx.ach);
     if (fx.reveal) { s.flags.aurelioFound = true; this.refreshNPCs(); }
@@ -367,17 +388,17 @@ class Game {
       const pz = ins.puzzle, npc = { id: 'puzzle', def: { name: ins.label.replace(/^(Examine|Read|Open|Tap|Push open|Search|Step into) (the )?/, ''), title: 'Look closely', look: { top: 0x7a5a32 } }, mesh: null };
       this.talk = { npc, history: [], puzzle: true }; this.pauseInput(true); document.exitPointerLock && document.exitPointerLock();
       this.ui.openDialogue(npc, true); this.ui.logLine('npc', pz.q);
-      const chips = pz.options.map((o, i) => ({ label: o, quest: true, onClick: () => {
+      const chips = pz.options.map((o, i) => ({ label: o, kind: 'story', onClick: () => {
         this.ui.logLine('me', o);
-        if (i === pz.answer) { this.ui.logLine('npc', pz.right); this.ui.chips([{ label: 'Continue', quest: true, onClick: () => { this.endTalk(); done(); } }]); this.audio.chime(); }
+        if (i === pz.answer) { this.ui.logLine('npc', pz.right); this.ui.chips([{ label: 'Continue', kind: 'story', onClick: () => { this.endTalk(); done(); } }]); this.audio.chime(); }
         else this.ui.logLine('sys', pz.wrong);
       } }));
       this.ui.chips(chips);
     };
     if (ins.cards && ins.cards.length) this.ui.card(ins.cards, run); else run();
   }
-  unlock(id) {
-    const s = this.state; if (!s || s.ach[id] || !ACHIEVEMENTS[id]) return;
+  unlock(id, cond) {
+    const s = this.state; if (!s || s.ach[id] || !ACHIEVEMENTS[id] || (cond && !cond())) return;
     s.ach[id] = Date.now(); this.ui.achievement(ACHIEVEMENTS[id]); this.audio.chime(); this.save();
   }
   endingTitle() { const e = ENDINGS[this.state.ending]; return e ? e.title : ''; }
@@ -385,7 +406,7 @@ class Game {
     const s = this.state, e = ENDINGS[id]; s.ending = id; this.unlock(e.ach);
     const cards = e.cards.slice();
     if (id === 'pueblo') cards[1] = s.flags.inesAlly ? 'Maestra Inés steps out of the crowd, takes the paper in both hands, and says, loud enough for the back of the plaza: "This seal is genuine. I have spent my life with 1938. This is the town\'s." The company\'s lawyer stops smiling. The cabildo votes eleven to none: the springs of the cerro belong to Jiquilpan.' : 'Barragán calls it a forgery. Nobody in the plaza can swear otherwise; the maestra is not there. The cabildo postpones the vote, and a judge in Morelia will take a year to agree with you. But the water stays in the ground, and the whole town knows why.';
-    this.ui.card(cards, () => { this.placeNPCs(); this.save(); this.ui.toast('The mystery is solved. Races, lost pages and achievements are waiting in Goals.', 'good'); });
+    this.ui.card(cards, () => { this.placeNPCs(); this.save(); this.ui.toast('The mystery is solved. Races, lost pages and achievements are waiting in the Journal.', 'good'); });
   }
   startChase() {
     const p = this.player, st = this.story.step(); if (!st || !st.escape || this.chaser) return;
@@ -450,64 +471,32 @@ class Game {
     document.exitPointerLock && document.exitPointerLock();
     const s = this.state; if (!npc.def.ambient && !s.met.includes(npc.id)) s.met.push(npc.id);
     this.ui.openDialogue(npc);
-    const g = this.voices.greet(npc.id); this.ui.logLine('npc', g); this.talk.history.push({ role: 'npc', text: g });
+    this.ui.logLine('npc', this.talker.greet(npc));
     this.renderChips();
   }
   talkToWalker(w) {
     const q = w.mesh.position; EXTRAS[w.def.id] = w.def;
+    const r = this.life.rel(w.def.id); if (r.seed == null) Object.assign(r, { seed: w.def.seed, district: w.def.district, home: [q.x, q.z], name: w.def.name });
     const npc = { id: w.def.id, def: w.def, mesh: w.mesh, x: q.x, y: q.y, z: q.z, facing: w.mesh.rotation.y, visible: true, hostile: false, walker: w };
     w.talk = npc; this.startTalk(npc);
   }
   renderChips() {
     const t = this.talk; if (!t || t.puzzle) return;
-    const chips = this.story.chipsFor(t.npc.id).map(c => ({ ...c, onClick: () => this.pickChip(c) }));
-    const c = t.npc.def, extras = [];
-    const ask = (label, q) => extras.push({ label, onClick: () => this.say(q, label) });
-    if (t.npc.id === 'rosa' && this.state.ch >= 2 && !this.chaser && !this.timer) for (const r of this.races) extras.push({ label: `Race me: ${r.name} ${r.mode === 'jet' ? '🚀' : '🚗'}`, onClick: () => { this.endTalk(); this.startRace(r.id); } });
-    if (!chips.length || chips.every(x => x.locked)) {
-      ask('Tell me about yourself.', 'Tell me about yourself.');
-      ask('What do you think about the water vote?', 'What do you think about the vote on the springs?');
-      if (!c.ambient) ask('What do you know about my grandfather?', 'What do you know about my grandfather, Aurelio?');
-      ask('Tell me about this part of town.', 'Tell me about this part of Jiquilpan.');
-      ask('Where should I go?', 'Where should I go next?');
-    }
-    extras.push({ label: 'Goodbye.', onClick: () => this.endTalk() });
-    this.ui.chips([...chips, ...extras]);
+    const list = this.talker.root(t.npc).map(c => ({ ...c, onClick: () => c.kind === 'story' ? this.pickChip(c) : c.locked ? this.ui.logLine('sys', c.lockedText || 'Not now.') : c.run() }));
+    if (t.npc.id === 'rosa' && this.state.ch >= 2 && !this.chaser && !this.timer) for (const r of this.races) list.splice(list.length - 3, 0, { label: `Race me: ${r.name} ${r.mode === 'jet' ? '🚀' : '🚗'}`, kind: 'shop', onClick: () => { this.endTalk(); this.startRace(r.id); } });
+    this.ui.chips(list);
+    this.ui.dialogueMeta(t.npc);
   }
   pickChip(c) {
     if (c.locked) { this.ui.logLine('sys', c.lockedText || 'Not yet.'); return; }
     this.ui.logLine('me', c.label);
     const r = c.run();
-    if (r.reply) { this.ui.logLine('npc', r.reply); this.talk.history.push({ role: 'player', text: c.label }, { role: 'npc', text: r.reply }); }
+    if (r && r.reply) { this.ui.logLine('npc', r.reply); this.talk.history.push({ role: 'player', text: c.label }, { role: 'npc', text: r.reply }); }
     this.audio.ui(); this.renderChips(); this.save();
-    if (this.pendingEnding) { this.ui.chips([{ label: 'Continue', quest: true, onClick: () => { const e = this.pendingEnding; this.pendingEnding = null; this.endTalk(); this.finishEnding(e); } }]); }
-  }
-  async say(text, shown) {
-    const t = this.talk; if (!t || t.busy || t.puzzle) return;
-    this.ui.logLine('me', shown || text);
-    const el = this.ui.logLine('npc', '…'); t.busy = true; this.ui.busy(true);
-    t.ctl = new AbortController();
-    let out = '';
-    try { out = await this.voices.reply(t.npc.id, t.history, text, this.talkContext(), s => this.ui.setLine(el, s), t.ctl.signal); }
-    catch (e) { out = (e && e.code === 'cancelled') || t.ctl.signal.aborted ? (el.textContent === '…' ? '…' : el.textContent) : this.voices.offline(t.npc.id, text, this.talkContext()); }
-    if (this.talk !== t) return;
-    const { text: clean, go } = parseTags(out || '…');
-    this.ui.setLine(el, clean);
-    t.history.push({ role: 'player', text }, { role: 'npc', text: clean });
-    if (go) { const p = PLACES[go]; this.state.customWP = { x: p.x, z: p.z, label: p.name }; this.ui.logLine('sys', `Marked on your map: ${p.name}`); }
-    t.busy = false; this.ui.busy(false);
-  }
-  stopTalk() { if (this.talk && this.talk.ctl) this.talk.ctl.abort(); }
-  talkContext() {
-    const s = this.state, ch = this.story.chapter(), st = this.story.step();
-    const done = CHAPTERS.slice(0, s.ch).map(c => c.title);
-    return { name: s.name, dead: false, clues: s.clues.map(c => CLUES[c].name).join('; '),
-      progress: `Chapters solved: ${done.join(', ') || 'none'}. ${ch ? 'Now: ' + ch.title + (st ? ' — ' + st.text : '') : ''} ${s.flags.aurelioFound ? 'Aurelio has been found alive in the Cueva del Añil.' : 'Aurelio is still missing.'}${s.ending ? ' The story has ended (' + this.endingTitle() + ').' : ''}`,
-      extra: s.flags.inesAlly ? 'Inés has confessed and promised to testify.' : s.flags.tempted ? 'The player listened to Barragán\'s price.' : '' };
+    if (this.pendingEnding) { this.ui.chips([{ label: 'Continue', kind: 'story', onClick: () => { const e = this.pendingEnding; this.pendingEnding = null; this.endTalk(); this.finishEnding(e); } }]); }
   }
   endTalk() {
     const t = this.talk; if (!t) return;
-    if (t.ctl) t.ctl.abort();
     if (t.npc.mesh) t.npc.mesh.userData.talking = false; this.talk = null; this.ui.closeDialogue(); this.pauseInput(false);
     if (t.npc.def && t.npc.def.ambient && !this.state.met.includes(t.npc.id)) { this.state.met.push(t.npc.id); this.state.talked++; if (this.state.talked >= 10) this.unlock('platica'); }
     if (t.npc.walker) t.npc.walker.talk = null;
@@ -521,7 +510,7 @@ class Game {
   viewYaw() { const c = this.vehicles.driving; return c ? -c.ang - Math.PI / 2 + this.vehicles.camYaw : this.player.yaw; }
   placeName() {
     const p = this.player; let best = null, bd = Infinity;
-    for (const id of LANDMARK_IDS.concat(['taller', 'petra', 'cueva', 'sendero'])) { const q = PLACES[id], d = Math.hypot(q.x - p.x, q.z - p.z); if (d < Math.max(40, q.r * 1.6) && d < bd) { bd = d; best = q.name.split(' (')[0]; } }
+    for (const id of LANDMARK_IDS.concat(['taller', 'petra', 'cueva', 'sendero', 'azulPortal', 'cremeria', 'ranchoNovoa', 'ranchoSalazar', 'bache', 'sitioAbasolo', 'sitioFajardo'])) { const q = PLACES[id], d = Math.hypot(q.x - p.x, q.z - p.z); if (d < Math.max(40, q.r * 1.6) && d < bd) { bd = d; best = q.name.split(' (')[0]; } }
     return best || barrio(p.x, p.z);
   }
   targetPos() {
@@ -535,11 +524,15 @@ class Game {
   }
   objective() {
     const s = this.state, st = this.story.step(), ch = this.story.chapter();
-    if (!st) return s.ending ? { title: 'Free roam', text: 'Races, lost pages and achievements are in Goals (the menu).', dist: null } : null;
+    if (!st) return s.ending ? { title: 'Free roam', text: 'Races, lost pages and achievements are in the Journal (menu).', dist: null } : null;
     const t = this.targetPos(), p = this.player;
     return { title: ch.title, text: st.text, target: t, dist: t ? Math.hypot(t.x - p.x, t.z - p.z) : null };
   }
-  waypoint() { const s = this.state; if (this.race) { const n = this.race.next(); return n ? { x: n[0], z: n[1] } : null; } if (s.customWP) return s.customWP; const o = this.objective(); return o && o.target; }
+  waypoint() {
+    const s = this.state; if (this.race) { const n = this.race.next(); return n ? { x: n[0], z: n[1] } : null; } if (s.customWP) return s.customWP;
+    if (s.track) { const t = this.side.targets().filter(q => q.q.id === s.track); if (t.length) { const p = this.player; t.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z)); return t[0]; } }
+    const o = this.objective(); return o && o.target;
+  }
   canTravel() { return !this.chaser && !this.timer && !this.race; }
   travelTo(id) { const p = PLACES[id]; if (this.vehicles.driving) this.vehicles.exit(this.player); this.player.jet = false; const [x, y, z] = this.findSpot(p.x + 4, p.z + 4); this.player.teleport(x, z, y); this.ui.toast('You arrive at ' + p.name + '.', 'good'); this.save(); }
   rescue() { if (this.vehicles.driving) this.vehicles.exit(this.player); this.player.jet = false; this.player.rescue(); }
@@ -550,14 +543,15 @@ class Game {
     if (this.vehicles.driving) return { label: 'Get out of the car', icon: '🚪', run: () => { this.vehicles.exit(p); this.save(); } };
     for (const n of this.npcs) if (n.visible && near(n.x, n.z, 3.2) && Math.abs(n.y - p.y) < 3) out.push({ x: n.x, z: n.z, label: `Talk to ${n.def.ambient && !s.met.includes(n.id) ? n.def.tag : n.def.name}`, icon: '💬', minor: !!n.def.ambient, run: () => this.startTalk(n) });
     for (const w of this.walkers) { const q = w.mesh.position; if (w.def && near(q.x, q.z, 2.6) && Math.abs(q.y - p.y) < 3) out.push({ x: q.x, z: q.z, label: `Talk to ${s.met.includes(w.def.id) ? w.def.name : w.def.tag}`, icon: '💬', minor: true, run: () => this.talkToWalker(w) }); }
+    this.lifeInteractables(out, near);
     const ins = this.story.inspectable();
     if (ins) { const sp = this.spots[ins.spot] || (PLACES[ins.spot] && [PLACES[ins.spot].x, 0, PLACES[ins.spot].z]); if (sp && near(sp[0], sp[2], ins.spot === 'cueva' ? 8 : 4.5)) out.push({ x: sp[0], z: sp[2], label: ins.label, icon: '🔍', run: ins.run }); }
     for (const m of this.pageMarks) if (!s.pages.includes(m.pg.id) && near(m.pg.x, m.pg.z, 2.8)) out.push({ x: m.pg.x, z: m.pg.z, label: 'Pick up a page of Aurelio\'s notebook', icon: '📄', run: () => this.takePage(m.pg) });
     if (!p.jet) {
-      const own = this.vehicles.nearest(p.x, p.z, 3.4); if (own) out.push({ x: own.x, z: own.z, label: own.rosa ? 'Drive Rosa\'s green sedan' : 'Get in the car', icon: '🚗', minor: true, run: () => this.vehicles.enter(own, p) });
+      const own = this.vehicles.nearest(p.x, p.z, 3.4); if (own) out.push({ x: own.x, z: own.z, label: own.rosa ? 'Drive Rosa\'s green sedan' : own.taxi ? 'Drive the taxi' : own.kind === 3 ? 'Ride the scooter' : 'Get in the car', icon: '🚗', minor: true, run: () => this.vehicles.enter(own, p) });
       const parked = this.detail.userData.nearestCar(p.x, p.z, 3.4);
-      if (parked) out.push({ x: parked.x, z: parked.z, label: 'Get in the parked car', icon: '🚗', minor: true, run: () => { this.detail.userData.take(parked.key); const c = this.vehicles.add({ x: parked.x, y: parked.y, z: parked.z, ang: parked.ang, kind: parked.kind, color: parked.color, pitch: parked.pitch }); this.vehicles.enter(c, p); } });
-      for (const t of this.traffic.cars) if (near(t.x, t.z, 3.6) && t.v < 3) { out.push({ x: t.x, z: t.z, label: 'Take this car ("¡Oiga!")', icon: '🚗', minor: true, run: () => { this.traffic.cars.splice(this.traffic.cars.indexOf(t), 1); const c = this.vehicles.add({ x: t.x, y: t.y, z: t.z, ang: t.ang, kind: t.kind, color: t.color }); this.vehicles.enter(c, p); this.ui.subtitle('The driver', '¡Oiga! ¡Mi carro! ...Bueno, bring it back with gas.', 4); } }); break; }
+      if (parked) out.push({ x: parked.x, z: parked.z, label: parked.kind === 3 ? 'Ride the parked scooter' : 'Get in the parked car', icon: '🚗', minor: true, run: () => { this.detail.userData.take(parked.key); const c = this.vehicles.add({ x: parked.x, y: parked.y, z: parked.z, ang: parked.ang, kind: parked.kind, color: parked.color, pitch: parked.pitch }); this.vehicles.enter(c, p); } });
+      for (const t of this.traffic.cars) if (near(t.x, t.z, 3.6) && t.v < 3) { out.push({ x: t.x, z: t.z, label: 'Take this car ("¡Oiga!")', icon: '🚗', minor: true, run: () => { this.traffic.cars.splice(this.traffic.cars.indexOf(t), 1); const c = this.vehicles.add({ x: t.x, y: t.y, z: t.z, ang: t.ang, kind: t.kind === 6 ? 3 : t.kind, color: t.color }); this.vehicles.enter(c, p); this.life.trait('word', -1, true); this.ui.subtitle('The driver', t.kind === 6 ? '¡Oiga! ¡Mi moto! ...Ni modo. Bring it back.' : '¡Oiga! ¡Mi carro! ...Bueno, bring it back with gas.', 4); } }); break; }
     }
     const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
     out.forEach(o => { const dx = o.x - p.x, dz = o.z - p.z, d = Math.hypot(dx, dz) || 1; o.score = d - (dx * fx + dz * fz) / d * 1.5 + (o.minor ? 2.5 : 0); });
@@ -599,6 +593,9 @@ class Game {
     if (inp.pressed('map') && !this.talk && !this.ui.cardOpen) { if (this.ui.menuOpen && this.ui.tab === 'map') this.ui.closeMenu(); else this.ui.openMenu('map'); }
     if (this.paused && !this.talk) { this.ui.update(0); return; }
     if (inp.pressed('case')) { this.ui.openMenu('case'); return; }
+    if (inp.pressed('people')) { this.ui.openMenu('people'); return; }
+    if (inp.pressed('char')) { this.ui.openMenu('you'); return; }
+    if (inp.pressed('camera') && !this.talk) { this.view = this.view === 'third' ? 'first' : 'third'; this.ui.toast(this.view === 'third' ? 'Third person (V to go back).' : 'First person.'); }
     // time
     const ts = +this.settings.timeScale, h0 = s.hour;
     if (!this.talk) { s.hour += dt * ts / 90; if (s.hour >= 24) { s.hour -= 24; s.day++; } }
@@ -632,7 +629,7 @@ class Game {
       if (it && inp.pressed('interact')) it.run();
     }
     // the world reacts
-    this._chase(dt); this._timer(dt); this._race(dt);
+    this._chase(dt); this._timer(dt); this._race(dt); this.lifeUpdate(dt);
     this._npcs(dt); this._walkers(dt); this._places(); this._markersUpdate();
     // streaming
     const agl = p.y - Math.max(0, this.city.heightAt(p.x, p.z));
@@ -670,16 +667,20 @@ class Game {
   findFloor(x, z, y) { return this.player.floorAt.call({ city: this.city, interior: null }, x, z, y, false).f; }
   _walkers(dt) {
     const p = this.player, q = this.settings.quality, cap = q === 'low' ? 6 : q === 'medium' ? 12 : 16, want = Math.round(cap * (1 - this.uNight() * 0.5));
+    const C = this.city.colliders;
     this.walkT = (this.walkT || 0) - dt;
     if (this.walkers.length < want && this.walkT < 0 && p.y - this.city.heightAt(p.x, p.z) < 60) {
       this.walkT = 0.6;
       const sts = this.nearStreets(p.x, p.z, 150).filter(s => s.kind === 0 || s.kind === 4);
       if (sts.length) {
         const st = sts[Math.floor(Math.random() * sts.length)], i = Math.floor(Math.random() * (st.pts.length - 1));
-        const [ax, az] = st.pts[i], d0 = Math.hypot(ax - p.x, az - p.z);
-        if (d0 > 40 && d0 < 150) {
+        const [ax, az] = st.pts[i], d0 = Math.hypot(ax - p.x, az - p.z), side = Math.random() < 0.5 ? -1 : 1;
+        // start on the sidewalk, and only where a person can actually stand
+        const [bx, bz] = st.pts[i + 1], L = Math.hypot(bx - ax, bz - az) || 1, off = st.kind === 0 ? st.width / 2 - 0.8 : 0.6;
+        const sx = ax - (bz - az) / L * off * side, sz = az + (bx - ax) / L * off * side, sy = this.city.heightAt(sx, sz);
+        if (d0 > 40 && d0 < 150 && !C.blocked(sx, sz, 0.4, sy + 0.3, sy + 1.6)) {
           const def = makeCitizen((Math.random() * 2 ** 31) | 0, barrio(ax, az)), mesh = makePerson(def.look); this.scene.add(mesh);
-          this.walkers.push({ mesh, def, st, i, t: 0, dir: 1, side: Math.random() < 0.5 ? -1 : 1, speed: (1.0 + Math.random() * 0.5) * (def.age > 70 ? 0.7 : 1) });
+          this.walkers.push({ mesh, def, st, i, t: 0, dir: 1, side, speed: (1.0 + Math.random() * 0.5) * (def.age > 70 ? 0.7 : 1), lat: 0, block: 0, turns: 0 });
         }
       }
     }
@@ -690,14 +691,20 @@ class Game {
         let a = wantA - w.mesh.rotation.y; a = Math.atan2(Math.sin(a), Math.cos(a)); w.mesh.rotation.y += a * Math.min(1, dt * 5); w.mesh.userData.animate(dt, 0, this.t); continue;
       }
       w.paused = false;
-      // a car bearing down on them: step aside
       const pts = w.st.pts, a = pts[w.i], b = pts[w.i + w.dir] || a, L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-      w.t += dt * w.speed / L;
-      if (w.t >= 1) { w.t = 0; w.i += w.dir; if (w.i + w.dir < 0 || w.i + w.dir >= pts.length) { w.dir *= -1; w.side *= -1; } continue; }
       const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, off = w.st.kind === 0 ? w.st.width / 2 - 0.8 : 0.6;
-      const x = a[0] + (b[0] - a[0]) * w.t - uz * off * w.side, z = a[1] + (b[1] - a[1]) * w.t + ux * off * w.side;
-      mp.set(x, this.city.heightAt(x, z) + (w.st.kind === 0 ? 0.22 : 0.05), z); w.mesh.rotation.y = Math.atan2(ux, uz);
-      w.mesh.userData.animate(dt, w.speed, this.t);
+      // step aside for other people coming the other way
+      let lat = 0; for (const o of this.walkers) if (o !== w) { const ox = o.mesh.position.x - mp.x, oz = o.mesh.position.z - mp.z, f = ox * ux + oz * uz, l = -ox * uz + oz * ux; if (f > 0 && f < 2.5 && Math.abs(l) < 0.8) lat = l > 0 ? -0.6 : 0.6; }
+      w.lat += (lat - w.lat) * Math.min(1, dt * 3);
+      const t1 = w.t + dt * w.speed / L, x = a[0] + (b[0] - a[0]) * t1 - uz * (off * w.side + w.lat), z = a[1] + (b[1] - a[1]) * t1 + ux * (off * w.side + w.lat), y = this.city.heightAt(x, z) + (w.st.kind === 0 ? 0.22 : 0.05);
+      // trunks, lamps, parked cars, garden beds, walls: slide round them, and if really stuck, turn back
+      const [rx, rz] = C.resolve(x, z, 0.3, y + 0.3, y + 1.6), push = Math.hypot(rx - x, rz - z);
+      if (push > 0.45) w.block += dt; else { w.block = Math.max(0, w.block - dt * 2); w.t = t1; }
+      if (w.block > 1.2) { w.dir *= -1; w.side *= -1; w.block = 0; w.turns++; if (w.i + w.dir < 0 || w.i + w.dir >= pts.length) w.dir *= -1; }
+      if (w.turns > 3 && dP > 25) w.gone = true;
+      if (w.t >= 1) { w.t = 0; w.i += w.dir; if (w.i + w.dir < 0 || w.i + w.dir >= pts.length) { w.dir *= -1; w.side *= -1; } continue; }
+      mp.set(rx, this.city.heightAt(rx, rz) + (w.st.kind === 0 ? 0.22 : 0.05), rz); w.mesh.rotation.y = Math.atan2(ux, uz);
+      w.mesh.userData.animate(dt, push > 0.45 ? 0.3 : w.speed, this.t);
       if (dP > 200) w.gone = true;
     }
     for (const w of this.walkers) if (w.gone && !w.talk) this.scene.remove(w.mesh);
@@ -714,7 +721,8 @@ class Game {
   }
   render(dt) {
     const p = this.player, cam = this.camera, R = this.renderer, V = this.vehicles;
-    if (V.driving) V.camera(cam, this.input, dt);
+    if (this.cameraOverride(cam, dt)) {}
+    else if (V.driving) V.camera(cam, this.input, dt);
     else {
       cam.position.set(p.x, p.eye(this.settings.reduced), p.z); cam.rotation.set(p.pitch, p.yaw, 0);
       if (p.jet && !this.settings.reduced) { const w = Math.min(1, Math.hypot(p.vx, p.vz) / 150) * 0.004; cam.rotation.x += (Math.random() - 0.5) * w; cam.rotation.z = (Math.random() - 0.5) * w; }
@@ -755,10 +763,11 @@ class Game {
     this.hands.userData.setWeapon(null);
     this.hands.visible = false;   // empty-handed first person: nothing to hold up
     this.hands.userData.update({ t: this.t, swing: 0, block: false, cast: 0, speed: p.speed, bike: false, light: 0, reduced: this.settings.reduced });
-    R.clearDepth(); R.render(this.handsScene, this.handsCam);
+    if (this.view === 'first' && !V.driving) { R.clearDepth(); R.render(this.handsScene, this.handsCam); }
   }
 }
 
+Object.assign(Game.prototype, LifeGame);
 const game = new Game();
 window.__anil = window.__undertow = game; game.__THREE = THREE;   // for testing
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.claude) navigator.serviceWorker.register('sw.js').catch(() => {});

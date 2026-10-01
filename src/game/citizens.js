@@ -25,11 +25,18 @@ const HOODS = {
     facts: ['Sahuayo and Jiquilpan grew into each other like two trees', 'Lake Chapala is just over there, past the fields', 'the combis to Sahuayo leave every ten minutes, more or less, mostly less'] },
   'Cerro de San Francisco': { jobs: ['goatherd', 'charcoal maker', 'hiker from Guadalajara', 'man who repairs the relay mast on the summit'],
     facts: ['from the cross on the summit you can see Lake Chapala on a clear day', 'the springs up here feed half the wells in town', 'the rains came late this year and then all at once'] },
+  'La Paz': { jobs: ['cheesemaker at the cremería', 'taquero by the Jardín de la Paz', 'retired nurse who walks the jardín every morning', 'kindergarten teacher', 'mechanic\'s wife who runs a papelería'],
+    facts: ['the Jardín de la Paz is the quiet one; the big jardín is for showing off, this one is for sitting', 'the cremería has the best cotija this side of the sierra', 'Avenida Fajardo carries everyone north out of town toward the Santuario and the panteón'] },
+  'El Panteón': { jobs: ['gravestone carver', 'flower seller by the panteón gate', 'gravedigger', 'woman who keeps her husband\'s grave spotless'],
+    facts: ['on the Día de Muertos the whole panteón glows with candles and cempasúchil all night', 'Don Cirilo has watched the panteón for thirty years and swears it is quieter than the Jardín', 'the oldest graves have names nobody in town carries anymore'] },
+  'San Francisco del Cerro': { jobs: ['goatherd', 'woman who sells sodas at the tiendita', 'man who looks after the capilla', 'antenna technician'],
+    facts: ['up here there are seven houses, two stores, one chapel and one antenna; everyone knows which is which', 'one or two cars a day come up the stone road; you can hear them coming for ten minutes', 'from the capilla you can see the whole Ciénega and, on a clear day, Lake Chapala'] },
   'Poniente': { jobs: ['carpenter', 'baker at a panadería', 'nurse at the ISSSTE clinic', 'music teacher'], facts: ['the pan dulce on this side of town is better, and I will fight you', 'the river channel runs through here; they call its banks the malecón'] },
   'Oriente': { jobs: ['vet', 'butcher at the mercado', 'mototaxi driver', 'agronomist'], facts: ['the mercado sells everything, including things you didn\'t know you needed', 'Rosa\'s taller on this side fixes anything with an engine'] }
 };
 const JOBS = ['returned bracero who worked twenty years in California', 'avocado picker', 'secretary at the Presidencia', 'student at the UNAM centre', 'dentist', 'banda musician (tuba)', 'retired PEMEX worker', 'Oxxo cashier', 'woman who sells tamales at dawn', 'carnitas cook', 'barber', 'tailor'];
 
+export const TEMPERS = ['warm', 'suspicious', 'dry', 'parental', 'pious', 'teen', 'elder', 'political', 'shy'];
 const VOICES = [
   { v: 'Chatty and warm; every answer becomes a story about a compadre or a cousin in Chicago.', greet: ['¡Buenas! You\'re Aurelio\'s grandchild, no? The whole town knows. Small town, big mouths.', '¡Quiúbole! You look lost. Everybody\'s lost on the empedrado the first day.'] },
   { v: 'Suspicious and clipped; answers with questions until trusted; hates gossip and gossips anyway.', greet: ['¿Y usted? Who are you asking for?', 'Mm. Another one asking questions.'] },
@@ -59,7 +66,7 @@ export function makeCitizen(seed, district, opts = {}) {
   const name = `${first} ${last}`;
   const age = opts.age || Math.round(15 + Math.pow(r(), 1.25) * 70);
   const job = opts.job || (r() < 0.6 ? pickR(r, hood.jobs) : pickR(r, JOBS));
-  const temper = VOICES[Math.floor(r() * VOICES.length)], want = pickR(r, WANTS), secret = pickR(r, SECRETS), stance = STANCES[Math.floor(r() * STANCES.length)];
+  const vi = Math.floor(r() * VOICES.length), temper = VOICES[vi], want = pickR(r, WANTS), secret = pickR(r, SECRETS), stance = STANCES[Math.floor(r() * STANCES.length)];
   const fact1 = pickR(r, hood.facts), fact2 = pickR(r, hood.facts.filter(f => f !== fact1).concat(HOODS.Centro.facts));
   const place = district || 'Jiquilpan', pro = fem ? ['she', 'her'] : ['he', 'his'], Pro = pro[0][0].toUpperCase() + pro[0].slice(1);
   const tag = opts.tag || `the ${job.split(/ (on|at|in|for|who|from|by|with|to|of) | \(/)[0]}`;
@@ -73,7 +80,7 @@ export function makeCitizen(seed, district, opts = {}) {
     height: (fem ? 0.92 : 0.98) * (0.94 + r() * 0.1) * (age > 72 ? 0.96 : 1), build: 0.92 + r() * 0.25
   };
   const def = {
-    name, title: `${job}, ${place}`, tag, ambient: true, look, age,
+    name, title: `${job}, ${place}`, tag, ambient: true, look, age, fem, adult: age >= 18, temper: TEMPERS[vi], seed, district,
     voice: temper.v,
     who: `${name} ${last2}, ${age}, ${job}. Lives in ${place}, Jiquilpan, ${r() < 0.7 ? 'born and raised here' : 'came back after years working in the United States'}. A stranger on the street with a whole life of ${pro[1]} own. SECRET (only if the player earns trust): ${secret}`,
     knows: `${place}: ${fact1}; ${fact2}. On Friday's cabildo vote to give the cerro's springs to Manantiales del Cerro: ${Pro} is ${stance.k === 'for' ? 'for it, for the jobs' : stance.k === 'against' ? 'against it, fiercely' : stance.k === 'scared' ? 'afraid to say, because of Barragán\'s driver' : 'undecided'}. Knows Aurelio Valdovinos vanished on the cerro, only by rumor.`,
