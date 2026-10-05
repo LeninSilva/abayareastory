@@ -4162,6 +4162,7 @@ ${vg}`).replace("#include <lights_fragment_end>",`#include <lights_fragment_end>
 { float shS = shadowRaw(vWPos, 2.5); reflectedLight.directDiffuse *= mix(.12, 1., shS); reflectedLight.directSpecular *= shS; }`).replace("#include <tonemapping_fragment>",`gl_FragColor.rgb = fogIt(gl_FragColor.rgb, vWPos);
 #include <tonemapping_fragment>`).replace("#include <fog_fragment>","")},e}function Qf(){let a=new je(2e4,48,24),e=new dt({uniforms:Ve,side:Kt,depthWrite:!1,fog:!1,vertexShader:"varying vec3 vDir; void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMatrix * vec4(position,1.); gl_Position = p.xyww; }",fragmentShader:zi+`
 varying vec3 vDir;
+float h31(vec3 p){ p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz + 33.33); return fract((p.x + p.y) * p.z); }
 // cloud density at a point on the cloud deck
 float cloudD(vec2 p){ vec2 w = vec2(uTime * .9, uTime * .35); float c = fbm(p * .00042 + w * .0004) * .7 + fbm(p * .0016 - w * .0007) * .35 + vnoise(p * .006) * .08; return smoothstep(.52, .82, c); }
 void main(){
@@ -4176,6 +4177,7 @@ void main(){
   float sd = max(mu, 0.);
   col += uSunColor * (smoothstep(.99985, .99995, sd) * 30. + pow(sd, 700.) * 4. + pow(sd, 22.) * .45 + pow(sd, 4.) * .14) * day;
   // clouds: a deck 2.5 km up, marched through its thickness, lit toward the sun, silver at the edges
+  float cover = 0.;
   if (d.y > .015) {
     float t0 = (2500. - uCamPos.y) / d.y, dens = 0., light = 0.;
     for (int i = 0; i < 4; i++) {
@@ -4192,8 +4194,33 @@ void main(){
     vec3 cc = mix(shade, lit, clamp(light * 1.6, 0., 1.));
     cc = mix(cc, uFogColor, clamp(t0 / 60000., 0., .85));      // far clouds melt into the haze
     col = mix(col, cc * (uNight > .5 ? .15 : 1.), dens * (1. - uNight * .7));
+    cover = dens;
   }
-  if (uNight > .01) { vec2 sp = floor(d.xz / (d.y + .3) * 260.); float s = step(.9975, hash12(sp)) * (.5 + .5 * sin(uTime * 3. + hash12(sp + 1.) * 40.)); col += vec3(s) * uNight * smoothstep(.05, .4, d.y); }
+  if (uNight > .01) {
+    float clear = (1. - cover) * smoothstep(-.02, .25, d.y);
+    // the Milky Way: a soft band across a tilted great circle, with dark dust lanes
+    vec3 gp = normalize(vec3(.35, .62, -.7));
+    float band = exp(-pow(dot(d, gp) * 5.5, 2.));
+    float neb = fbm(d.xz / (abs(d.y) + .6) * 9. + d.y * 3.);
+    float lanes = smoothstep(.35, .75, fbm(d.xz / (abs(d.y) + .6) * 22. + 7.));
+    col += vec3(.55, .58, .78) * band * (.35 + neb * .9) * (1. - lanes * .55) * .14 * uNight * clear;
+    // stars: a point in each cell of the sky, of every magnitude, warm and cool, twinkling more near the horizon
+    vec3 sd3 = d * 210.; vec3 cell = floor(sd3);
+    float hsh = h31(cell);
+    vec3 pos = cell + .3 + .4 * vec3(h31(cell + 11.3), h31(cell + 27.1), h31(cell + 41.7));
+    float mag = pow(hsh, 24.) * 4. + step(.993, hsh) * .22 + band * step(.96, hsh) * .18;
+    float tw = .75 + .25 * sin(uTime * (4. + hsh * 6.) + hsh * 60.) * (1. - smoothstep(.1, .5, d.y) * .7);
+    vec3 sc = mag * tw * smoothstep(.3, 0., length(sd3 - pos)) * mix(vec3(1., .82, .65), vec3(.75, .85, 1.), h31(cell + 5.5));
+    col += sc * 1.6 * uNight * clear;
+    // the moon, opposite where the sun went down
+    float md = max(dot(d, uSunDir), 0.);
+    col += vec3(.95, .93, .86) * (smoothstep(.99965, .9998, md) * 3. + pow(md, 300.) * .25) * uNight * (1. - cover * .7);
+    // the glow of the town on low cloud and haze: orange over Jiquilpan, a little everywhere at the horizon
+    vec2 toTown = -uCamPos.xz; float dt = length(toTown); vec2 tdir = toTown / max(dt, 1.);
+    float facing = dt < 300. ? 1. : pow(max(dot(normalize(d.xz + 1e-4), tdir), 0.), 3.);
+    float glow = exp(-max(d.y, 0.) * 11.) * (.25 + .75 * facing) * (1. / (1. + dt / 4000.));
+    col += vec3(1., .55, .25) * glow * .22 * uNight * (1. + cover * 1.5);
+  }
   col = mix(col, uFogColor, smoothstep(.1, -.03, d.y) * .8);
   gl_FragColor = vec4(col, 1.);
   #include <tonemapping_fragment>
