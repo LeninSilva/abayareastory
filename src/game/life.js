@@ -102,7 +102,7 @@ export class Life {
       skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, beard: L.beard, glasses: L.glasses,
       top: top ? top.color : 0xe8e2d4, bottom: bottom ? bottom.color : 0x2a3a5a, dress: !!(bottom && bottom.dress) || !!(top && top.dress),
       shoes: shoes ? shoes.color : 0x2a2420, hat: hat ? hat.hat : 'none', hatColor: hat ? hat.color : undefined,
-      coat: top && top.coat ? top.coat : false, accessory: extra ? extra.accessory : undefined, accColor: extra ? extra.color : undefined,
+      coat: top && top.coat ? top.coat : false, kit: top && top.kit ? top.kit : undefined, accessory: extra ? extra.accessory : undefined, accColor: extra ? extra.color : undefined,
       height: s.gender === 'f' ? 0.95 : 1, build: 1
     };
   }

@@ -80,5 +80,7 @@ export const ACHIEVEMENTS = {
   empresario: { name: 'Empresario', desc: 'Own three businesses.' },
   rico: { name: 'Billetes', desc: 'Have $100,000 in your pocket.' },
   elegante: { name: 'Bien vestido', desc: 'Dress in style (style 25 or more).' },
-  danza: { name: 'Los Negritos', desc: 'Watch the Danza de los Negritos on the Jardín.' }
+  danza: { name: 'Los Negritos', desc: 'Watch the Danza de los Negritos on the Jardín.' },
+  rino: { name: 'Rino', desc: 'Beat the Rinos de Jiquilpan peloton to the chapel of San Francisco.' },
+  esperanza: { name: '¡Ánimo, patrón!', desc: 'Help Tío Luis and Francisco reopen Ferretería La Esperanza.' }
 };

@@ -42,6 +42,18 @@ export const LifeGame = {
     for (const c of this.crew) { c.visible = false; this.scene.add(c); }
     this.detail.userData.reserve(this.taxiSpots.map(t => [t[0], t[2]]).concat(this.lots.map(l => [l.x, l.z])));
     this.street = new StreetLife(this);
+    // Ferretería La Esperanza: four black tinacos left at the foot of the Monumento, to be carried to the shop door
+    {
+      const prof = [[0, 0], [0.5, 0], [0.56, 0.06], [0.56, 1.02], [0.5, 1.14], [0.3, 1.24], [0.2, 1.26], [0.2, 1.34], [0, 1.34]].map(([r, y]) => new THREE.Vector2(r, y));
+      const tg = new THREE.LatheGeometry(prof, 28), tm = new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.5 });
+      const tin = () => { const m = new THREE.Mesh(tg, tm); m.castShadow = true; return m; };
+      const M = PLACES.monumento, F = PLACES.ferreLuis, f = city.storefront(F.x, F.z);
+      this.tinacos = { from: [], to: [], hand: tin() };
+      for (let k = 0; k < 4; k++) { const x = M.x + 6.2 + (k % 2) * 1.25, z = M.z - 1.4 + Math.floor(k / 2) * 1.3, m = tin(); m.position.set(x, city.heightAt(x, z), z); this.surface.add(m); this.tinacos.from.push(m); }
+      const tx = Math.cos(f.ang), tz = -Math.sin(f.ang);   // along the shop front
+      for (let k = 0; k < 4; k++) { const x = f.sx + tx * (2.2 + k * 1.2), z = f.sz + tz * (2.2 + k * 1.2), m = tin(); m.position.set(x, city.heightAt(x, z), z); m.visible = false; this.surface.add(m); this.tinacos.to.push(m); }
+      const h = this.tinacos.hand; h.scale.setScalar(0.42); h.castShadow = false; h.visible = false; this.scene.add(h);
+    }
     this.vehicles.onWreck = () => this.ui.toast('The engine coughs, bangs and dies. This car is finished: find another.', 'warn');
   },
   /** a flat, empty 16 x 20 m piece of land beside a street near (x, z), facing the street */
@@ -128,13 +140,16 @@ export const LifeGame = {
   castShown(n) {
     const c = CAST[n.id]; if (!c) return true; const s = this.state, h = s.hour, d = s.day;
     if (n.id === 'regMc') { const q = s.life.side.regidor; if (q && q.st === 0) return true; }
+    if (n.id === 'chava') { const q = s.life.side.rinos; if (q && q.st >= 0 && !q.done) return true; }
     if (n.id === 'alcalde' && s.ch === 7 && !s.ending) return true;
     if (n.id === 'chole' && this.questDone('bache')) return h > 7 && h < 21;
     return !c.schedule || c.schedule(d, h);
   },
   castPlace(n) {
+    // Chava waits for you at the chapel at the top of the cerro
+    if (n.id === 'chava') { const q = this.state.life.side.rinos, up = q && q.st >= 0 && !q.done; if (up && !n.atTop) { const p = PLACES.sanFrancisco; const [x, y, z] = this.findSpot(p.x + 6, p.z - 4); n.x = x; n.y = y; n.z = z; n.atTop = true; } else if (!up && n.atTop) { n.x = n.hx; n.z = n.hz; n.y = this.city.heightAt(n.hx, n.hz); n.atTop = false; } }
     // Kevin goes where the signal is best during his disappearance
-    if (n.id === 'regMc') { const q = this.state.life.side.regidor; if (q && q.st === 0 && !n.atCumbre) { const p = PLACES.cumbre; const [x, y, z] = this.findSpot(p.x - 10, p.z + 8); n.x = x; n.y = y; n.z = z; n.atCumbre = true; } else if (!(q && q.st === 0) && n.atCumbre) { n.x = n.hx; n.z = n.hz; n.atCumbre = false; } }
+    if (n.id === 'regMc') { const q = this.state.life.side.regidor; if (q && q.st === 0 && !n.atCumbre) { const p = PLACES.cumbre; const [x, y, z] = this.findSpot(p.x - 10, p.z + 8); n.x = x; n.y = y; n.z = z; n.atCumbre = true; } else if (!(q && q.st === 0) && n.atCumbre) { n.x = n.hx; n.z = n.hz; n.y = this.city.heightAt(n.hx, n.hz); n.atCumbre = false; } }
   },
 
   /* ---------------- services: what a person can do for you ---------------- */
@@ -148,8 +163,8 @@ export const LifeGame = {
       else out.push({ label: 'Let me see what you sell.', run: () => { this.endTalk(); this.openShop(d.shop); } });
     }
     if (id === 'cuca') out.push({ label: 'A gaspacho, Tía. ($40)', run: () => { if (L.spend(40, 'Gaspacho')) { L.add('gaspacho'); this.ui.logLine('npc', 'Mango, jícama, cotija, chile, lime. Eat it here or give it to someone you like.'); } this.renderChips(); } });
-    if (id === 'amparo' || id === 'tona' || id === 'julian') {
-      const bizId = id === 'amparo' ? 'cremeriaBiz' : id === 'tona' ? 'tiendita' : null, B = BUSINESSES.find(b => b.id === bizId);
+    if (id === 'amparo' || id === 'tona' || (id === 'francisco' && this.state.life.esperanzaOpen)) {
+      const bizId = id === 'amparo' ? 'cremeriaBiz' : id === 'tona' ? 'tiendita' : id === 'francisco' ? 'esperanza' : null, B = BUSINESSES.find(b => b.id === bizId);
       if (B && !(this.state.life.biz[bizId] || {}).owned) out.push({ label: `I'd like to invest in ${B.name}. ($${B.price.toLocaleString('en-US')})`, locked: !L.afford(B.price), lockedText: `You need $${B.price.toLocaleString('en-US')}.`, run: () => { if (L.buyBiz(bizId)) { this.ui.logLine('npc', '¡Trato hecho! Partners. Don\'t change anything.'); this.unlock('empresario', () => Object.values(this.state.life.biz).filter(b => b.owned).length >= 3); } this.renderChips(); } });
     }
     if (id === 'alcalde') this.unlock('avistamiento');
@@ -269,6 +284,13 @@ export const LifeGame = {
     this.lifeT = (this.lifeT || 0) + dt;
     if (this.lifeT > 1) { this.lifeT = 0; this.life.tick(); for (const n of this.npcs) if (n.cast || CAST[n.id]) { const v = this.castShown(n); if (v !== n.visible) { n.visible = v; n.mesh.visible = v; if (v && n.id === 'alcalde' && Math.hypot(n.x - p.x, n.z - p.z) < 200) this.ui.toast('The Presidente Municipal has come out of the Presidencia! (This does not happen often.)', 'quest'); } this.castPlace(n); } }
     this.side.update(dt); this._taxi(dt); this.street.update(dt);
+    if (this.tinacos) {
+      const q = s.life.side.esperanza, T = this.tinacos, active = q && q.st === 0 && !q.done, after = q && (q.done || q.st > 0) || s.life.esperanzaOpen;
+      const got = active ? q.got.length : after ? 4 : 0, hold = active && q.data && q.data.holding ? 1 : 0;
+      T.from.forEach((m, k) => { m.visible = k < 4 - got - hold; }); T.to.forEach((m, k) => { m.visible = k < got; });
+      T.hand.visible = !!hold && this.view === 'first' && !this.vehicles.driving;
+      if (this.avatar) this.avatar.userData.carry = !!hold;
+    }
     // the taxis at the sitios
     this.taxiDecor.begin(); for (const [x, y, z, a, k, col] of this.taxiSpots) if (!this.taxi || Math.hypot(this.taxi.car.x - x, this.taxi.car.z - z) > 3) this.taxiDecor.add(x, y, z, a, 0, k ?? KIND.taxi, col ?? 0xf2f0ea); this.taxiDecor.commit(); this.taxiDecor.night(this.uNight());
     // pick-ups and the cow

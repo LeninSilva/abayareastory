@@ -72,7 +72,7 @@ export class MiniGames {
   btn(label, cls, fn) { const b = $('button', cls || '', label); b.type = 'button'; b.onclick = fn; return b; }
   async play(id, opts = {}) {
     this.alive = true;
-    const f = { loteria: this.loteria, penales: this.penales, quiz: this.quiz, albanil: this.albanil, anil: this.anil, mesero: this.mesero, serenata: this.serenata }[id];
+    const f = { loteria: this.loteria, penales: this.penales, quiz: this.quiz, albanil: this.albanil, anil: this.anil, mesero: this.mesero, serenata: this.serenata, ferreteria: this.ferreteria }[id];
     return f ? f.call(this, opts) : { win: false };
   }
 
@@ -237,6 +237,33 @@ export class MiniGames {
       };
     };
     next();
+    return p;
+  }
+
+  /* ---------------- stocking the ferretería ---------------- */
+  ferreteria() {
+    const p = this.open('Ferretería La Esperanza', 'Out of the box, onto the right shelf. Pick the aisle (or press 1–4) before Tío Luis finishes saying “¡Ánimo!”. Twelve things.');
+    const AISLES = [['Plomería', '🚰'], ['Eléctrico', '💡'], ['Tornillería', '🔩'], ['Pintura', '🖌️']];
+    const STOCK = [['Codo de PVC', 0], ['Llave de paso', 0], ['Flotador para tinaco', 0], ['Cinta teflón', 0], ['Rollo de cable calibre 12', 1], ['Foco ahorrador', 1], ['Apagador', 1], ['Clavija', 1],
+      ['Taquetes y pijas', 2], ['Clavos de 2½"', 2], ['Tuercas y rondanas', 2], ['Bisagras', 2], ['Brocha de 3"', 3], ['Cubeta de pintura vinílica', 3], ['Thinner', 3], ['Rodillo', 3]];
+    const order = shuffle(STOCK.slice()).slice(0, 12), wrap = $('div', 'ferre'), item = $('p', 'mes-q', ''), bar = $('div', 'ferre-bar', '<i></i>'), grid = $('div', 'mes-grid'), status = $('p', '', '');
+    wrap.append(item, bar, grid, status); this.body.appendChild(wrap);
+    let k = 0, right = 0, t0 = 0, limit = 5;
+    const btns = AISLES.map(([name, em], i) => { const b = this.btn(`<span>${em}</span><small>${i + 1} · ${name}</small>`, 'mes-item', () => choose(i)); grid.appendChild(b); return b; });
+    const show = () => { item.innerHTML = `<b>${k + 1} of 12.</b> ${order[k][0]}`; t0 = performance.now(); limit = Math.max(2.2, 5 - k * 0.22); };
+    const tick = () => { if (!this.alive || k >= 12) return; const f = Math.min(1, (performance.now() - t0) / 1000 / limit); bar.firstChild.style.width = (100 - f * 100) + '%'; if (f >= 1) choose(-1); this._raf = requestAnimationFrame(tick); };
+    const choose = i => {
+      if (k >= 12) return; const ok = i === order[k][1]; if (ok) right++;
+      status.textContent = ok ? ['¡Eso!', '¡Ánimo, patrón!', 'Francisco nods.', 'Right where a customer would look.'][k % 4] : i < 0 ? `Too slow: it goes on the floor. (${AISLES[order[k][1]][0]})` : `Not there: that goes in ${AISLES[order[k][1]][0]}.`;
+      k++; if (k < 12) show(); else finish();
+    };
+    const finish = () => {
+      cancelAnimationFrame(this._raf); btns.forEach(b => { b.disabled = true; }); const win = right >= 9;
+      item.innerHTML = `<b>${right} of 12</b> on the right shelf. ${win ? 'Francisco walks the aisles twice and says nothing. From him, that is a parade.' : '“Again,” says Francisco. “A customer looking for a flotador in Pintura will go to Sahuayo.”'}`;
+      const c = this.btn('Continue', 'primary', () => this.done({ win, score: right })); wrap.appendChild(c); c.focus();
+    };
+    this.key(e => { const n = +e.key; if (n >= 1 && n <= 4) { e.preventDefault(); choose(n - 1); } });
+    show(); tick();
     return p;
   }
 

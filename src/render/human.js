@@ -37,7 +37,21 @@ function shoe(color, kind) {
 }
 
 /* spec: { skin, hair, hairStyle, top, bottom, shoes, hat, hatColor, coat, height, build, beard, mustache, glasses, accessory, accColor,
-   dress, belly, sash, sleeves, seed, age, fem, kit, mask, ghost } */
+   dress, belly, sash, sleeves, seed, age, fem, kit, mask, ghost, face, beardColor } */
+/** the Rinos de Jiquilpan badge: a charging rhino in white, for the purple jersey */
+let _rhino = null;
+function rhinoTex() {
+  if (_rhino) return _rhino;
+  const cv = document.createElement('canvas'); cv.width = 160; cv.height = 104; const c = cv.getContext('2d');
+  c.fillStyle = '#f4f0ff'; c.beginPath(); c.ellipse(78, 56, 44, 26, 0, 0, Math.PI * 2); c.fill();           // body
+  c.beginPath(); c.moveTo(112, 44); c.quadraticCurveTo(150, 46, 152, 66); c.lineTo(122, 74); c.closePath(); c.fill();   // head
+  c.beginPath(); c.moveTo(140, 52); c.lineTo(156, 22); c.lineTo(148, 56); c.closePath(); c.fill();          // horn
+  c.beginPath(); c.moveTo(126, 46); c.lineTo(132, 34); c.lineTo(134, 48); c.closePath(); c.fill();          // small horn
+  c.beginPath(); c.moveTo(110, 38); c.lineTo(112, 26); c.lineTo(118, 40); c.closePath(); c.fill();          // ear
+  for (const x of [46, 62, 92, 106]) c.fillRect(x, 70, 11, 26);                                              // legs
+  c.fillStyle = '#6a2a9a'; c.beginPath(); c.arc(134, 54, 2.6, 0, 7); c.fill();                              // eye
+  _rhino = new THREE.CanvasTexture(cv); _rhino.colorSpace = THREE.SRGBColorSpace; return _rhino;
+}
 export function makePerson(spec = {}) {
   const s = Object.assign({ skin: 0xc99a78, hair: 0x2a1d16, hairStyle: 'short', top: 0x5a6a7a, bottom: 0x3a3d44, shoes: 0x2a2420, hat: 'none', coat: false, height: 1, build: 1, dress: false }, spec);
   let h0 = 7; if (s.seed == null) { const str = JSON.stringify(spec); for (let i = 0; i < str.length; i++) h0 = Math.imul(h0 ^ str.charCodeAt(i), 16777619); }
@@ -47,6 +61,7 @@ export function makePerson(spec = {}) {
     jaw: 0.86 + r() * 0.2, cheek: 0.95 + r() * 0.12, faceLen: 1.02 + r() * 0.12, nose: 0.85 + r() * 0.5, noseW: 0.85 + r() * 0.55, eyeGap: 0.038 + r() * 0.012,
     brow: 0.6 + r() * 0.8, lips: 0.8 + r() * 0.5, ears: 0.85 + r() * 0.35, iris: [0x3a2414, 0x2a1a10, 0x4a3018, 0x5a4a2a][Math.floor(r() * 4)], lids: r() * 0.25
   };
+  if (s.face) Object.assign(F, s.face);   // a known person's features: a wide nose, a long face
   const fem = s.fem != null ? s.fem : (s.dress || s.hairStyle === 'long' || s.hairStyle === 'bun' || s.hairStyle === 'braid') && !s.beard;
   const mustache = s.mustache != null ? s.mustache : !fem && !s.beard && r() < 0.45;
   const skin = s.skin, skinD = shade(skin, 0.82), lipC = mixc(shade(skin, 0.7), 0x8a2a2a, fem ? 0.55 : 0.3);
@@ -87,6 +102,7 @@ export function makePerson(spec = {}) {
   if (s.sash) tl.push([bx(0.08, 0.6, 0.3 + belly * 0.1, 0, 0.27, 0.02).rotateZ(0.55), s.sash]);
   if (s.kit) tl.push([bx(0.06, 0.1, 0.01, 0, 0.42, 0.12), s.kit.logo || 0xffffff], [bx(0.22, 0.03, 0.005, 0, 0.3, 0.125), s.kit.stripe || 0xffffff]);
   torso.add(M(parts(tl)));
+  if (s.kit && s.kit.rhino) { const d = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.11), new THREE.MeshStandardMaterial({ map: rhinoTex(), transparent: true, roughness: 0.7 })); d.position.set(0, 0.37, 0.128 + belly * 0.07); torso.add(d); }
   // arms: shoulder pivot → upper arm, elbow pivot → forearm and hand
   const arms = [], elbows = [];
   for (const side of [-1, 1]) {
@@ -124,8 +140,8 @@ export function makePerson(spec = {}) {
     if (hs === 'braid') hl.push([cap(0.03, 0.3, 0, 0.0, -0.12, 8), hc]);
     if (hs === 'afro' || hs === 'curly') for (let k = 0; k < (hs === 'afro' ? 28 : 18); k++) { const a = r() * Math.PI * 2, b = r() * 1.2; hl.push([sph(0.03 + r() * 0.012, Math.cos(a) * Math.sin(b) * 0.12 * F.cheek, 0.2 + Math.cos(b) * 0.09, Math.sin(a) * Math.sin(b) * 0.12 - 0.01, 1, 1, 1, 8, 6), hc]); }
   } else hl.push([new THREE.SphereGeometry(0.118, 18, 8, 0, Math.PI * 2, Math.PI * 0.32, Math.PI * 0.2).scale(F.cheek, F.faceLen, 1).translate(0, 0.165, -0.01), s.hair]);
-  if (s.beard) { const bg = new THREE.SphereGeometry(0.11, 16, 10, -Math.PI * 0.35, Math.PI * 0.7 + Math.PI, Math.PI * 0.55, Math.PI * 0.45); bg.rotateY(Math.PI); bg.scale(F.cheek * F.jaw * 1.05, F.faceLen * 1.05, 1.02); hl.push([bg.translate(0, 0.16, 0.012), hc]); }
-  if (mustache || s.beard) hl.push([cap(0.008, 0.04, 0, 0, 0, 6).rotateZ(Math.PI / 2).translate(0, 0.112, 0.118), hc]);
+  if (s.beard) { const bg = new THREE.SphereGeometry(0.11, 16, 10, -Math.PI * 0.35, Math.PI * 0.7 + Math.PI, Math.PI * 0.55, Math.PI * 0.45); bg.rotateY(Math.PI); bg.scale(F.cheek * F.jaw * 1.05, F.faceLen * 1.05, 1.02); hl.push([bg.translate(0, 0.16, 0.012), s.beardColor || hc]); }
+  if (mustache || s.beard) hl.push([cap(0.008, 0.04, 0, 0, 0, 6).rotateZ(Math.PI / 2).translate(0, 0.112, 0.118), s.beardColor || hc]);
   if (s.glasses) for (const side of [-1, 1]) hl.push([new THREE.TorusGeometry(0.02, 0.003, 5, 14).translate(side * F.eyeGap, 0.168, 0.117), 0x222222]);
   if (s.glasses) hl.push([bx(0.02, 0.003, 0.003, 0, 0.17, 0.117), 0x222222]);
   // hats

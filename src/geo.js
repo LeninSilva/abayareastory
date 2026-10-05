@@ -54,6 +54,7 @@ export const PLACES = {
   floreria:   { name: 'Florería Las Jacarandas', x: -60, z: -8, r: 8 },
   notaria:    { name: 'Bienes Raíces Jiquilpan (land for sale)', x: -196, z: -86, r: 8 },
   ferreteria: { name: 'Ferretería y Materiales El Albañil', x: -92, z: -86, r: 8 },
+  ferreLuis:  { name: 'Ferretería La Esperanza (by the Monumento)', x: 396, z: 22, r: 8 },
   bache:      { name: 'The famous bache of Calle Morelos', x: 94, z: -200, r: 10 }
 };
 

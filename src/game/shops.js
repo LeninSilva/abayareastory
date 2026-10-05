@@ -9,6 +9,7 @@ export const CLOTHES = {
   guayabera: { name: 'Guayabera, pale blue', slot: 'top', color: 0xbfd6e8, price: 560, style: 5, shop: 'boutique' },
   blusa: { name: 'Blusa bordada (flowers in red and blue)', slot: 'top', color: 0xf0e0e8, price: 480, style: 5, shop: 'boutique' },
   deportivo: { name: 'Camiseta del Deportivo Jiquilpan', slot: 'top', color: 0x2e7a3a, price: 0, style: 2, shop: 'reward' },
+  jerseyRinos: { name: 'Jersey of Los Rinos de Jiquilpan (purple, with the rhino)', slot: 'top', color: 0x6a2a9a, price: 0, style: 4, shop: 'reward', kit: { rhino: true, logo: 0x6a2a9a, stripe: 0xf4f0ff } },
   chamarra: { name: 'Chamarra de mezclilla (denim jacket)', slot: 'top', color: 0x3a5a8a, coat: 0x34507a, price: 780, style: 4, shop: 'boutique' },
   traje: { name: 'Traje oscuro (dark suit, for weddings and the cabildo)', slot: 'top', color: 0xe8e8e8, coat: 0x1e2230, price: 2600, style: 9, shop: 'boutique' },
   vestido: { name: 'Vestido de fiesta, magenta', slot: 'top', color: 0xc02870, dress: true, price: 1400, style: 8, shop: 'boutique' },
@@ -58,6 +59,7 @@ export const SHOPS = {
   cremeria: { place: 'cremeria', name: 'La Cremería', keeper: 'Don Amparo', sells: 'items', sign: 'CREMERÍA', color: 0xe8e0c8 },
   peluqueria: { place: 'peluqueria', name: 'Peluquería Don Beto', keeper: 'Don Beto', sells: 'looks', sign: 'PELUQUERÍA DON BETO', color: 0x2850a0 },
   notaria: { place: 'notaria', name: 'Bienes Raíces Jiquilpan', keeper: 'Lic. Yolanda Partida', sells: 'land', sign: 'BIENES RAÍCES · SE VENDEN TERRENOS', color: 0x2d4a3a },
+  ferreLuis: { place: 'ferreLuis', name: 'Ferretería La Esperanza', keeper: 'Francisco', sells: 'builders', sign: 'FERRETERÍA LA ESPERANZA', color: 0x2a5a8a },
   ferreteria: { place: 'ferreteria', name: 'Ferretería y Materiales El Albañil', keeper: 'Maestro Chuy', sells: 'builders', sign: 'MATERIALES EL ALBAÑIL', color: 0xd86a1a }
 };
 
@@ -77,7 +79,8 @@ export const BUSINESSES = [
   { id: 'cremeriaBiz', name: 'La Cremería (a partnership)', place: 'cremeria', price: 21000, income: 1100, upgrades: ['a cold room', 'deliveries to Sahuayo'], desc: 'Cheese, crema, cajeta and gossip. Don Amparo wants a partner who will not change anything.' },
   { id: 'tiendita', name: 'La tiendita del cerro', place: 'sanFrancisco', price: 9000, income: 380, upgrades: ['a refrigerator for sodas', 'a solar panel'], desc: 'The store at the top of the cerro: sodas, candles, bread on Sundays. The hamlet would be grateful.' },
   { id: 'taxi', name: 'Un taxi propio (with a driver)', place: 'sitioAbasolo', price: 18000, income: 650, upgrades: ['a second taxi', 'radio dispatch'], desc: 'Your own taxi on the Sitio Abasolo, driven by Don Refugio\'s nephew. You can drive fares yourself too.' },
-  { id: 'anil', name: 'Taller de añil', place: 'casita', price: 12000, income: 700, upgrades: ['a second dye vat', 'a stall in Morelia'], desc: 'Indigo-dyed rebozos made the old way and sold at the Casita de Piedra. Needs Doña Petra\'s recipe.', needs: 'anilRecipe' }
+  { id: 'anil', name: 'Taller de añil', place: 'casita', price: 12000, income: 700, upgrades: ['a second dye vat', 'a stall in Morelia'], desc: 'Indigo-dyed rebozos made the old way and sold at the Casita de Piedra. Needs Doña Petra\'s recipe.', needs: 'anilRecipe', needsText: 'Needs Doña Petra\'s recipe' },
+  { id: 'esperanza', name: 'Ferretería La Esperanza (a partnership)', place: 'ferreLuis', price: 14000, income: 560, upgrades: ['a key-cutting machine that works', 'delivery with Tío Luis\'s pickup'], desc: 'Nails, tinacos, pipes and advice by the Monumento. Francisco does the books; Tío Luis does the ¡ánimo!', needs: 'esperanzaOpen', needsText: 'Help reopen it first (Tío Luis, by the Monumento)' }
 ];
 
 /* the house you build: styles (what it looks like) and parts (what the albañiles put up, one at a time) */

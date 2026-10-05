@@ -467,6 +467,16 @@ export function makeLandmarks(city) {
     const fig = makePerson({ height: 1.25, build: 1.1, hairStyle: 'short', coat: true, hat: 'none' }); fig.traverse(o => { if (o.isMesh) o.material = M(0x5a4a32, { metalness: .65, roughness: .42 }); });
     fig.scale.setScalar(2); fig.position.y = 5.2; g.add(fig);
     for (const ry of [0, Math.PI]) plaque(g, ['GRAL. LÁZARO CÁRDENAS DEL RÍO', { text: '1895 – 1970', small: true }], 3, .9, 0, 2.6, ry ? -1.72 : 1.72, ry, { bg: '#b89c88' });
+    // the glorieta around it: laja paving, a ring of lawn with a clipped seto, laureles with white trunks, iron benches
+    const pt = pavingTex().clone(); pt.needsUpdate = true; pt.repeat.set(6, 6);
+    const pav = new THREE.Mesh(new THREE.CircleGeometry(13, 48), landmarkMaterial({ map: pt, roughness: .85 })); pav.rotation.x = -Math.PI / 2; pav.position.y = .06; pav.receiveShadow = true; g.add(pav);
+    const lawn = new THREE.Mesh(new THREE.RingGeometry(13, 21, 48), M(0x4a7a30, { roughness: 1 })); lawn.rotation.x = -Math.PI / 2; lawn.position.y = .08; lawn.receiveShadow = true; g.add(lawn);
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2 + Math.PI / 8, ca = Math.cos(a), sa = Math.sin(a);
+      const hg = hedge(g, ca * 13.6, sa * 13.6, 3.8, .7, .7); hg.rotation.y = -a + Math.PI / 2;
+      laurel(g, Math.cos(a + Math.PI / 8) * 17.5, Math.sin(a + Math.PI / 8) * 17.5, 0, .8 + (k % 3) * .1);
+      if (k % 2 === 0) bench(g, Math.cos(a + Math.PI / 8) * 11.5, Math.sin(a + Math.PI / 8) * 11.5, -a - Math.PI / 8 - Math.PI / 2, .06);
+    }
     place(g, x, z); col.addBox(x, z, 3.6, 3.6, 0, y - 1, y + 9, 'landmark');
     spots.monumento = [x, y, z + 3.2];
   }
@@ -671,6 +681,7 @@ function extras(city, root, spots, glow, place, H) {
     if (kind === 'hats') for (let k = 0; k < 3; k++) { const h = new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .03, 16), M([0xd8c8a0, 0x1e1c1a, 0x8a6a3a][k])); h.position.set(1.6, .9 + k * .5, -.3); g.add(h); cyl(g, .13, .15, .16, 1.6, .92 + k * .5, -.3, M([0xd8c8a0, 0x1e1c1a, 0x8a6a3a][k]), 10); }
     if (kind === 'flowers') for (let k = 0; k < 8; k++) { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.22, 0), M([0xd02040, 0xf0c030, 0x8a74c8, 0xf4f4f0][k % 4])); b.position.set(-1.8 + (k % 4) * .35, .7 + Math.floor(k / 4) * .3, -.45); g.add(b); }
     if (kind === 'clothes') for (let k = 0; k < 3; k++) { const m = new THREE.Mesh(new THREE.BoxGeometry(.5, .7, .05), M([0xc02870, 0xbfd6e8, 0xf2ecdc][k])); m.position.set(1.4 + k * .1, 1.4, -.12 - k * .04); g.add(m); }
+    if (kind === 'hardware') { for (let k = 0; k < 3; k++) cyl(g, .16, .14, .34, -1.9 + k * .4, .17, -.5, M([0xd8a020, 0xc02820, 0x2a5a8a][k]), 12); const hose = new THREE.Mesh(new THREE.TorusGeometry(.32, .05, 8, 24), M(0x2e7a3a)); hose.position.set(1.7, 1.5, -.12); g.add(hose); box(g, .9, .06, .3, 1.6, 1.05, -.2, M(0x8a6a4a)); }
     if (kind === 'cheese') for (let k = 0; k < 4; k++) cyl(g, .28, .28, .22, -1.6 + k * .3, .9, -.35, M(0xf0e6c0), 12);
     g.position.set(f.x, y, f.z); g.rotation.y = f.ang; root.add(g);
     spots['shop_' + id] = [f.sx, H(f.sx, f.sz), f.sz];
@@ -679,6 +690,7 @@ function extras(city, root, spots, glow, place, H) {
   shopFront('peluqueria', 'PELUQUERÍA DON BETO', 0x2850a0); shopFront('mercado', 'MERCADO DE ARTESANÍAS', 0xb8801a, 'clothes');
   shopFront('floreria', 'FLORERÍA LAS JACARANDAS', 0x7a5ab8, 'flowers'); shopFront('cremeria', 'CREMERÍA · QUESOS Y CREMA', 0x2a6a3a, 'cheese');
   shopFront('notaria', 'BIENES RAÍCES · TERRENOS', 0x2d4a3a); shopFront('ferreteria', 'MATERIALES EL ALBAÑIL', 0xd86a1a);
+  shopFront('ferreLuis', 'FERRETERÍA LA ESPERANZA', 0x2a5a8a, 'hardware');
   /* ---- the taxi stands: a sign, a bench, white taxis waiting at the curb ---- */
   const taxiKit = root.userData.taxiKit;
   for (const id of ['sitioAbasolo', 'sitioFajardo']) {

@@ -234,6 +234,7 @@ details { margin: 10px 0; } summary { cursor: pointer; color: var(--teal); font-
 .anil-track { position: relative; width: min(420px, 100%); height: 18px; border-radius: 9px; background: linear-gradient(90deg, #6a8a4a, #2a4a8a); } .anil-track b { position: absolute; top: -3px; bottom: -3px; width: 16%; background: rgba(20,30,90,0.75); border: 2px solid #c8d4ff; border-radius: 6px; } .anil-track i { position: absolute; top: -6px; width: 4px; height: 30px; background: #fff; margin-left: -2px; border-radius: 2px; }
 .mes { display: grid; gap: 10px; } .mes-q { font: 500 calc(var(--fs) * 1.15)/1.45 var(--serif); margin: 0; }
 .mes-order { display: flex; flex-wrap: wrap; gap: 8px; } .mes-order span { padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,0.08); font-size: 1.05em; }
+.ferre { display: grid; gap: 10px; } .ferre-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; } .ferre-bar i { display: block; height: 100%; width: 100%; background: var(--gold); }
 .mes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; } .mes-item { display: grid; justify-items: center; gap: 2px; } .mes-item span { font-size: 24px; } .mes-item small { font-size: 11px; }
 .ser { display: grid; gap: 10px; }
 

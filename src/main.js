@@ -738,6 +738,8 @@ class Game {
       cam.position.set(p.x, p.eye(this.settings.reduced), p.z); cam.rotation.set(p.pitch, p.yaw, 0);
       if (p.jet && !this.settings.reduced) { const w = Math.min(1, Math.hypot(p.vx, p.vz) / 150) * 0.004; cam.rotation.x += (Math.random() - 0.5) * w; cam.rotation.z = (Math.random() - 0.5) * w; }
     }
+    // a tinaco on your shoulder: follows the eye, in the world's own light
+    if (this.tinacos && this.tinacos.hand.visible) { const h = this.tinacos.hand; cam.updateMatrixWorld(); h.position.set(0.6, -0.15, -0.28).applyMatrix4(cam.matrixWorld); h.quaternion.copy(cam.quaternion).multiply(this._tinQ || (this._tinQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(-1.47, 0, 0.1)))); }
     const spd = V.driving ? Math.abs(V.driving.speed) : p.jet ? Math.hypot(p.vx, p.vz) : 0;
     const fov = 68 + (this.settings.reduced ? 0 : Math.min(22, spd / (V.driving ? 3 : 7)));
     const agl = cam.position.y - Math.max(0, this.city.heightAt(cam.position.x, cam.position.z));

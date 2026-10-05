@@ -1,7 +1,7 @@
 // Side quests and jobs: the troubles of Jiquilpan's neighbours, and honest (and less honest) ways to earn a peso.
 // A quest is a list of steps, like the main story: talk (with choices that can branch), any-of conversations,
 // reach a place (some only at night), collect things scattered around, play a mini game, deliver against the clock,
-// haul fragile cargo up the cerro road, drive taxi fares, visit several places, or watch a few story cards.
+// haul fragile cargo up the cerro road, carry heavy things one at a time, drive taxi fares, visit several places, or watch a few story cards.
 import { PLACES } from '../geo.js';
 import { CAST } from './cast.js';
 
@@ -69,6 +69,38 @@ export const QUESTS = [
       { text: 'Carry the order up the stone path to San Francisco del Cerro, on foot or very carefully by jetpack. Gently: the eggs!', haul: { to: 'sanFrancisco', secs: 1200 } }
     ],
     reward: { money: 1200, aff: { tona: 25 }, trait: { heart: 3 }, ach: 'arriero', cards: ['Doña Toña counts the eggs. All of them. Twice. Then she hugs you so hard you understand why the eggs were afraid.'] } },
+
+  /* ---------- Ferretería La Esperanza, by the Monumento ---------- */
+  { id: 'esperanza', name: 'Ferretería La Esperanza', giver: 'luis', offer: '¿Qué hay que hacer, Tío Luis?',
+    intro: '¡Ánimo, patrón! Look: the Rotoplas truck could not turn into our street, so the driver left four tinacos at the foot of the Monumento, next to the General, like offerings. Francisco has a bad back and I have seventy-two years. You have two shoulders. ¡Ánimo! One at a time.',
+    steps: [
+      { text: 'Carry the four tinacos from the Monumento a Lázaro Cárdenas to the door of Ferretería La Esperanza. One at a time, on your shoulder. No running, no cars.', carry: { n: 4, from: 'monumento', to: 'ferreLuis', lift: 'Lift a tinaco onto your shoulder', drop: 'Set the tinaco down by the door' } },
+      { text: 'Tell Francisco the tinacos are in.', talk: 'francisco', chips: [
+        { label: 'The tinacos are in. What\'s next?', tone: 'kind', reply: 'Four? All four? Tío Luis said you would, and I said nobody carries tinacos for free anymore. I owe him ten pesos. (He hands you a broom and points at a mountain of boxes.) Next: the shelves. Everything goes where a customer would look for it, not where my father put it.', next: 2 },
+        { label: 'My back is broken. You owe me.', tone: 'funny', reply: 'Join the club. We meet on Tuesdays at the Cruz Roja. (He grins, which on his face takes a while.) Fine, I owe you. Now the shelves, please, before the boxes become furniture.', next: 2 }
+      ] },
+      { text: 'Stock the shelves of Ferretería La Esperanza: every product to its aisle.', mini: 'ferreteria', at: 'ferreLuis', label: 'Stock the shelves' },
+      { text: 'Sweep the shop: the dust of twenty years, bent nails, a dead scorpion (Tío Luis swears it was already dead).', collect: { n: 5, at: 'ferreLuis', r: 6, label: 'Sweep it up', icon: 'broom' } },
+      { text: 'Tell Tío Luis the shop is ready. How do you open it?', talk: 'luis', chips: [
+        { label: 'A real inauguration: banda, cohetes, the whole street. ($800)', tone: 'kind', cost: 800, reply: '¡ESO, PATRÓN! ¡ÁNIMO! I will call my compadre with the tuba. And Doña Chole for the tamales. And the priest for the holy water, and the other priest in case the first one doesn\'t come.', next: 'done', fx: { trait: { fame: 6, heart: 2 }, aff: { luis: 10, francisco: 10 } } },
+        { label: 'Invite the Presidente to cut the ribbon.', tone: 'funny', reply: 'El Globo? Ja! Patrón, he cuts every ribbon in Michoacán. He will come for the photo, eat four tortas, and promise us a parking space. ¡Ánimo! Maybe the parking space comes.', next: 'done', fx: { trait: { fame: 3 }, aff: { luis: 6 } } },
+        { label: 'No fuss. Open the door and sell something.', tone: 'honest', reply: 'Like his father. Don Chencho opened at seven, every day, for thirty-four years, and never once made a speech. ¡Ánimo, patrón! You understood this street.', next: 'done', fx: { trait: { word: 3 }, aff: { francisco: 12, luis: 6 } } }
+      ] }
+    ],
+    reward: { money: 900, aff: { luis: 20, francisco: 20 }, trait: { heart: 3 }, flag: 'esperanzaOpen', ach: 'esperanza', cards: ['At seven the next morning Francisco rolls up the steel curtain of Ferretería La Esperanza. It squeals like a pig. The street turns to look.', 'The first customer is a señora who needs one screw. Francisco sells her the screw, and Tío Luis gives her a free “¡Ánimo!” with it.', 'Above the counter there is a new photo next to the old one of Don Chencho: Francisco, Tío Luis, and you, all three dusty, next to four black tinacos. “Partners,” Tío Luis says. “Of the heart, patrón. The money partnership costs extra.”'] } },
+
+  /* ---------- Los Rinos de Jiquilpan ---------- */
+  { id: 'rinos', name: 'La rodada de los Rinos', giver: 'chava', offer: 'Can I ride with the Rinos?',
+    intro: 'With us? ¡Órale! But first the initiation. Every Rino has done it: the Bosque, then up past the Rancho de Novoa, then the stone path to the chapel of San Francisco, all before the peloton finishes the back road through Paredones. No bicycle up the stones: you run, you walk, you fly in that ridiculous jetpack, I don\'t care. Ready? ¡Rinos!',
+    steps: [
+      { text: 'Beat the peloton: El Bosque, the Rancho de Novoa, then the chapel of San Francisco del Cerro.', deliver: ['bosque', 'ranchoNovoa', 'sanFrancisco'], secs: 420, icon: '🚴', fail: 'the peloton reached the chapel first. Chava is very understanding about it, for a rhino. Ask him again.' },
+      { text: 'Catch your breath with Chava and the Rinos at the top, by the chapel.', talk: 'chava', at: 'sanFrancisco', chips: [
+        { label: 'That was nothing. Again?', tone: 'brave', reply: '(The whole peloton boos with love.) A Rino! A real one! Somebody give this one a jersey before they run back down.', next: 'done', fx: { trait: { fame: 4 } } },
+        { label: 'I think I left a lung on the Rancho de Novoa.', tone: 'funny', reply: 'Don Eusebio will keep it for you. He keeps everything. ¡Bienvenido a los Rinos! The lung grows back. Mostly.', next: 'done', fx: { aff: { chava: 6 } } },
+        { label: 'Thank you for letting me ride with you.', tone: 'kind', reply: 'You didn\'t ride, you ran up a mountain. That\'s worse. That\'s better. Here: the jersey. You charge uphill now.', next: 'done', fx: { trait: { heart: 2 } } }
+      ] }
+    ],
+    reward: { money: 300, aff: { chava: 20 }, clothes: 'jerseyRinos', ach: 'rino', cards: ['At the chapel of San Francisco the Rinos pass around a thermos of coffee and a bag of conchas. The antenna blinks red above you. Below, the whole valley: Jiquilpan, Sahuayo, the shine of the lake.', 'Chava pulls a purple jersey out of the van. A white rhino charges across the chest. “Size: whatever. Lycra forgives.”'] } },
 
   /* ---------- the lotería on the Jardín ---------- */
   { id: 'loteria', name: 'La lotería del Jardín', giver: 'lencho', offer: '¿Hay lotería esta noche?', repeat: 6,
@@ -214,6 +246,7 @@ export class SideQuests {
     if (st.cards) { g.ui.card(st.cards, () => this.advance(Q)); return; }
     if (st.deliver) q.data = { left: st.deliver.slice(), t: st.secs * (g.settings.chase === 'easy' ? 1.5 : 1) };
     if (st.haul) q.data = { t: st.haul.secs, cargo: 100 };
+    if (st.carry) q.data = { holding: false };
     if (st.fare) g.taxiStart();
     if (st.collect) { const p = this.placeOf(st.collect.at), pts = scatter(Q.id.length * 31 + q.st * 7 + (q.count || 0), st.collect.n, p.x, p.z, st.collect.r); q.data.pts = pts.map(([x, z]) => g.findSpot(x, z)); }
     g.ui.toast(st.text, 'quest');
@@ -239,6 +272,8 @@ export class SideQuests {
     };
     if (R.cards && q.count === 1) g.ui.card(R.cards, after); else after();
   }
+  /** a timed step is over: the quest goes on to its next step, or ends here with the bonus */
+  stepDone(Q, money) { const q = this.S[Q.id]; if (q.st + 1 >= Q.steps.length) this.finish(Q, { money }); else { if (money) this.g.life.earn(money, Q.name); this.advance(Q); } }
   fail(Q, why) { const g = this.g, q = this.S[Q.id]; q.st = -1; q.cool = this.nowH(); g.ui.toast(`${Q.name}: ${why}`, 'warn'); g.save(); }
   /* ---------- the world ---------- */
   placeOf(id) {
@@ -263,11 +298,19 @@ export class SideQuests {
       const st = this.step(Q), q = this.S[Q.id];
       if (st.collect && q.data.pts && (!st.collect.night || g.isNight())) q.data.pts.forEach(([x, y, z], k) => {
         if (q.got.includes(k) || Math.hypot(x - p.x, z - p.z) > 3.2) return;
-        out.push({ x, z, label: st.collect.label, icon: st.collect.icon === 'cow' ? '🐄' : st.collect.icon === 'bell' ? '🔔' : st.collect.icon === 'plant' ? '🌿' : '👂', run: () => {
+        out.push({ x, z, label: st.collect.label, icon: st.collect.icon === 'cow' ? '🐄' : st.collect.icon === 'bell' ? '🔔' : st.collect.icon === 'plant' ? '🌿' : st.collect.icon === 'broom' ? '🧹' : '👂', run: () => {
           q.got.push(k); g.audio.chime(); g.ui.toast(`${Q.name}: ${q.got.length} of ${st.collect.n}`, 'quest');
           if (q.got.length >= st.collect.n) this.advance(Q); g.save();
         } });
       });
+      if (st.carry && !g.vehicles.driving) {
+        const F = this.placeOf(st.carry.from), T = this.placeOf(st.carry.to);
+        if (!q.data.holding && Math.hypot(F.x - p.x, F.z - p.z) < (F.r || 10) + 6) out.push({ x: p.x, z: p.z, label: `${st.carry.lift} (${q.got.length + 1} of ${st.carry.n})`, icon: '🛢️', run: () => { q.data.holding = true; g.audio.ui(); g.ui.toast('Heavy! Walk, don\'t run.', 'quest'); g.save(); } });
+        if (q.data.holding && Math.hypot(T.x - p.x, T.z - p.z) < (T.r || 8) + 6) out.push({ x: p.x, z: p.z, label: st.carry.drop, icon: '🛢️', run: () => {
+          q.data.holding = false; q.got.push(q.got.length); g.audio.chime(); g.ui.toast(`${Q.name}: ${q.got.length} of ${st.carry.n}${q.got.length < st.carry.n ? ' · ¡Ánimo, patrón!' : ''}`, 'quest');
+          if (q.got.length >= st.carry.n) this.advance(Q); g.save();
+        } });
+      }
       if (st.mini) { const at = st.at === 'here' ? null : this.placeOf(st.at), giver = g.npcs.find(n => n.id === Q.giver);
         const ok = st.at === 'here' ? giver && Math.hypot(giver.x - p.x, giver.z - p.z) < 6 : Math.hypot(at.x - p.x, at.z - p.z) < (PLACES[st.at] ? PLACES[st.at].r + 6 : 10);
         if (ok) out.push({ x: p.x, z: p.z, label: st.label, icon: '🎲', run: () => { if (st.cost && !g.life.spend(st.cost, Q.name)) return; g.minigame(st.mini, Q.id); } }); }
@@ -287,6 +330,7 @@ export class SideQuests {
       else if (st.visit) for (const v of st.visit) { if (!q.got.includes(v)) out.push({ ...this.placeOf(v), q: Q }); }
       else if (st.deliver && q.data.left) { const v = q.data.left[0]; if (v) out.push({ ...this.placeOf(v), q: Q }); }
       else if (st.haul) out.push({ ...this.placeOf(st.haul.to), q: Q });
+      else if (st.carry) out.push({ ...this.placeOf(q.data.holding ? st.carry.to : st.carry.from), q: Q });
       else if (st.serenade) { const sw = g.sweetheart(); if (sw) out.push({ ...g.npcPos(sw), q: Q }); }
       else if (st.fare && g.taxi && g.taxi.to) out.push({ x: g.taxi.to.x, z: g.taxi.to.z, q: Q });
       else if (st.fare && g.taxi && g.taxi.pick) out.push({ x: g.taxi.pick.x, z: g.taxi.pick.z, q: Q });
@@ -302,10 +346,10 @@ export class SideQuests {
       if (st.visit) for (const v of st.visit) { const P = this.placeOf(v); if (!q.got.includes(v) && Math.hypot(P.x - p.x, P.z - p.z) < (P.r || 20) + 8) { q.got.push(v); g.ui.toast(`${Q.name}: ${P.name.split(' (')[0]} (${q.got.length} of ${st.visit.length})`, 'quest'); if (q.got.length >= st.visit.length) this.advance(Q); } }
       if (st.deliver && q.data.left) {
         q.data.t -= dt; const v = q.data.left[0], P = this.placeOf(v);
-        g.ui.raceInfo(`🥭 ${Q.name} · ${Math.max(0, Math.ceil(q.data.t))} s · ${q.data.left.length} left · next: ${P.name.split(' (')[0]}`);
+        g.ui.raceInfo(`${st.icon || '🥭'} ${Q.name} · ${Math.max(0, Math.ceil(q.data.t))} s · ${q.data.left.length} left · next: ${P.name.split(' (')[0]}`);
         if (Math.hypot(P.x - p.x, P.z - p.z) < (P.r || 20) + 6) { q.data.left.shift(); g.audio.ui(); g.ui.toast('Delivered! ' + (q.data.left.length ? q.data.left.length + ' to go.' : ''), 'good'); }
-        if (!q.data.left.length) { g.ui.raceInfo(null); this.finish(Q, { money: Math.round(Math.max(0, q.data.t) * 2) }); }
-        else if (q.data.t <= 0) { g.ui.raceInfo(null); this.fail(Q, 'the gaspachos melted. Tía Cuca forgives you. Barely.'); }
+        if (!q.data.left.length) { g.ui.raceInfo(null); this.stepDone(Q, Math.round(Math.max(0, q.data.t) * 2)); }
+        else if (q.data.t <= 0) { g.ui.raceInfo(null); this.fail(Q, st.fail || 'the gaspachos melted. Tía Cuca forgives you. Barely.'); }
       }
       if (st.haul) {
         q.data.t -= dt; const P = this.placeOf(st.haul.to), car = g.vehicles.driving;
@@ -314,9 +358,12 @@ export class SideQuests {
         else if (p.speed > 6.5) q.data.cargo -= dt * 1.5;
         q.data.wasAir = !p.onGround; q.data.vy = p.vy || 0;
         g.ui.raceInfo(`🥚 Eggs intact: ${Math.max(0, Math.round(q.data.cargo))}% · ${Math.max(0, Math.ceil(q.data.t))} s · ${car ? 'no cars on the stone path!' : p.jet ? 'fly slow, land soft' : 'walk, don\'t run'}`);
-        if (Math.hypot(P.x - p.x, P.z - p.z) < (P.r || 30) + 10) { g.ui.raceInfo(null); this.finish(Q, { money: Math.round(q.data.cargo * 8) }); }
+        if (Math.hypot(P.x - p.x, P.z - p.z) < (P.r || 30) + 10) { g.ui.raceInfo(null); this.stepDone(Q, Math.round(q.data.cargo * 8)); }
         else if (q.data.cargo <= 0) { g.ui.raceInfo(null); this.fail(Q, 'the eggs are an omelette. Doña Toña will hear of this. Ask her again.'); }
         else if (q.data.t <= 0) { g.ui.raceInfo(null); this.fail(Q, 'too slow: the sodas are warm and the store is closed. Ask her again.'); }
+      }
+      if (st.carry && q.data.holding && (g.vehicles.driving || p.jet || p.speed > 7.5)) {
+        q.data.holding = false; g.ui.toast(g.vehicles.driving || p.jet ? 'You put the tinaco down first. Tío Luis: “¡Ánimo! But not like that, patrón.”' : 'You ran and the tinaco rolled off your shoulder, all the way back to the Monumento. Walk, patrón!', 'warn'); g.save();
       }
       if (st.serenade && !q.data.playing) { const sw = g.sweetheart(), P = sw && g.npcPos(sw); if (P && g.isNight() && Math.hypot(P.x - p.x, P.z - p.z) < 10) { q.data.playing = true; q.data.who = sw; g.minigame('serenata', Q.id, sw); } }
     }
