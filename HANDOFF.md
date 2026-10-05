@@ -250,27 +250,30 @@ The published version is at https://claude.ai/artifact/AU7AEZParCFrNWUkNE4K6K.
 **The cerro**
 - The cerro path is foot-only; the back road runs via Paredones.
 
+### Also done since the first handoff
+
+**Characters and quests**
+- **Tío Luis and Francisco** are at Ferretería La Esperanza by the Monumento. Their quest: carry four tinacos, stock the shelves (mini game), sweep, and reopen. Afterwards you can buy into the shop as a partner.
+- **Chava "El Rino"**, the Rinos captain, wears the purple rhino jersey. His quest is a race up to San Francisco, and the reward is the jersey.
+
+**Places**
+- A glorieta around the Monumento.
+- **The cerro:** nopales, magueys and órganos; milpas and horses at the ranchos; wild herds; and the CFE substation beside the antenna.
+
+**Look and feel**
+- Night sky with stars, the Milky Way, a moon, and an orange glow over the town.
+- New title screen: ink-bleed wordmark, skyline, and a tagline.
+- Jardín flower beds replace the old blobs.
+
 ### Still to do
 
-1. **Tío Luis and Francisco.**
-   - Add both to `CAST` in `src/game/cast.js` with `look` specs (see section 4).
-   - Add a ferretería storefront near the Monumento a Lázaro Cárdenas (≈ x 372, z 8).
-   - Add a side quest in `src/game/sidequests.js`: carry tinacos (haul step), stock shelves, sweep the shop (mini game), then the reopening. The player can become a partner (`BUSINESSES`).
-2. **The Rinos captain.** Add an NPC who talks about the team, with a purple jersey and rhino logo (`kit.logo` in `human.js`), and a ride-along side quest from Jiquilpan toward San Pedro Caro.
-3. **Cerro life.**
-   - Plants: nopales, magueys and cactus scattered on slopes; corn fields at Rancho Novoa and Rancho Salazar.
-   - Animals: horses, plus wild cows and horses wandering (reuse `makeCow` in `landmarks.js`).
-   - A small electrical substation and radio building beside the antenna in San Francisco.
-4. **Sky.**
-   - A denser star field, a faint Milky Way band and twinkle.
-   - An orange-grey light-pollution dome low over the town at night (in `src/render/sky.js`).
-5. **Title.** Make the screen more exciting but minimal: the wordmark "AÑIL", a one-line tagline, and an animated indigo ink bleed.
-6. **Jardín flowers.** They are too chunky; make them smaller and finer.
-7. **Visual checks.** Faces up close in dialogue, combis with route signs on the windshield, a hard hit leaving a chalk outline.
-8. **Finish.**
-   - Run a full play-through with no console errors.
-   - Update `README.md`.
-   - Commit and push.
+1. **Cars.** Parked cars still look boxy. Give `CarKit` / `PROFILES` in `src/render/detail.js` rounder bodies, separate wheel arches, and window frames.
+2. **Combi signs.** Route signs on the combi windshields (image prompt 8).
+3. **Carrying in third person.** Show the tinaco in third person too; right now it only appears in first person.
+4. **A man floating near the San Francisco chapel.** An NPC there is placed in the air; check `findSpot` for the cast near the summit.
+5. **Ground near the Monumento.** It is bare dirt; consider sidewalks or grass along those streets.
+6. **Textures.** Use your image-generation results as textures: laja, the masks, the jersey logo, and shop signs.
+7. **Finish.** Update `README.md`, then commit and push.
 
 ---
 
