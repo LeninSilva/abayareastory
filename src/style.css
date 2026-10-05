@@ -35,6 +35,22 @@ input[type=range] { min-height: 0; padding: 0; accent-color: var(--accent); widt
 .title-inner { text-align: center; padding: 28px 16px; max-width: 560px; width: 100%; margin: auto; }
 .kicker { font: 600 12px var(--sans); letter-spacing: 0.32em; text-transform: uppercase; color: var(--dim); margin: 0 0 6px; }
 #title h1 { font: 600 clamp(56px, 15vw, 112px)/1 var(--serif); letter-spacing: 0.24em; margin: 0 0 10px; color: #e6ebff; text-shadow: 0 0 40px rgba(110,140,255,0.45); padding-left: 0.24em; }
+#title { position: fixed; isolation: isolate; }
+#title .ink { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+#title .ink i { position: absolute; width: 70vmax; height: 70vmax; border-radius: 50%; filter: blur(60px); opacity: .55; mix-blend-mode: screen; animation: ink 26s ease-in-out infinite alternate; }
+#title .ink i:nth-child(1) { left: -20vmax; top: -25vmax; background: radial-gradient(circle, #2b3fd6 0%, #1a2490 35%, transparent 70%); }
+#title .ink i:nth-child(2) { right: -25vmax; top: 5vmax; background: radial-gradient(circle, #3a1f8a 0%, #241458 40%, transparent 70%); animation-duration: 34s; animation-delay: -8s; }
+#title .ink i:nth-child(3) { left: 15vmax; bottom: -40vmax; background: radial-gradient(circle, #d07a2a 0%, #7a3a1a 30%, transparent 65%); opacity: .3; animation-duration: 40s; }
+@keyframes ink { from { transform: translate(0, 0) scale(1) rotate(0deg); } to { transform: translate(6vmax, 4vmax) scale(1.18) rotate(25deg); } }
+#title .skyline { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 26vh; z-index: -1; pointer-events: none; }
+#title .skyline .blink { animation: blink 1.6s steps(2) infinite; }
+@keyframes blink { 50% { opacity: .1; } }
+#title h1 span { display: inline-block; opacity: 0; transform: translateY(14px); filter: blur(8px); animation: letter 1.4s cubic-bezier(.2,.7,.2,1) forwards; }
+#title h1 span:nth-child(2) { animation-delay: .18s; } #title h1 span:nth-child(3) { animation-delay: .36s; } #title h1 span:nth-child(4) { animation-delay: .54s; }
+#title h1 .enye { color: #f2c46a; text-shadow: 0 0 36px rgba(242,196,106,.45); }
+@keyframes letter { to { opacity: 1; transform: none; filter: none; } }
+#title .tag b { display: block; font-style: normal; font-weight: 600; color: var(--text, #e6ebff); margin-bottom: 6px; }
+@media (prefers-reduced-motion: reduce) { #title .ink i, #title .skyline .blink { animation: none; } #title h1 span { animation: none; opacity: 1; transform: none; filter: none; } }
 .tag-line, .tag { }
 #title .tag { display: block; background: none; font: italic 500 calc(var(--fs) * 1.25)/1.4 var(--serif); color: var(--dim); margin: 0 auto 26px; padding: 0; white-space: normal; max-width: 460px; border-radius: 0; }
 .title-card { background: rgba(14,17,30,0.6); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: grid; gap: 14px; box-shadow: var(--shadow); }
@@ -260,3 +276,6 @@ details { margin: 10px 0; } summary { cursor: pointer; color: var(--teal); font-
   #dlg-help { display: none; } #tbtns { transform: scale(0.82); transform-origin: bottom right; }
   #raceinfo { top: 60px; } #subtitle { top: 74px; }
 }
+.title-card, .title-card .field { min-width: 0; } .title-card .field input { width: 100%; min-width: 0; }
+#gender button { min-width: 0; padding: 0.3em 0.4em; }
+@media (max-width: 480px) { #title .kicker { letter-spacing: 0.18em; font-size: 11px; } #gender { grid-template-columns: 1fr 1fr; } #gender button:last-child { grid-column: 1 / -1; } }

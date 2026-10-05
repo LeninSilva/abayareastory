@@ -277,7 +277,12 @@ export function makeLandmarks(city) {
       lantern(g, qx * 16, qz * 15, .3, glow); lantern(g, qx * 30, qz * 4, .1, glow);
       laurel(g, qx * 22, qz * 21, .3, 1.05); laurel(g, qx * 9, qz * 20, .3, .9);
       if (qx > 0) tabachin(g, qx * 28, qz * 14, .3); else laurel(g, qx * 28, qz * 14, .3, 1.1);
-      for (let k = 0; k < 6; k++) { const f = new THREE.Mesh(new THREE.IcosahedronGeometry(.32, 0), M([0xc8202a, 0xe84a5a, 0xf0c030][k % 3])); f.position.set(qx * (14 + k * 1.1), .55, qz * (9 + (k % 2) * .9)); g.add(f); }
+      // a bed of geraniums and roses: a low mound of leaves with small blossoms scattered over the top
+      { const cx = qx * 16.8, cz = qz * 9.45, bed = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(0x2e5a26, { roughness: 1 })); bed.scale.set(3.4, .42, .75); bed.position.set(cx, .12, cz); g.add(bed);
+        const n = 70, bl = new THREE.InstancedMesh(new THREE.SphereGeometry(.065, 6, 4), M(0xffffff, { roughness: .8 }), n), m4 = new THREE.Matrix4(), col = new THREE.Color(), pal = [0xc8202a, 0xe84a5a, 0xf0c030, 0xf4f0ea, 0xd04a8a];
+        for (let k = 0; k < n; k++) { const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * .92, u = Math.cos(a) * r, v = Math.sin(a) * r, y = .12 + .42 * Math.sqrt(Math.max(0, 1 - r * r)) + .02;
+          m4.makeTranslation(cx + u * 3.4, y, cz + v * .75); bl.setMatrixAt(k, m4); bl.setColorAt(k, col.set(pal[(k * 7 + (qx > 0 ? 1 : 0) + (qz > 0 ? 2 : 0)) % pal.length])); }
+        g.add(bl); }
     }
     // a little round fountain on the west walk
     cyl(g, 1.8, 1.9, .55, -24, .1, 0, M(0xd8d0c4), 20); const fw = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, .08, 20), M(0x3a6a78, { roughness: .08, metalness: .25 })); fw.position.set(-24, .6, 0); g.add(fw); cyl(g, .18, .25, 1.2, -24, .6, 0, M(0xd8d0c4), 10);
