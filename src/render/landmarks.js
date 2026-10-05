@@ -7,7 +7,7 @@
 // the indigo cave). Where the real building's exact form isn't known, the model follows the town's own idiom.
 import * as THREE from 'three';
 import { landmarkMaterial } from './shaders.js';
-import { PLACES, CERRO_ROAD } from '../geo.js';
+import { PLACES, CERRO_ROAD, BACK_ROAD } from '../geo.js';
 import { makePerson } from './people.js';
 
 const MATS = new Map();
@@ -813,6 +813,99 @@ function extras(city, root, spots, glow, place, H) {
     const cs = Math.cos(ry), sn = Math.sin(ry), W = (lx, lz) => [pl.x + lx * cs + lz * sn, pl.z - lx * sn + lz * cs];
     { const [hx, hz] = W(0, 4); col.addBox(hx, hz, 13, 7, -ry, y - 2, y + 4, 'roof'); }
     spots[id] = [pl.x, y, pl.z];
+    // a milpa beside the house: rows of corn, tasselled, with calabazas between
+    { const n = 22 * 14, stalk = new THREE.InstancedMesh(cornGeo(), M(0x6a8a34, { roughness: .95 }), n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); let i = 0;
+      const r = rng(id.length * 977);
+      for (let a = 0; a < 22; a++) for (let b = 0; b < 14; b++) { const [wx, wz] = W(12 + a * 1.1 + r() * .3, -10 + b * 1.4 + r() * .3); const h = .8 + r() * .35;
+        m4.compose(v.set(wx, H(wx, wz) - .05, wz), q.setFromEuler(e.set((r() - .5) * .12, r() * 6.28, (r() - .5) * .12)), sc.set(h, h, h)); stalk.setMatrixAt(i, m4); stalk.setColorAt(i, new THREE.Color().setHSL(.2 + r() * .05, .45, .32 + r() * .1)); i++; }
+      stalk.castShadow = true; root.add(stalk); }
+    // horses in the corral
+    for (let k = 0; k < 2; k++) { const h = makeHorse([0x5a3a22, 0x2a1e18, 0xc8b8a0][(k + id.length) % 3]); h.position.set(-8 - k * 4, 0, -2 - k * 2); h.rotation.y = 2 + k; g.add(h); }
+  }
+  cerroLife(city, root, H);
+}
+/* the cerro: nopaleras, magueys and órganos among the rocks, wild cattle and horses grazing, and by the antenna a little CFE substation */
+function rng(seed) { let a = seed >>> 0 || 1; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function cornGeo() {
+  const parts = [new THREE.CylinderGeometry(.018, .028, 2.1, 5).translate(0, 1.05, 0)];
+  for (let k = 0; k < 5; k++) { const l = new THREE.PlaneGeometry(.09, .75); l.translate(0, .37, 0); l.rotateZ(.9); l.rotateY(k * 2.4); l.translate(0, .45 + k * .3, 0); parts.push(l); }
+  parts.push(new THREE.ConeGeometry(.05, .3, 4).translate(0, 2.2, 0));
+  return mergeGeo(parts);
+}
+function mergeGeo(list) {
+  const geos = list.map(g => (g.index ? g.toNonIndexed() : g)); let n = 0; for (const g of geos) n += g.attributes.position.count;
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3); let o = 0;
+  for (const g of geos) { if (!g.attributes.normal) g.computeVertexNormals(); pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; }
+  const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); return out;
+}
+function nopalGeo() {
+  const parts = [], r = rng(7);
+  const pad = (x, y, z, s, ry, rz) => { const g = new THREE.SphereGeometry(.22, 10, 7); g.scale(s, s * 1.35, s * .22); g.rotateZ(rz); g.rotateY(ry); g.translate(x, y, z); parts.push(g); };
+  pad(0, .3, 0, 1.1, 0, 0); pad(.18, .7, 0, .9, .3, -.5); pad(-.2, .68, .05, .85, -.4, .6); pad(.05, 1.05, .02, .8, 1.2, .1); pad(.38, 1.0, .05, .7, .2, -.9); pad(-.35, 1.0, -.05, .65, -.9, .8);
+  for (let k = 0; k < 5; k++) parts.push(new THREE.SphereGeometry(.035, 6, 4).translate((r() - .5) * .7, 1.2 + r() * .2, (r() - .5) * .1));   // tunas
+  return mergeGeo(parts);
+}
+function magueyGeo() {
+  const parts = [];
+  for (let k = 0; k < 16; k++) { const l = new THREE.ConeGeometry(.09, 1.3, 4); l.scale(1, 1, .35); l.translate(0, .65, 0); l.rotateZ(.45 + (k % 3) * .22); l.rotateY(k * 2.4); parts.push(l); }
+  return mergeGeo(parts);
+}
+function organoGeo() {
+  const parts = [], r = rng(11);
+  for (let k = 0; k < 5; k++) { const h = 1.8 + r() * 1.6; parts.push(new THREE.CylinderGeometry(.11, .13, h, 8).translate((k - 2) * .24, h / 2, (r() - .5) * .2)); parts.push(new THREE.SphereGeometry(.11, 8, 5).translate((k - 2) * .24, h, 0)); }
+  return mergeGeo(parts);
+}
+export function makeHorse(color = 0x5a3a22) {
+  const g = new THREE.Group(), body = M(color), dark = M(0x1a1410);
+  const b = new THREE.Mesh(new THREE.CapsuleGeometry(.36, 1.2, 6, 12), body); b.rotation.z = Math.PI / 2; b.position.y = 1.35; g.add(b);
+  const neck = new THREE.Mesh(new THREE.CapsuleGeometry(.17, .6, 4, 8), body); neck.position.set(.85, 1.8, 0); neck.rotation.z = -.7; g.add(neck);
+  const head = new THREE.Mesh(new THREE.CapsuleGeometry(.12, .42, 4, 8), body); head.position.set(1.18, 2.02, 0); head.rotation.z = -1.9; g.add(head);
+  const mane = new THREE.Mesh(new THREE.BoxGeometry(.6, .12, .06), dark); mane.position.set(.78, 2.0, 0); mane.rotation.z = -.7; g.add(mane);
+  for (const sz of [-1, 1]) { const e = new THREE.Mesh(new THREE.ConeGeometry(.04, .14, 4), body); e.position.set(1.06, 2.28, sz * .07); g.add(e); }
+  for (const [x, z] of [[.55, .17], [.55, -.17], [-.55, .17], [-.55, -.17]]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(.055, .045, 1.15, 6), body); l.position.set(x, .58, z); g.add(l); const hf = new THREE.Mesh(new THREE.CylinderGeometry(.06, .07, .1, 6), dark); hf.position.set(x, .05, z); g.add(hf); }
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(.09, .8, 6), dark); tail.position.set(-.95, 1.1, 0); tail.rotation.z = -.35; g.add(tail);
+  return g;
+}
+function cerroLife(city, root, H) {
+  const r = rng(2024), paths = [CERRO_ROAD, BACK_ROAD].filter(Boolean);
+  const kinds = [[nopalGeo(), 0x5a7a3a, 700, 1.1], [magueyGeo(), 0x6a8a7a, 500, 1], [organoGeo(), 0x4e6a3a, 160, 1]];
+  const pts = []; for (const p of paths) for (let k = 0; k < p.length; k += 1) pts.push(p[k]);
+  const near = (x, z) => { for (let k = 0; k < pts.length; k += 2) { const dx = pts[k][0] - x, dz = pts[k][1] - z; if (dx * dx + dz * dz < 25) return true; } return false; };
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(), c = new THREE.Color();
+  for (const [geo, color, n, s0] of kinds) {
+    const im = new THREE.InstancedMesh(geo, M(0xffffff, { roughness: .9 }), n); let i = 0;
+    for (let t = 0; t < n * 4 && i < n; t++) {
+      const p = pts[Math.floor(r() * pts.length)], a = r() * 6.28, d = 6 + Math.pow(r(), 1.6) * 140, x = p[0] + Math.cos(a) * d, z = p[1] + Math.sin(a) * d;
+      if (Math.hypot(x, z) < 1250 || near(x, z) || city.streetsAt(x, z, []).length) continue;   // the cerro, not the town
+      const s = s0 * (.6 + r() * .8); m4.compose(v.set(x, H(x, z) - .05, z), q.setFromEuler(e.set(0, r() * 6.28, 0)), sc.set(s, s, s)); im.setMatrixAt(i, m4);
+      im.setColorAt(i, c.set(color).offsetHSL((r() - .5) * .04, 0, (r() - .5) * .08)); i++;
+    }
+    im.count = i; im.castShadow = true; root.add(im);
+  }
+  // wild cattle and horses, grazing in little herds on the open slopes
+  const herds = 9;
+  for (let h = 0; h < herds; h++) {
+    const p = pts[Math.floor(r() * pts.length)], a = r() * 6.28, d = 40 + r() * 120, hx = p[0] + Math.cos(a) * d, hz = p[1] + Math.sin(a) * d;
+    if (Math.hypot(hx, hz) < 1250) continue;
+    const horses = h % 3 === 0;
+    for (let k = 0; k < 3 + Math.floor(r() * 4); k++) {
+      const x = hx + (r() - .5) * 18, z = hz + (r() - .5) * 18;
+      const an = horses ? makeHorse([0x5a3a22, 0x2a1e18, 0x8a5a3a, 0xc8b8a0][Math.floor(r() * 4)]) : makeCow([0x5a3a24, 0x2a2420, 0xb8743a, 0xe8dcc0][Math.floor(r() * 4)], [0xe8e0d0, 0x3a2a1a][Math.floor(r() * 2)]);
+      an.position.set(x, H(x, z), z); an.rotation.y = r() * 6.28; an.traverse(o => { if (o.isMesh) o.castShadow = true; }); root.add(an);
+    }
+  }
+  // the CFE substation beside the antenna: a fenced yard, transformers with their fins, insulator poles, a block house
+  { const P0 = PLACES.cumbre, x0 = P0.x + 34, z0 = P0.z + 2, y = H(x0, z0), g = new THREE.Group();
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(16, .3, 12), M(0x9a968e)); pad.position.y = .05; g.add(pad);
+    for (let k = 0; k < 2; k++) { box(g, 2.2, 2.4, 1.6, -3 + k * 5, .2, -1, M(0x8a948a, { metalness: .4 })); for (let f = 0; f < 6; f++) box(g, .06, 1.8, 2, -4.2 + k * 5 + f * .45, .5, -1, M(0x7a847a, { metalness: .4 }));
+      for (let b = 0; b < 3; b++) { cyl(g, .09, .12, .9, -3.6 + k * 5 + b * .6, 2.6, -1, M(0x6a3a2a), 8); } }
+    for (const xx of [-6, 6]) { cyl(g, .18, .22, 9, xx, 0, 3, M(0xb8b4aa), 8); box(g, 3.2, .2, .2, xx, 8, 3, M(0x6a6a66)); for (const o of [-1.3, 0, 1.3]) cyl(g, .07, .1, .5, xx + o, 8.2, 3, M(0x6a3a2a), 6); }
+    box(g, 4, 3, 3.4, 4.5, .2, 3.5, M(0xe8e2d4)); box(g, 4.2, .4, 3.6, 4.5, .2, 3.5, M(0x2e7a3a));
+    plaque(g, ['CFE · SUBESTACIÓN SAN FRANCISCO', { text: 'PELIGRO · ALTA TENSIÓN', small: true }], 3.6, .8, 4.5, 2.2, 1.78, Math.PI, { bg: '#f2efe8', fg: '#2e7a3a', border: false, weight: 800, font: 'Inter, Arial, sans-serif' });
+    // chain-link fence
+    const fm = new THREE.MeshBasicMaterial({ color: 0x8a8a86, transparent: true, opacity: .35, side: THREE.DoubleSide });
+    for (const [w, x, z, ry] of [[17, 0, -6.5, 0], [17, 0, 6.5, 0], [13, -8.5, 0, Math.PI / 2], [13, 8.5, 0, Math.PI / 2]]) { const f = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.4), fm); f.position.set(x, 1.4, z); f.rotation.y = ry; g.add(f); }
+    g.position.set(x0, y, z0); root.add(g); city.colliders.addBox(x0, z0, 17, 13, 0, y - 1, y + 3, 'landmark');
   }
 }
 /* a jacaranda in bloom */
