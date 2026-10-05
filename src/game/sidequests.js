@@ -63,10 +63,10 @@ export const QUESTS = [
 
   /* ---------- supplies up the stone road ---------- */
   { id: 'tiendita', name: 'La tiendita del cerro', giver: 'tona', offer: 'Your shelves look empty, Doña Toña.',
-    intro: 'The supply truck won\'t come up anymore: the road, they say. The road has been the road since 1950! I need sugar, oil, candles, sodas, and eggs. Eggs, mijo. Up that road. Don Goyo at the Mercado de Artesanías has my order. Bring it gently.',
+    intro: 'The pickup from Paredones broke its axle on the back road, and nobody else comes up. I need sugar, oil, candles, sodas, and eggs. Eggs, mijo. Up the stone path from town, the way the arrieros did it. Don Goyo at the Mercado de Artesanías has my order. Bring it gently.',
     steps: [
       { text: 'Pick up Doña Toña\'s order from Don Goyo at the Mercado de Artesanías.', talk: 'goyo', chips: [{ label: 'I\'m here for Doña Toña\'s order.', reply: 'Six boxes. One of eggs. If you break the eggs, she will know before you get there. She always knows.', next: 1 }] },
-      { text: 'Drive the order up the stone road to San Francisco del Cerro. Gently: the eggs!', haul: { to: 'sanFrancisco', secs: 600 } }
+      { text: 'Carry the order up the stone path to San Francisco del Cerro, on foot or very carefully by jetpack. Gently: the eggs!', haul: { to: 'sanFrancisco', secs: 1200 } }
     ],
     reward: { money: 1200, aff: { tona: 25 }, trait: { heart: 3 }, ach: 'arriero', cards: ['Doña Toña counts the eggs. All of them. Twice. Then she hugs you so hard you understand why the eggs were afraid.'] } },
 
@@ -309,9 +309,12 @@ export class SideQuests {
       }
       if (st.haul) {
         q.data.t -= dt; const P = this.placeOf(st.haul.to), car = g.vehicles.driving;
-        if (car) { const sp = Math.abs(car.speed); if (g.vehicles.bump > 0.05) { q.data.cargo -= g.vehicles.bump * 35; g.vehicles.bump = 0; } if (sp > 13 && g.onRocky()) q.data.cargo -= (sp - 13) * dt * 2.5; }
-        g.ui.raceInfo(`🥚 Eggs intact: ${Math.max(0, Math.round(q.data.cargo))}% · ${Math.max(0, Math.ceil(q.data.t))} s · ${car ? 'easy over the stones' : 'get in a car (a pickup is best)'}`);
-        if (Math.hypot(P.x - p.x, P.z - p.z) < (P.r || 30) + 10) { g.ui.raceInfo(null); if (car) this.finish(Q, { money: Math.round(q.data.cargo * 8) }); else { this.fail(Q, 'you can\'t carry six boxes up a mountain on your back. Drive it up.'); } }
+        if (car) { q.data.cargo -= dt * 15; }   // cars can't take the stone path: the boxes bounce in the back
+        else if (p.jet) { if (p.speed > 22) q.data.cargo -= (p.speed - 22) * dt * 1.2; if (q.data.wasAir && p.onGround && q.data.vy < -7) q.data.cargo -= 12; }
+        else if (p.speed > 6.5) q.data.cargo -= dt * 1.5;
+        q.data.wasAir = !p.onGround; q.data.vy = p.vy || 0;
+        g.ui.raceInfo(`🥚 Eggs intact: ${Math.max(0, Math.round(q.data.cargo))}% · ${Math.max(0, Math.ceil(q.data.t))} s · ${car ? 'no cars on the stone path!' : p.jet ? 'fly slow, land soft' : 'walk, don\'t run'}`);
+        if (Math.hypot(P.x - p.x, P.z - p.z) < (P.r || 30) + 10) { g.ui.raceInfo(null); this.finish(Q, { money: Math.round(q.data.cargo * 8) }); }
         else if (q.data.cargo <= 0) { g.ui.raceInfo(null); this.fail(Q, 'the eggs are an omelette. Doña Toña will hear of this. Ask her again.'); }
         else if (q.data.t <= 0) { g.ui.raceInfo(null); this.fail(Q, 'too slow: the sodas are warm and the store is closed. Ask her again.'); }
       }

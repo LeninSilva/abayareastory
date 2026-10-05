@@ -38,56 +38,82 @@ const box = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).tra
 function colored(g, c) { const n = g.attributes.position.count, a = new Float32Array(n * 3), col = new THREE.Color(c); for (let i = 0; i < n; i++) a.set([col.r, col.g, col.b], i * 3); g.setAttribute('color', new THREE.BufferAttribute(a, 3)); return g; }
 function strip(g) { for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'color') g.deleteAttribute(k); return g; }
 
-/* ---------------- cars: sedan, SUV, van, scooter (Italika-style), taxi, ranch pickup, scooter with rider; four parts each ---------------- */
-export const KIND = { sedan: 0, suv: 1, van: 2, moto: 3, taxi: 4, pickup: 5, rider: 6 };
-function motoParts(rider) {
-  // forward +x: a step-through scooter, 1.8 m long
-  const body = [box(0.9, 0.12, 0.34, -0.05, 0.36, 0), box(0.16, 0.7, 0.42, 0.5, 0.62, 0), box(0.62, 0.3, 0.4, -0.42, 0.62, 0), box(0.5, 0.12, 0.3, -0.35, 0.83, 0), box(0.26, 0.12, 0.3, 0.72, 0.4, 0)];
-  const glass = [box(0.04, 0.3, 0.36, 0.56, 1.1, 0)];
-  const wheels = [new THREE.CylinderGeometry(0.24, 0.24, 0.1, 14).rotateX(Math.PI / 2).translate(0.68, 0.24, 0), new THREE.CylinderGeometry(0.24, 0.24, 0.1, 14).rotateX(Math.PI / 2).translate(-0.62, 0.24, 0),
-    box(0.06, 0.06, 0.62, 0.5, 1.02, 0)];   // handlebar
-  if (rider) {   // a rider in a dark jacket and a helmet
-    wheels.push(box(0.34, 0.5, 0.36, -0.28, 1.14, 0), new THREE.SphereGeometry(0.15, 12, 8).translate(-0.22, 1.56, 0), box(0.5, 0.12, 0.12, 0.05, 0.84, 0.15), box(0.5, 0.12, 0.12, 0.05, 0.84, -0.15),
-      box(0.5, 0.08, 0.08, 0.15, 1.12, 0.2).rotateZ(-0.3), box(0.5, 0.08, 0.08, 0.15, 1.12, -0.2).rotateZ(-0.3));
-  }
-  const lights = [colored(box(0.05, 0.1, 0.14, 0.6, 0.92, 0), 0xfff6e0), colored(box(0.05, 0.08, 0.16, -0.74, 0.7, 0), 0xff2a18)];
-  return { body: mergeGeometries(body.map(strip)), glass: mergeGeometries(glass.map(strip)), wheels: mergeGeometries(wheels.map(strip)), lights: mergeGeometries(lights.map(strip)), L: 1.8, W: 0.7 };
+/* ---------------- vehicles of the Ciénega: rounded bodies extruded from real side profiles ----------------
+   0 Nissan Tsuru sedan · 1 Renault SUV · 2 combi (Nissan Urvan-style van) · 3 Italika scooter · 4 taxi (Tsuru)
+   5 old Toyota pickup · 6 scooter with rider · 7 Nissan March hatch · 8 Vocho · 9 a Japanese electric hatch (rare)
+   10 a Porsche (very rare) · 11 a road bicycle with its rider (the jersey takes the instance colour) */
+export const KIND = { sedan: 0, suv: 1, van: 2, moto: 3, taxi: 4, pickup: 5, rider: 6, hatch: 7, vocho: 8, ev: 9, porsche: 10, bike: 11 };
+const PROFILES = {
+  0: { L: 4.3, W: 1.66, r: 0.29, ax: 1.25, body: [[-2.15, .32], [-2.15, .78], [-2.0, .9], [-1.3, .93], [1.12, .93], [1.95, .84], [2.15, .68], [2.15, .32]], glass: [[-1.32, .93], [-.78, 1.38], [.42, 1.4], [1.04, .93]], roof: [-.74, .4, 1.36] },
+  1: { L: 4.3, W: 1.82, r: 0.34, ax: 1.32, body: [[-2.15, .45], [-2.15, 1.05], [1.38, 1.05], [2.08, .93], [2.15, .62], [2.15, .45]], glass: [[-2.02, 1.05], [-1.92, 1.6], [.55, 1.63], [1.32, 1.06]], roof: [-1.92, .55, 1.58], rails: true },
+  2: { L: 5.0, W: 1.9, r: 0.33, ax: 1.65, body: [[-2.5, .42], [-2.5, 1.28], [2.28, 1.3], [2.5, 1.08], [2.5, .42]], glass: [[-2.45, 1.28], [-2.45, 1.84], [2.0, 1.86], [2.44, 1.32]], roof: [-2.45, 2.02, 1.84, 2.12] },
+  5: { L: 4.9, W: 1.76, r: 0.36, ax: 1.6, body: [[-2.45, .48], [-2.45, 1.02], [1.95, 1.02], [2.42, .9], [2.45, .62], [2.45, .48]], glass: [[-.42, 1.02], [-.36, 1.56], [.72, 1.58], [1.42, 1.03]], roof: [-.36, .72, 1.55], bed: true },
+  7: { L: 3.8, W: 1.66, r: 0.29, ax: 1.2, body: [[-1.9, .34], [-1.9, .95], [-1.75, .99], [1.2, .95], [1.83, .8], [1.9, .6], [1.9, .34]], glass: [[-1.76, .98], [-1.6, 1.46], [.3, 1.48], [1.14, .96]], roof: [-1.58, .28, 1.44] },
+  8: { L: 4.05, W: 1.55, r: 0.3, ax: 1.2, body: [[-2.0, .36], [-2.02, .68], [-1.82, .93], [-1.2, 1.0], [1.15, 1.0], [1.72, .9], [2.0, .64], [2.0, .36]], glass: [[-1.28, 1.0], [-.98, 1.3], [-.4, 1.46], [.35, 1.42], [.82, 1.18], [1.04, 1.0]], roof: [-.8, .3, 1.42], round: true },
+  9: { L: 4.45, W: 1.77, r: 0.31, ax: 1.35, body: [[-2.2, .38], [-2.22, .98], [-2.0, 1.03], [1.35, .98], [2.1, .82], [2.22, .62], [2.22, .38]], glass: [[-2.02, 1.02], [-1.75, 1.52], [.35, 1.55], [1.3, .99]], roof: [-1.72, .32, 1.5] },
+  10: { L: 4.5, W: 1.85, r: 0.33, ax: 1.22, body: [[-2.25, .3], [-2.26, .74], [-2.0, .86], [-1.25, .92], [1.5, .84], [2.2, .62], [2.25, .3]], glass: [[-1.35, .92], [-.55, 1.26], [.32, 1.27], [1.08, .87]], roof: [-.5, .3, 1.25], low: true }
+};
+function profileGeo(pts, width, bevel) {
+  const sh = new THREE.Shape(); pts.forEach(([x, y], i) => i ? sh.lineTo(x, y) : sh.moveTo(x, y)); sh.closePath();
+  const b = bevel || 0.06, g = new THREE.ExtrudeGeometry(sh, { depth: width - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b * 0.9, bevelSegments: 3, curveSegments: 4 });
+  g.translate(0, 0, -(width - 2 * b) / 2); return g;
 }
-function pickupParts() {
-  const L = 5.2, W = 1.9, r = 0.38, ax = 1.7;
-  const body = [box(L, 0.6, W, 0, 0.72, 0), box(2.3, 0.75, W, 1.3, 1.35, 0), box(L * 0.96, 0.08, W * 0.97, 0.9, 1.04, 0),
-    box(2.6, 0.5, 0.08, -1.2, 1.27, W / 2 - 0.04), box(2.6, 0.5, 0.08, -1.2, 1.27, -W / 2 + 0.04), box(0.08, 0.5, W, -2.5, 1.27, 0), box(0.2, 0.08, 0.26, 1.9, 1.3, W / 2 + 0.06), box(0.2, 0.08, 0.26, 1.9, 1.3, -W / 2 - 0.06)];
-  const glass = [frustum(0.3, 2.2, 1.35, 1.95, W * 0.46, 0.45, 1.75, W * 0.4)];
-  const wheels = []; for (const sx of [-1, 1]) for (const sz of [-1, 1]) wheels.push(new THREE.CylinderGeometry(r, r, 0.26, 14).rotateX(Math.PI / 2).translate(sx * ax, r, sz * (W / 2 - 0.1)));
-  const lights = []; for (const sz of [-1, 1]) { lights.push(colored(box(0.05, 0.14, 0.34, L / 2 + 0.02, 0.92, sz * (W / 2 - 0.3)), 0xfff6e0)); lights.push(colored(box(0.05, 0.2, 0.16, -L / 2 - 0.02, 0.95, sz * (W / 2 - 0.12)), 0xff2a18)); }
-  return { body: mergeGeometries(body.map(strip)), glass: mergeGeometries(glass.map(strip)), wheels: mergeGeometries(wheels.map(strip)), lights: mergeGeometries(lights.map(strip)), L, W };
-}
+function wheelGeo(r, w, x, z) { return [new THREE.CylinderGeometry(r, r, w, 22).rotateX(Math.PI / 2).translate(x, r, z), new THREE.TorusGeometry(r * 0.86, r * 0.16, 6, 22).translate(x, r, z)]; }
 function carParts(kind) {
   if (kind === 3 || kind === 6) return motoParts(kind === 6);
-  if (kind === 5) return pickupParts();
-  if (kind === 4) {   // a taxi: the sedan with a lit roof sign
-    const p = carParts(0), sign = colored(box(0.36, 0.2, 0.7, -0.05, 1.56, 0), 0xfff1b0);
-    const lights = mergeGeometries([p.lights, strip(sign)]); p.lights = lights; return p;
-  }
-  // forward is +x, up is +y, width along z
-  const S = [
-    { L: 4.5, W: 1.8, b0: 0.3, b1: 0.92, c1: 1.42, cb: [-1.2, 1.3], ct: [-0.85, 0.65], r: 0.32, ax: 1.38 },    // sedan
-    { L: 4.7, W: 1.9, b0: 0.36, b1: 1.12, c1: 1.78, cb: [-1.9, 1.25], ct: [-1.95, 0.85], r: 0.36, ax: 1.45 },  // SUV / hatchback
-    { L: 5.1, W: 1.95, b0: 0.36, b1: 1.3, c1: 2.2, cb: [-2.5, 1.55], ct: [-2.5, 1.05], r: 0.35, ax: 1.7 }      // van
-  ][kind];
-  const body = [box(S.L, S.b1 - S.b0, S.W, 0, (S.b0 + S.b1) / 2, 0),
-    box(S.L * 0.96, 0.1, S.W * 0.97, 0, S.b1 + 0.02, 0).scale(1, 1, 1),                     // hood and trunk lip
-    box(S.ct[1] - S.ct[0] - 0.1, 0.06, S.W * 0.74, (S.ct[0] + S.ct[1]) / 2, S.c1 + 0.03, 0),  // roof
-    box(0.2, 0.08, 0.26, S.L * 0.18, S.b1 + 0.28, S.W / 2 + 0.06), box(0.2, 0.08, 0.26, S.L * 0.18, S.b1 + 0.28, -S.W / 2 - 0.06)]; // mirrors
-  const glass = [frustum(S.cb[0], S.cb[1], S.b1, S.c1, S.W * 0.46, S.ct[0], S.ct[1], S.W * 0.38)];
-  const wheels = [];
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) wheels.push(new THREE.CylinderGeometry(S.r, S.r, 0.24, 14).rotateX(Math.PI / 2).translate(sx * S.ax, S.r, sz * (S.W / 2 - 0.1)));
+  if (kind === 11) return bikeParts();
+  const P = PROFILES[kind === 4 ? 0 : kind] || PROFILES[0], W = P.W, L = P.L;
+  const body = [profileGeo(P.body, W, P.round ? 0.18 : 0.07)];
+  const [r0, r1, ry, ry2] = P.roof; body.push(new THREE.BoxGeometry(r1 - r0, (ry2 || ry + 0.05) - ry + 0.04, W * 0.84).translate((r0 + r1) / 2, (ry + (ry2 || ry + 0.05)) / 2, 0));
+  if (P.round) for (const sx of [-1, 1]) for (const sz of [-1, 1]) body.push(new THREE.SphereGeometry(0.42, 14, 10).scale(1.25, 0.9, 0.55).translate(sx * P.ax, 0.55, sz * (W / 2 - 0.12)));
+  const glass = [profileGeo(P.glass, W * (P.round ? 0.8 : 0.86), 0.04)];
+  const chrome = [], trim = [], wheels = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const [t, rim] = wheelGeo(P.r, 0.22, sx * P.ax, sz * (W / 2 - 0.1)); wheels.push(t); chrome.push(rim, new THREE.CircleGeometry(P.r * 0.55, 14).translate(0, 0, 0.112 * sz).rotateY(sz > 0 ? 0 : Math.PI).translate(sx * P.ax, P.r, sz * (W / 2 - 0.1))); }
+  // bumpers, grille, mirrors, door seams, a licence plate
+  trim.push(new THREE.BoxGeometry(0.14, 0.18, W * 0.98).translate(L / 2 - 0.02, P.body[P.body.length - 1][1] + 0.12, 0), new THREE.BoxGeometry(0.14, 0.18, W * 0.98).translate(-L / 2 + 0.02, P.body[0][1] + 0.12, 0));
+  trim.push(new THREE.BoxGeometry(0.03, 0.12, W * 0.42).translate(L / 2 + 0.01, P.body[P.body.length - 2][1] - 0.12, 0));
+  for (const sz of [-1, 1]) trim.push(new THREE.BoxGeometry(0.16, 0.1, 0.08).translate(P.glass[P.glass.length - 1][0] - 0.05, P.glass[0][1] + 0.12, sz * (W / 2 + 0.04)));
+  for (const sz of [-1, 1]) trim.push(new THREE.BoxGeometry(0.012, (P.body[1][1] - P.body[0][1]) * 0.8, 0.012).translate(P.glass[0][0] + (P.glass[P.glass.length - 1][0] - P.glass[0][0]) * 0.5, (P.body[0][1] + P.body[1][1]) / 2 + 0.05, sz * W / 2));
+  chrome.push(new THREE.BoxGeometry(0.02, 0.12, 0.34).translate(L / 2 + 0.06, P.body[P.body.length - 1][1] + 0.12, 0), new THREE.BoxGeometry(0.02, 0.12, 0.34).translate(-L / 2 - 0.06, P.body[0][1] + 0.14, 0));
+  if (P.rails) for (const sz of [-1, 1]) trim.push(new THREE.BoxGeometry(r1 - r0, 0.05, 0.05).translate((r0 + r1) / 2, ry + 0.1, sz * W * 0.36));
+  if (P.bed) trim.push(new THREE.BoxGeometry(2.0, 0.06, W * 0.86).translate(-1.45, 1.0, 0));
   const lights = [];
+  const fy = P.body[P.body.length - 2][1] - 0.1, ry0 = P.body[1][1] - 0.12;
   for (const sz of [-1, 1]) {
-    lights.push(colored(box(0.05, 0.12, 0.34, S.L / 2 + 0.02, S.b1 - 0.18, sz * (S.W / 2 - 0.3)), 0xfff6e0));
-    lights.push(colored(box(0.05, 0.12, 0.3, -S.L / 2 - 0.02, S.b1 - 0.14, sz * (S.W / 2 - 0.28)), 0xff2a18));
+    lights.push(colored(new THREE.BoxGeometry(0.05, 0.12, 0.3).translate(L / 2 + 0.01, fy, sz * (W / 2 - 0.28)), 0xfff6e0));
+    lights.push(colored(new THREE.BoxGeometry(0.05, 0.14, 0.26).translate(-L / 2 - 0.01, ry0, sz * (W / 2 - 0.25)), 0xff2a18));
   }
-  return { body: mergeGeometries(body.map(strip)), glass: mergeGeometries(glass.map(strip)), wheels: mergeGeometries(wheels.map(strip)), lights: mergeGeometries(lights.map(strip)), L: S.L, W: S.W };
+  if (kind === 4) lights.push(colored(new THREE.BoxGeometry(0.34, 0.18, 0.72).translate(-0.15, 1.5, 0), 0xfff1b0));
+  if (kind === 2) lights.push(colored(new THREE.BoxGeometry(0.06, 0.2, 1.1).translate(2.3, 1.95, 0), 0xfff6d0));
+  if (kind === 9) lights.push(colored(new THREE.BoxGeometry(0.04, 0.03, W * 0.7).translate(L / 2 + 0.02, fy + 0.1, 0), 0x6ac8ff));
+  const M = a => mergeGeometries(a.map(g => strip(g.index ? g.toNonIndexed() : g)));
+  return { body: M(body), glass: M(glass), wheels: M(wheels), lights: M(lights), chrome: M(chrome), trim: M(trim), L, W };
+}
+function motoParts(rider) {
+  // forward +x: a step-through scooter, 1.8 m long
+  const body = [box(0.9, 0.12, 0.34, -0.05, 0.36, 0), box(0.16, 0.7, 0.42, 0.5, 0.62, 0), box(0.62, 0.3, 0.4, -0.42, 0.62, 0), box(0.26, 0.12, 0.3, 0.72, 0.4, 0)];
+  const glass = [box(0.04, 0.3, 0.36, 0.56, 1.1, 0)];
+  const wheels = [new THREE.CylinderGeometry(0.24, 0.24, 0.1, 18).rotateX(Math.PI / 2).translate(0.68, 0.24, 0), new THREE.CylinderGeometry(0.24, 0.24, 0.1, 18).rotateX(Math.PI / 2).translate(-0.62, 0.24, 0), box(0.06, 0.06, 0.62, 0.5, 1.02, 0), box(0.5, 0.12, 0.3, -0.35, 0.83, 0)];
+  if (rider) wheels.push(new THREE.CapsuleGeometry(0.17, 0.3, 4, 10).translate(-0.28, 1.2, 0), new THREE.SphereGeometry(0.15, 14, 10).translate(-0.22, 1.62, 0), new THREE.CapsuleGeometry(0.06, 0.42, 4, 8).rotateZ(Math.PI / 2).translate(0.05, 0.84, 0.15), new THREE.CapsuleGeometry(0.06, 0.42, 4, 8).rotateZ(Math.PI / 2).translate(0.05, 0.84, -0.15),
+    new THREE.CapsuleGeometry(0.045, 0.45, 4, 8).rotateZ(1.1).translate(0.15, 1.12, 0.2), new THREE.CapsuleGeometry(0.045, 0.45, 4, 8).rotateZ(1.1).translate(0.15, 1.12, -0.2));
+  const chrome = [new THREE.TorusGeometry(0.2, 0.025, 6, 18).translate(0.68, 0.24, 0.06), new THREE.TorusGeometry(0.2, 0.025, 6, 18).translate(-0.62, 0.24, 0.06), box(0.3, 0.04, 0.04, -0.85, 0.3, 0.12)];
+  const lights = [colored(box(0.05, 0.1, 0.14, 0.6, 0.92, 0), 0xfff6e0), colored(box(0.05, 0.08, 0.16, -0.74, 0.7, 0), 0xff2a18)];
+  const M = a => mergeGeometries(a.map(g => strip(g.index ? g.toNonIndexed() : g)));
+  return { body: M(body), glass: M(glass), wheels: M(wheels), lights: M(lights), chrome: M(chrome), trim: M([box(0.01, 0.01, 0.01)]), L: 1.8, W: 0.7 };
+}
+function bikeParts() {
+  // a road bike and its rider, heading +x; the jersey, helmet and arms take the instance colour (team kit)
+  const tube = (x0, y0, x1, y1, r = 0.018) => { const L = Math.hypot(x1 - x0, y1 - y0), g = new THREE.CylinderGeometry(r, r, L, 6); g.rotateZ(-Math.atan2(x1 - x0, y1 - y0)); return g.translate((x0 + x1) / 2, (y0 + y1) / 2, 0); };
+  const body = [new THREE.CapsuleGeometry(0.16, 0.34, 4, 10).rotateZ(-1.0).translate(0.02, 1.1, 0), new THREE.SphereGeometry(0.135, 14, 10).scale(1.25, 0.85, 1).translate(0.38, 1.42, 0),
+    new THREE.CapsuleGeometry(0.045, 0.42, 4, 8).rotateZ(-0.9).translate(0.38, 1.12, 0.16), new THREE.CapsuleGeometry(0.045, 0.42, 4, 8).rotateZ(-0.9).translate(0.38, 1.12, -0.16)];
+  const wheels = [new THREE.TorusGeometry(0.34, 0.018, 6, 28).translate(0.52, 0.34, 0), new THREE.TorusGeometry(0.34, 0.018, 6, 28).translate(-0.5, 0.34, 0),
+    tube(-0.5, 0.34, -0.12, 0.38), tube(-0.12, 0.38, 0.38, 0.86), tube(-0.12, 0.38, -0.2, 0.9), tube(-0.2, 0.9, 0.38, 0.86), tube(-0.5, 0.34, -0.2, 0.9), tube(0.52, 0.34, 0.4, 0.92), box(0.04, 0.04, 0.44, 0.44, 0.94, 0), box(0.22, 0.04, 0.08, -0.2, 0.94, 0),
+    new THREE.CapsuleGeometry(0.055, 0.38, 4, 8).rotateZ(0.5).translate(-0.12, 0.66, 0.11), new THREE.CapsuleGeometry(0.055, 0.38, 4, 8).rotateZ(-0.4).translate(-0.08, 0.62, -0.11)];
+  const chrome = [new THREE.CircleGeometry(0.06, 10).translate(0, 0, 0.02).translate(-0.12, 0.38, 0)];
+  const glass = [new THREE.SphereGeometry(0.11, 12, 8).scale(0.9, 1, 0.95).translate(0.4, 1.34, 0)];
+  const lights = [colored(box(0.03, 0.03, 0.05, 0.46, 0.96, 0), 0xffffff), colored(box(0.03, 0.04, 0.05, -0.32, 0.9, 0), 0xff2a18)];
+  const M = a => mergeGeometries(a.map(g => strip(g.index ? g.toNonIndexed() : g)));
+  return { body: M(body), glass: M(glass), wheels: M(wheels), lights: M(lights), chrome: M(chrome), trim: M([box(0.01, 0.01, 0.01)]), L: 1.75, W: 0.5 };
 }
 
 /** Instanced cars with a fixed capacity; set(i, x, y, z, ang, pitch, kind, color); commit(). */
@@ -98,12 +124,14 @@ export class CarKit {
       body: landmarkMaterial({ color: 0xffffff, metalness: 0.55, roughness: 0.28 }),   // clear-coat paint; reflects the live sky (scene.environment)
       glass: landmarkMaterial({ color: 0x0e1418, metalness: 0.3, roughness: 0.05 }),
       wheels: landmarkMaterial({ color: 0x151515, roughness: 0.85 }),
-      lights: new THREE.MeshBasicMaterial({ vertexColors: true, fog: false })
+      lights: new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }),
+      chrome: landmarkMaterial({ color: 0xd8dade, metalness: 0.9, roughness: 0.22 }),
+      trim: landmarkMaterial({ color: 0x1a1a1c, roughness: 0.7 })
     };
     this.group = new THREE.Group();
-    this.kinds = [0, 1, 2, 3, 4, 5, 6].map(k => {
+    this.kinds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(k => {
       const parts = carParts(k), meshes = {};
-      for (const part of ['body', 'glass', 'wheels', 'lights']) {
+      for (const part of ['body', 'glass', 'wheels', 'lights', 'chrome', 'trim']) {
         const m = new THREE.InstancedMesh(parts[part], this.mats[part], capacity);
         m.count = 0; m.frustumCulled = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
         if (part === 'body') m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
@@ -124,7 +152,7 @@ export class CarKit {
     K.n++;
   }
   commit() {
-    for (const K of this.kinds) for (const m of Object.values(K.meshes)) { m.count = K.n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    for (const K of this.kinds) for (const m of Object.values(K.meshes)) { m.count = K.n; m.visible = K.n > 0; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
   }
   night(n) { this.mats.lights.color.setScalar(0.5 + n * 3.5); for (const k of ['body', 'glass']) this.mats[k].envMapIntensity = 1 - n * 0.85; }
 }
@@ -264,7 +292,7 @@ export function makeDetail(city, renderer, quality) {
           for (let m = 0; m < (hash(si, n, 31) < 0.3 ? 2 : 1); m++) out.cars.push([mx + tx * m * 0.9, city.heightAt(mx, mz) + 0.05, mz + tz * m * 0.9, ma, 0, 3, [0xc02820, 0x1a1a1c, 0x2850a0, 0xe8e8e6, 0xd86a1a][Math.floor(hash(si, n, 37 + m) * 5)]]);
           continue;
         }
-        const kind = r < 0.62 ? 0 : hash(si, n, side + 13) < (far ? 0.5 : 0.75) ? (hash(si, n, 41) < 0.5 ? 1 : 5) : 2;
+        const h2 = hash(si, n, side + 13), kind = r < 0.42 ? 0 : r < 0.6 ? 7 : r < 0.66 ? 8 : h2 < (far ? 0.55 : 0.35) ? 5 : h2 < 0.75 ? 1 : h2 < 0.8 ? 2 : h2 < 0.81 ? 9 : 0;
         out.cars.push([x, (y0 + y1) / 2 + 0.12, z, ang, Math.atan2(y1 - y0, 4), kind, CAR_COLORS[Math.floor(hash(si, n, side + 17) * CAR_COLORS.length)]]);
       }
     }

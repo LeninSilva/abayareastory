@@ -79,5 +79,6 @@ export const ACHIEVEMENTS = {
   casaPropia: { name: 'Casa propia', desc: 'Build a house with at least six parts.' },
   empresario: { name: 'Empresario', desc: 'Own three businesses.' },
   rico: { name: 'Billetes', desc: 'Have $100,000 in your pocket.' },
-  elegante: { name: 'Bien vestido', desc: 'Dress in style (style 25 or more).' }
+  elegante: { name: 'Bien vestido', desc: 'Dress in style (style 25 or more).' },
+  danza: { name: 'Los Negritos', desc: 'Watch the Danza de los Negritos on the Jardín.' }
 };

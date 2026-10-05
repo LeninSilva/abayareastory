@@ -13,6 +13,8 @@ import { makePerson } from '../render/people.js';
 import { buildHouse, LOT_W, LOT_D } from '../render/house.js';
 import { makeCow } from '../render/landmarks.js';
 import { CarKit, KIND } from '../render/detail.js';
+import { StreetLife } from './street.js';
+import { ROUTES } from '../render/traffic.js';
 
 const REGIDORES = ['regMorena', 'regPan', 'regPri', 'regPrd', 'regMc'];
 // the story's people join the relationship system: a temperament, what they like, and they are not for romance
@@ -24,7 +26,7 @@ export const LifeGame = {
   worldExtras() {
     const R = this.renderer, city = this.city;
     // taxis waiting at the sitios
-    this.taxiDecor = new CarKit(R, 8); this.surface.add(this.taxiDecor.group);
+    this.taxiDecor = new CarKit(R, 10); this.surface.add(this.taxiDecor.group);
     this.taxiSpots = this.landmarks.userData.taxiKit || [];
     // lots for sale, found on the real ground near where the list says
     this.lots = LOTS.map(L => Object.assign({}, L, this.findLot(L.x, L.z)));
@@ -39,6 +41,8 @@ export const LifeGame = {
     this.crew = [makePerson({ skin: 0x8a5a3c, top: 0x9a9690, bottom: 0x4a4030, hat: 'cap', hatColor: 0xd8a020 }), makePerson({ skin: 0xa8765a, top: 0xe8e2d4, bottom: 0x2a3a5a, hat: 'wide', hatColor: 0xd8c8a0 })];
     for (const c of this.crew) { c.visible = false; this.scene.add(c); }
     this.detail.userData.reserve(this.taxiSpots.map(t => [t[0], t[2]]).concat(this.lots.map(l => [l.x, l.z])));
+    this.street = new StreetLife(this);
+    this.vehicles.onWreck = () => this.ui.toast('The engine coughs, bangs and dies. This car is finished: find another.', 'warn');
   },
   /** a flat, empty 16 x 20 m piece of land beside a street near (x, z), facing the street */
   findLot(x0, z0) {
@@ -264,9 +268,9 @@ export const LifeGame = {
     const s = this.state, p = this.player;
     this.lifeT = (this.lifeT || 0) + dt;
     if (this.lifeT > 1) { this.lifeT = 0; this.life.tick(); for (const n of this.npcs) if (n.cast || CAST[n.id]) { const v = this.castShown(n); if (v !== n.visible) { n.visible = v; n.mesh.visible = v; if (v && n.id === 'alcalde' && Math.hypot(n.x - p.x, n.z - p.z) < 200) this.ui.toast('The Presidente Municipal has come out of the Presidencia! (This does not happen often.)', 'quest'); } this.castPlace(n); } }
-    this.side.update(dt); this._taxi(dt);
+    this.side.update(dt); this._taxi(dt); this.street.update(dt);
     // the taxis at the sitios
-    this.taxiDecor.begin(); for (const [x, y, z, a] of this.taxiSpots) if (!this.taxi || Math.hypot(this.taxi.car.x - x, this.taxi.car.z - z) > 3) this.taxiDecor.add(x, y, z, a, 0, KIND.taxi, 0xf2f0ea); this.taxiDecor.commit(); this.taxiDecor.night(this.uNight());
+    this.taxiDecor.begin(); for (const [x, y, z, a, k, col] of this.taxiSpots) if (!this.taxi || Math.hypot(this.taxi.car.x - x, this.taxi.car.z - z) > 3) this.taxiDecor.add(x, y, z, a, 0, k ?? KIND.taxi, col ?? 0xf2f0ea); this.taxiDecor.commit(); this.taxiDecor.night(this.uNight());
     // pick-ups and the cow
     const picks = this.side.pickups(); let k = 0;
     for (const pk of picks) {
@@ -293,6 +297,11 @@ export const LifeGame = {
   },
   lifeInteractables(out, near) {
     const s = this.state, p = this.player;
+    // a combi waiting at its stop: get on
+    if (!this.vehicles.driving && !p.jet) for (const c of this.traffic.combis || []) if (c.stopT > 1 && near(c.x, c.z, 7)) {
+      const next = c.combi.stops[(c.stop + 1) % c.combi.stops.length], P = PLACES[next];
+      out.push({ x: c.x, z: c.z, label: `Ride the ${c.combi.name} to ${P.name.split(' (')[0]} ($10)`, icon: '🚐', run: () => { if (!this.life.spend(10, c.combi.name)) return; this.ui.toast('“¡Súbale, súbale, hay lugar!”', 'good'); this.travelTo(next); this.state.hour = Math.min(23.9, this.state.hour + 0.15); } });
+    }
     for (const it of this.side.interactables()) out.push(it);
     if (this.lots) for (const L of this.lots) {
       const [sx, sz] = this.lotWorld(L, 0, -LOT_D / 2 + 1.5); if (!near(sx, sz, 5) && !near(L.x, L.z, 9)) continue;

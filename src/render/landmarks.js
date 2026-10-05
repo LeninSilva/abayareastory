@@ -111,7 +111,11 @@ function church(o) {
   // the dome over the crossing, on a drum
   if (o.dome) {
     const dx = L * .72; cyl(g, W * .32, W * .34, 3.2, dx, H, 0, wall, 20);
-    const d = new THREE.Mesh(new THREE.SphereGeometry(W * .33, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), dome); d.position.set(dx, H + 3.2, 0); g.add(d);
+    const d = new THREE.Mesh(new THREE.SphereGeometry(W * .33, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), dome); d.position.set(dx, H + 3.2, 0); g.add(d);
+    if (o.trim) {   // ribs down the dome, pilasters on the drum, windows between
+      for (let k = 0; k < 8; k++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(W * .335, .12, 5, 16, Math.PI / 2), trim); rib.position.set(dx, H + 3.2, 0); rib.rotation.y = k * Math.PI / 4; g.add(rib); }
+      for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; box(g, .45, 3.2, .45, dx + Math.cos(a) * W * .335, H, Math.sin(a) * W * .335, trim); const w = new THREE.Mesh(new THREE.PlaneGeometry(.8, 1.5), dark); const b = a + Math.PI / 8; w.position.set(dx + Math.cos(b) * (W * .345), H + 1.6, Math.sin(b) * (W * .345)); w.rotation.y = -b + Math.PI / 2; g.add(w); }
+    }
     cyl(g, .9, 1.1, 2.2, dx, H + 3.2 + W * .31, 0, wall, 10);
     cyl(g, .05, .05, 2, dx, H + 5.4 + W * .31, 0, M(IRON)); box(g, .9, .08, .08, dx, H + 6.6 + W * .31, 0, M(IRON));
   }
@@ -133,33 +137,45 @@ function laceMat(rep = 1) { const t = laceTex().clone(); t.needsUpdate = true; t
 /* the kiosco of the Jardín: an octagonal bandstand on a white base with chocolate panels and oval niches,
    black iron columns and lace railings, a dark roof with a golden underside, stairs with an iron rail */
 function kiosco() {
-  const g = new THREE.Group(), R = 5.2, BR = 0x4a2a1e;
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(R + .3, R + .5, 1.6, 8), M(0xf2efe6)); base.position.y = .8; base.rotation.y = Math.PI / 8; g.add(base);
+  // per the photographs: a base of white panels in red-orange frames with oval openings, black iron lace,
+  // a slate roof with a scalloped valance edged in orange, globe lamps, white stairs with red risers
+  const g = new THREE.Group(), R = 5.2, RED = 0xd0502c, WHT = 0xf2efe6;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(R + .3, R + .45, 1.6, 8), M(RED)); base.position.y = .8; base.rotation.y = Math.PI / 8; g.add(base);
   for (let i = 0; i < 8; i++) {
-    const a = i / 8 * Math.PI * 2 + Math.PI / 4, x = Math.cos(a) * (R + .42), z = Math.sin(a) * (R + .42);
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.2, 2.9), M(BR)); panel.position.set(x, .8, z); panel.rotation.y = -a; g.add(panel);
-    const oval = new THREE.Mesh(new THREE.CircleGeometry(.36, 16), M(0xf2efe6)); oval.scale.y = 1.5; oval.position.set(Math.cos(a) * (R + .46), .82, Math.sin(a) * (R + .46)); oval.rotation.y = -a + Math.PI / 2; g.add(oval);
+    const a = i / 8 * Math.PI * 2 + Math.PI / 4, x = Math.cos(a) * (R + .4), z = Math.sin(a) * (R + .4);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.15, 2.6), M(WHT)); panel.position.set(x, .82, z); panel.rotation.y = -a; g.add(panel);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.3, .06, 6, 20), M(RED)); ring.scale.y = 1.55; ring.position.set(Math.cos(a) * (R + .45), .82, Math.sin(a) * (R + .45)); ring.rotation.y = -a + Math.PI / 2; g.add(ring);
+    if (i % 2) { const pl = new THREE.Mesh(new THREE.PlaneGeometry(.7, .45), M(0x1a1a1a, { metalness: .4 })); pl.position.set(Math.cos(a) * (R + .44), .9, Math.sin(a) * (R + .44)); pl.rotation.y = -a + Math.PI / 2; pl.position.y = 1.05; pl.position.x += Math.cos(a + Math.PI / 2) * .8; pl.position.z += Math.sin(a + Math.PI / 2) * .8; g.add(pl); }
   }
-  const floor = new THREE.Mesh(new THREE.CylinderGeometry(R, R, .1, 8), M(0xb8a898)); floor.position.y = 1.65; floor.rotation.y = Math.PI / 8; g.add(floor);
-  const lace = laceMat(2);
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(R + .5, R + .5, .14, 8), M(RED)); cap.position.y = 1.6; cap.rotation.y = Math.PI / 8; g.add(cap);
+  const floor = new THREE.Mesh(new THREE.CylinderGeometry(R, R, .1, 8), M(0xb8a898)); floor.position.y = 1.68; floor.rotation.y = Math.PI / 8; g.add(floor);
+  const lace = laceMat(2), globe = new THREE.MeshBasicMaterial({ color: 0xfff6e0 });
   for (let i = 0; i < 8; i++) {
     const a = i / 8 * Math.PI * 2 + Math.PI / 8, x = Math.cos(a) * (R - .3), z = Math.sin(a) * (R - .3);
-    cyl(g, .08, .1, 4, x, 1.65, z, M(0x1a1a1c, { metalness: .5, roughness: .5 }), 8);
-    // lace railings between the columns, except the stair side; lace brackets under the eaves
+    cyl(g, .08, .1, 4, x, 1.65, z, M(0x1a1a1c, { metalness: .5, roughness: .5 }), 10);
+    cyl(g, .12, .12, .35, x, 3.3, z, M(0xb8963a, { metalness: .6, roughness: .4 }), 10);
+    const gl = new THREE.Mesh(new THREE.SphereGeometry(.16, 12, 10), globe); gl.position.set(Math.cos(a) * (R + .1), 5.1, Math.sin(a) * (R + .1)); g.add(gl);
     const b = a + Math.PI / 8, len = 2 * (R - .3) * Math.sin(Math.PI / 8);
     if (i !== 0) { const rr = new THREE.Mesh(new THREE.PlaneGeometry(len, .95), lace); rr.position.set(Math.cos(b) * (R - .35), 2.15, Math.sin(b) * (R - .35)); rr.rotation.y = -b + Math.PI / 2; g.add(rr); }
-    const br = new THREE.Mesh(new THREE.PlaneGeometry(len, .5), lace); br.position.set(Math.cos(b) * (R - .35), 5.35, Math.sin(b) * (R - .35)); br.rotation.y = -b + Math.PI / 2; g.add(br);
+    const br = new THREE.Mesh(new THREE.PlaneGeometry(len, .9), lace); br.position.set(Math.cos(b) * (R - .35), 5.15, Math.sin(b) * (R - .35)); br.rotation.y = -b + Math.PI / 2; g.add(br);
   }
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(R + .9, 2.2, 8, 1, true), M(0x2e3640, { side: THREE.FrontSide, metalness: .3, roughness: .5 })); roof.position.y = 6.75; roof.rotation.y = Math.PI / 8; g.add(roof);
-  const under = new THREE.Mesh(new THREE.ConeGeometry(R + .85, 2.15, 8, 1, true), M(0xd8a848, { side: THREE.BackSide })); under.position.y = 6.72; under.rotation.y = Math.PI / 8; g.add(under);
-  const fr = new THREE.Mesh(new THREE.CylinderGeometry(R + .9, R + .9, .35, 8, 1, true), M(0x1a1a1c, { side: THREE.DoubleSide })); fr.position.y = 5.65; fr.rotation.y = Math.PI / 8; g.add(fr);
-  const lan = new THREE.Mesh(new THREE.CylinderGeometry(.6, .7, 1.1, 8), M(0xf2efe6)); lan.position.y = 8.3; g.add(lan);
-  const top = new THREE.Mesh(new THREE.ConeGeometry(.8, 1, 8), M(0x2e3640, { metalness: .3 })); top.position.y = 9.35; g.add(top);
-  // stairs on the east side, white with brown risers, an iron rail each side
-  for (let s = 0; s < 5; s++) box(g, 1.1, .33 * (s + 1), 2.6, R + 1.8 - s * .4, 0, 0, M(s % 2 ? 0xf2efe6 : 0xe6e0d4));
-  for (const sz of [-1, 1]) { const rl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .9), lace); rl.position.set(R + 1, 1.5, sz * 1.35); rl.rotation.z = -.36; g.add(rl); box(g, .5, 1.9, .5, R + 2.5, 0, sz * 1.5, M(0xf2efe6)); box(g, .62, .1, .62, R + 2.5, 1.9, sz * 1.5, M(BR)); }
+  root_glow_register(globe);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(R + .9, 2.2, 8, 1, true), M(0x4a525a, { metalness: .35, roughness: .5 })); roof.position.y = 6.75; roof.rotation.y = Math.PI / 8; g.add(roof);
+  const under = new THREE.Mesh(new THREE.ConeGeometry(R + .85, 2.15, 8, 1, true), M(0xb86a34, { side: THREE.BackSide })); under.position.y = 6.72; under.rotation.y = Math.PI / 8; g.add(under);
+  // the scalloped valance: a band of half-discs, orange-edged
+  for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 4, cx = Math.cos(a) * (R + .85), cz = Math.sin(a) * (R + .85), side = 2 * (R + .9) * Math.sin(Math.PI / 8);
+    const band = new THREE.Mesh(new THREE.PlaneGeometry(side, .35), M(0x4a525a, { side: THREE.DoubleSide })); band.position.set(cx, 5.62, cz); band.rotation.y = -a + Math.PI / 2; g.add(band);
+    for (let k = 0; k < 6; k++) { const sc = new THREE.Mesh(new THREE.CircleGeometry(side / 12, 10, Math.PI, Math.PI), M(0xd06a2a, { side: THREE.DoubleSide })); const t = (k + .5) / 6 - .5; sc.position.set(cx + Math.cos(a + Math.PI / 2) * t * side, 5.45, cz + Math.sin(a + Math.PI / 2) * t * side); sc.rotation.y = -a + Math.PI / 2; g.add(sc); } }
+  const lan = new THREE.Mesh(new THREE.CylinderGeometry(.6, .7, 1.1, 8), M(0x4a525a)); lan.position.y = 8.3; g.add(lan);
+  const top = new THREE.Mesh(new THREE.ConeGeometry(.8, 1, 8), M(0x4a525a, { metalness: .3 })); top.position.y = 9.35; g.add(top);
+  cyl(g, .05, .03, .8, 0, 9.8, 0, M(0x8a8a8a, { metalness: .6 }), 6);
+  // stairs on the east side: white treads, red risers, an iron rail each side, red end posts with an oval
+  for (let s = 0; s < 5; s++) { box(g, 1.1, .33 * (s + 1), 2.6, R + 1.8 - s * .4, 0, 0, M(s % 2 ? RED : 0xe8e2d6)); }
+  for (const sz of [-1, 1]) { const rl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, .9), lace); rl.position.set(R + 1, 1.5, sz * 1.35); rl.rotation.z = -.36; g.add(rl); box(g, .55, 1.9, .55, R + 2.5, 0, sz * 1.5, M(RED)); const ov = new THREE.Mesh(new THREE.CircleGeometry(.14, 12), M(WHT)); ov.scale.y = 1.8; ov.position.set(R + 2.78, 1.05, sz * 1.5); ov.rotation.y = Math.PI / 2; g.add(ov); box(g, .66, .12, .66, R + 2.5, 1.9, sz * 1.5, M(RED)); }
   return g;
 }
+let KGLOBES = [];
+function root_glow_register(m) { KGLOBES.push(m); }
 
 /* a wrought-iron bench, black, with a lace back and scrolled arms */
 function bench(g, x, z, ry, y) {
@@ -177,6 +193,36 @@ function fence(g, w, d, x, z, h = .45) {
     const t = laceTex().clone(); t.needsUpdate = true; t.repeat.set(Math.max(1, Math.round(len / 1.2)), 1);
     const f = new THREE.Mesh(new THREE.PlaneGeometry(len, h), landmarkMaterial({ color: 0x1a1a1c, map: t, alphaTest: .5, side: THREE.DoubleSide, metalness: .5 })); f.position.set(px, h / 2 + .12, pz); f.rotation.y = ry; g.add(f);
   }
+}
+/* a lawn quadrant: from the cross paths (half-width pw) out to the edges (ex, ez), its inner corner cut round a ring of radius rr */
+function lawnShape(qx, qz, pw, ex, ez, rr) {
+  const sh = new THREE.Shape(), X = v => v * qx, Z = v => v * qz;
+  const a0 = Math.asin(Math.min(1, pw / rr)), pts = [];
+  pts.push([pw, Math.sqrt(rr * rr - pw * pw)]);
+  pts.push([pw, ez]); pts.push([ex, ez]); pts.push([ex, pw]); pts.push([Math.sqrt(rr * rr - pw * pw), pw]);
+  for (let k = 1; k < 12; k++) { const a = a0 + (Math.PI / 2 - 2 * a0) * k / 12; pts.push([rr * Math.cos(a), rr * Math.sin(a)]); }
+  pts.forEach(([u, v], i) => i ? sh.lineTo(X(u), Z(v)) : sh.moveTo(X(u), Z(v)));
+  sh.closePath(); return sh;
+}
+/* a seto: a trimmed hedge, boxy with soft edges */
+function hedge(g, x, z, w, d, h) {
+  const geo = new THREE.BoxGeometry(w, h, d, Math.max(2, Math.round(w)), 3, Math.max(2, Math.round(d))), p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) { const vx = p.getX(i), vy = p.getY(i), vz = p.getZ(i), n = Math.sin(vx * 3.1 + vz * 2.3) * .05 + Math.sin(vx * 7 + vy * 5) * .03; p.setXYZ(i, vx * (1 + n * .3), vy + (vy > 0 ? n : 0), vz * (1 + n * .3)); }
+  geo.computeVertexNormals(); const m = new THREE.Mesh(geo, M(0x2f5a24, { roughness: 1 })); m.position.set(x, h / 2 + .1, z); g.add(m); return m;
+}
+/* a tabachín (flamboyán): a wide umbrella of flame-red flowers */
+function tabachin(g, x, z, y) {
+  const t = new THREE.Group(); t.position.set(x, y, z);
+  cyl(t, .16, .26, 3.2, 0, 0, 0, M(0x6a5a48), 7);
+  for (const [cx, cy, cz, r] of [[0, 4.1, 0, 2.6], [1.8, 3.8, .6, 1.7], [-1.7, 3.9, -.7, 1.8], [.4, 4.6, 1.4, 1.5]]) { const c = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), M(0xd8482a, { roughness: .9 })); c.position.set(cx, cy, cz); c.scale.y = .55; t.add(c); }
+  g.add(t); return t;
+}
+let PAVE = null;
+function pavingTex() {
+  if (PAVE) return PAVE;
+  const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { const v = 170 + Math.random() * 30; x.fillStyle = `rgb(${v},${v - 6},${v - 14})`; x.fillRect(i * 32 + 1, j * 32 + 1, 30, 30); }
+  PAVE = new THREE.CanvasTexture(c); PAVE.wrapS = PAVE.wrapT = THREE.RepeatWrapping; PAVE.repeat.set(24, 20); PAVE.colorSpace = THREE.SRGBColorSpace; return PAVE;
 }
 /* a laurel with its trunk whitewashed to the knee, as in every jardín of Michoacán */
 function laurel(g, x, z, y, s = 1) {
@@ -214,24 +260,35 @@ export function makeLandmarks(city) {
   const col = city.colliders;
   const place = (g, x, z, ry = 0, dy = 0) => { g.position.set(x, H(x, z) + dy, z); g.rotation.y = ry; root.add(g); return g; };
 
-  /* ---- the Jardín (Jardín Colón) ---- */
+  /* ---- the Jardín (Jardín Colón): a ring walk round the kiosco, paths that open out from it, lawns with curved
+         inner corners behind low iron fences (walk across them if you like), trimmed setos, laureles with white
+         trunks, flame trees, a little round fountain ---- */
   {
-    const { x, z } = P('jardin'), y = H(x, z), g = new THREE.Group();
-    box(g, 74, .25, 62, 0, -.1, 0, M(0xb8aa98));                                  // stone paving
-    for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {                // four gardens between the paths
-      const p = new THREE.Mesh(new THREE.BoxGeometry(24, .5, 18), M(0x3e6a2a)); p.position.set(qx * 19, .25, qz * 16); g.add(p);
-      box(g, 24.4, .55, .35, qx * 19, 0, qz * 16 - 9, M(CANTERA)); box(g, 24.4, .55, .35, qx * 19, 0, qz * 16 + 9, M(CANTERA));
-      for (let k = 0; k < 3; k++) bench(g, qx * (8 + k * 6), qz * 6.2, qz > 0 ? Math.PI : 0, .1);
-      for (let k = 0; k < 4; k++) { const tx = qx * (10 + (k % 2) * 16), tz = qz * (10 + Math.floor(k / 2) * 10); lantern(g, tx, tz, .1, glow); }
-      fence(g, 23, 17, qx * 19, qz * 16);
-      for (let k = 0; k < 3; k++) laurel(g, qx * (12 + k * 6), qz * (13 + (k % 2) * 4), .5, .95 + (k % 2) * .15);
+    const { x, z } = P('jardin'), y = H(x, z), g = new THREE.Group(), hs = [];
+    const pav = new THREE.Mesh(new THREE.BoxGeometry(74, .25, 62), landmarkMaterial({ map: pavingTex(), roughness: .8 })); pav.position.y = .025; g.add(pav);
+    for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      // a lawn: the quadrant between the cross paths, its inner corner cut in a curve round the kiosco's ring walk
+      const lawn = lawnShape(qx, qz, 3.2, 35, 29, 13.5), lg = new THREE.ExtrudeGeometry(lawn, { depth: .14, bevelEnabled: false, curveSegments: 18 }); lg.rotateX(Math.PI / 2); lg.translate(0, .29, 0);
+      g.add(new THREE.Mesh(lg, M(0x4a7a2e, { roughness: .95 })));
+      fence(g, 30, .1, qx * 19, qz * 29.4); fence(g, .1, 24, qx * 34.6, qz * 16.8);
+      // setos: trimmed hedges along the outer edges, with gaps for the walks
+      for (const [hx, hz, hw, hd] of [[qx * 12, qz * 28.2, 14, 1.4], [qx * 28, qz * 28.2, 10, 1.4], [qx * 33.6, qz * 9, 1.4, 9], [qx * 33.6, qz * 22, 1.4, 9]]) { hedge(g, hx, hz, hw, hd, 1.5); hs.push([hx, hz, hw, hd]); }
+      for (let k = 0; k < 3; k++) bench(g, qx * (8 + k * 7), qz * 2.6, qz > 0 ? Math.PI : 0, .1);
+      lantern(g, qx * 16, qz * 15, .3, glow); lantern(g, qx * 30, qz * 4, .1, glow);
+      laurel(g, qx * 22, qz * 21, .3, 1.05); laurel(g, qx * 9, qz * 20, .3, .9);
+      if (qx > 0) tabachin(g, qx * 28, qz * 14, .3); else laurel(g, qx * 28, qz * 14, .3, 1.1);
+      for (let k = 0; k < 6; k++) { const f = new THREE.Mesh(new THREE.IcosahedronGeometry(.32, 0), M([0xc8202a, 0xe84a5a, 0xf0c030][k % 3])); f.position.set(qx * (14 + k * 1.1), .55, qz * (9 + (k % 2) * .9)); g.add(f); }
     }
+    // a little round fountain on the west walk
+    cyl(g, 1.8, 1.9, .55, -24, .1, 0, M(0xd8d0c4), 20); const fw = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, .08, 20), M(0x3a6a78, { roughness: .08, metalness: .25 })); fw.position.set(-24, .6, 0); g.add(fw); cyl(g, .18, .25, 1.2, -24, .6, 0, M(0xd8d0c4), 10);
     g.add(kiosco());
     place(g, x, z);
     col.addSolid(x, z, 11, 11, 0, y - 1, y + 1.7, 'kiosco');     // the bandstand floor is walkable
     for (let st = 0; st < 5; st++) col.addSolid(x + 5.2 + 1.8 - st * .4, z, 1.1, 2.6, 0, y - 1, y + .33 * (st + 1), 'step');
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + Math.PI / 8; col.addCircle(x + Math.cos(a) * 4.9, z + Math.sin(a) * 4.9, .12, y + 1.6, y + 5.7, 'kiosco'); }
-    for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) col.addSolid(x + qx * 19, z + qz * 16, 24, 18, 0, y - 1, y + .5, 'garden');
+    col.addCircle(x - 24, z, 1.9, y - 1, y + .65, 'fountain');
+    for (const [hx, hz, hw, hd] of hs) col.addBox(x + hx, z + hz, hw, hd, 0, y - 1, y + 1.6, 'hedge');
+    root.userData.hedges = (root.userData.hedges || 0) + 1;
     spots.kiosco = [x, y + 1.7, z];
   }
   /* ---- the Plaza Aguadora: terracotta paving, the fountain of the water-carrier under her little temple,
@@ -507,7 +564,7 @@ export function makeLandmarks(city) {
   root.userData.taxiKit = [];
   extras(city, root, spots, glow, place, H);
   root.userData.spots = spots;
-  root.userData.update = (t, night) => { const u = root.userData; glow.color.setScalar(.6 + night * 2.6); if (u.blink) u.blink.visible = Math.sin(t * 3) > 0; if (u.blink2) u.blink2.visible = Math.sin(t * 2.2 + 1) > 0; if (u.paperLanterns) u.paperLanterns.color.setRGB(1, .63, .28).multiplyScalar(.7 + night * 2.2); if (u.warmLights) u.warmLights.color.setRGB(1, .85, .63).multiplyScalar(.6 + night * 2.8); };
+  root.userData.update = (t, night) => { const u = root.userData; glow.color.setScalar(.6 + night * 2.6); if (u.blink) u.blink.visible = Math.sin(t * 3) > 0; if (u.blink2) u.blink2.visible = Math.sin(t * 2.2 + 1) > 0; if (u.paperLanterns) u.paperLanterns.color.setRGB(1, .63, .28).multiplyScalar(.7 + night * 2.2); if (u.warmLights) u.warmLights.color.setRGB(1, .85, .63).multiplyScalar(.6 + night * 2.8); for (const m of KGLOBES) m.color.setRGB(1, .96, .88).multiplyScalar(.75 + night * 2.4); };
   return root;
 }
 
@@ -587,7 +644,7 @@ function extras(city, root, spots, glow, place, H) {
     const { x, z } = P('jardinPaz'), y = H(x, z), g = new THREE.Group();
     box(g, 66, .2, 54, 0, -.1, 0, M(0xc2b4a2));
     for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      box(g, 26, .4, 20, qx * 17, 0, qz * 14, M(0x4a7a2e)); fence(g, 25.5, 19.5, qx * 17, qz * 14);
+      box(g, 26, .16, 20, qx * 17, 0, qz * 14, M(0x4a7a2e)); fence(g, 25.5, 19.5, qx * 17, qz * 14);
       for (let k = 0; k < 3; k++) jacarandaT(g, qx * (10 + k * 7), qz * (9 + (k % 2) * 8), .4);
       for (let k = 0; k < 2; k++) bench(g, qx * (8 + k * 9), qz * 3.4, qz > 0 ? Math.PI : 0, .1);
       lantern(g, qx * 4, qz * 4, .1, glow); lantern(g, qx * 30, qz * 25, .1, glow);
@@ -604,7 +661,6 @@ function extras(city, root, spots, glow, place, H) {
       box(n, 1.2, 1.5, .9, 0, 0, -.1, R2); const bust = new THREE.Mesh(new THREE.SphereGeometry(.28, 12, 10), M(0x6a6a5a, { metalness: .5 })); bust.position.set(0, 1.9, -.1); n.add(bust); box(n, .8, .35, .5, 0, 1.5, -.1, M(0x6a6a5a, { metalness: .5 }));
       cyl(n, 2.4, 2.4, .25, 0, 0, -.6, M(0xc0442a), 20); n.position.set(0, 0, -24); g.add(n); }
     place(g, x, z); col.addCircle(x, z, 3.2, y - 1, y + 2.6, 'fountain');
-    for (const [qx, qz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) col.addSolid(x + qx * 17, z + qz * 14, 26, 20, 0, y - 1, y + .4, 'garden');
   }
   /* ---- storefronts for the shops: sign, awning, door ---- */
   const shopFront = (id, sign, color, kind) => {
@@ -719,7 +775,8 @@ function extras(city, root, spots, glow, place, H) {
       plaque(g, [name], 6, .7, 0, 2.7, -3.04, Math.PI, { bg: '#f2efe8', fg: '#' + c1.toString(16).padStart(6, '0'), border: false, weight: 800, font: 'Inter, Arial, sans-serif', w: 1400, h: 180, size: 100 });
       for (let k = 0; k < 4; k++) cyl(g, .25, .25, .5, -2.6 + k * .55, 0, -3.6, M(0x1a3a8a), 10);
       g.position.set(hx, y, hz); g.rotation.y = ry; root.add(g); col.addBox(hx, hz, 7, 6, -ry, y - 2, y + 3.4, 'roof');
-      if (i === 0) spots.tiendita = [hx - Math.sin(ry) * 5, y, hz - Math.cos(ry) * 5]; });
+      if (i === 0) spots.tiendita = [hx - Math.sin(ry) * 5, y, hz - Math.cos(ry) * 5];
+      const px = hx - Math.sin(ry) * 6 + Math.cos(ry) * 5, pz = hz - Math.cos(ry) * 6 - Math.sin(ry) * 5; root.userData.taxiKit.push([px, H(px, pz) + .12, pz, ry, 5, [0x9a3020, 0xd8d0c0][i]]); });
     for (let k = 0; k < 6; k++) { const [hx, hz, ry] = face(N - 30 - k * 9, k % 2 ? 13 : -13), y = H(hx, hz), g = new THREE.Group();
       box(g, 7, 3, 5.5, 0, 0, 0, M([0xa8805c, 0xb8906a, 0xd8c8a8, 0x9a7050][k % 4])); const rf = prism(6.3, 1.8, 7.8, M(TILE)); rf.rotation.y = Math.PI / 2; rf.position.y = 3; g.add(rf);
       const d = new THREE.Mesh(new THREE.PlaneGeometry(1, 2), M(0x3a2414)); d.position.set(0, 1, -2.77); d.rotation.y = Math.PI; g.add(d);
@@ -727,7 +784,7 @@ function extras(city, root, spots, glow, place, H) {
   }
   /* ---- the ranchos on the stone road: adobe house, corral, trough, cows, a sign over the gate ---- */
   for (const [id, sign] of [['ranchoNovoa', 'RANCHO DE NOVOA'], ['ranchoSalazar', 'RANCHO DE LOS SALAZAR']]) {
-    const pl = P(id), s = city.nearestStreet(pl.x, pl.z, 200, [3]), ry = s ? Math.atan2(s.nx, s.nz) : 0, y = H(pl.x, pl.z), g = new THREE.Group();
+    const pl = P(id), s = city.nearestStreet(pl.x, pl.z, 200, [1]), ry = s ? Math.atan2(s.nx, s.nz) : 0, y = H(pl.x, pl.z), g = new THREE.Group();
     box(g, 13, 3.2, 7, 0, 0, 4, M(0xa8805c)); const rf = prism(8, 2.2, 13.8, M(TILE)); rf.rotation.y = Math.PI / 2; rf.position.set(0, 3.2, 4); g.add(rf);
     for (let k = 0; k < 5; k++) cyl(g, .12, .14, 2.9, -5.6 + k * 2.8, 0, .1, M(0x5a3a22), 6); box(g, 13.4, .14, 3.2, 0, 2.9, 1.6, M(0x7a4a2a));
     const d = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.2), M(0x3a2414)); d.position.set(0, 1.1, .48); d.rotation.y = Math.PI; g.add(d);

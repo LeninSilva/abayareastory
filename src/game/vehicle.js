@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { CarKit } from '../render/detail.js';
 
-const DIMS = [{ L: 4.5, W: 1.8, wb: 2.7 }, { L: 4.7, W: 1.9, wb: 2.9 }, { L: 5.1, W: 1.95, wb: 3.3 }, { L: 1.8, W: 0.7, wb: 1.3 }, { L: 4.5, W: 1.8, wb: 2.7 }, { L: 5.2, W: 1.9, wb: 3.4 }, { L: 1.8, W: 0.7, wb: 1.3 }];
+const DIMS = [{ L: 4.3, W: 1.66, wb: 2.5 }, { L: 4.3, W: 1.82, wb: 2.65 }, { L: 5.0, W: 1.9, wb: 3.3 }, { L: 1.8, W: 0.7, wb: 1.3 }, { L: 4.3, W: 1.66, wb: 2.5 }, { L: 4.9, W: 1.76, wb: 3.2 }, { L: 1.8, W: 0.7, wb: 1.3 }, { L: 3.8, W: 1.66, wb: 2.4 }, { L: 4.05, W: 1.55, wb: 2.4 }, { L: 4.45, W: 1.77, wb: 2.7 }, { L: 4.5, W: 1.85, wb: 2.45 }, { L: 1.75, W: 0.5, wb: 1.0 }];
 
 export class Vehicles {
   constructor(city, renderer) {
@@ -12,6 +12,7 @@ export class Vehicles {
     this.driving = null; this.camYaw = 0; this.camT = 0; this.odometer = 0; this.air = 0; this.maxAir = 0;
   }
   add(o) { const c = Object.assign({ speed: 0, steer: 0, vy: 0, pitch: 0, roll: 0, onGround: true }, o); this.cars.push(c); return c; }
+  _tint(c, d) { const a = new THREE.Color(c), b = new THREE.Color(0x3a3530); return a.lerp(b, d * 0.55).getHex(); }
   nearest(x, z, r) { let best = null, bd = r * r; for (const c of this.cars) { const d = (c.x - x) ** 2 + (c.z - z) ** 2; if (d < bd && c !== this.driving) { bd = d; best = c; } } return best; }
   enter(car, player) {
     this.driving = car; car.speed = car.speed || 0; this.camYaw = 0;
@@ -31,7 +32,7 @@ export class Vehicles {
     const c = this.driving;
     if (c) {
       const m = input.move(), D = DIMS[c.kind], hand = input.held('jump');
-      const fwd = m.y, maxF = input.held('sprint') ? 46 : 36, maxR = 9;
+      const dmg = c.damage || 0, fwd = dmg >= 1 ? 0 : m.y, maxF = (input.held('sprint') ? 46 : 36) * (1 - dmg * 0.55), maxR = 9;
       // throttle, brakes, drag
       if (fwd > 0.05) c.speed += (c.speed < -0.5 ? 16 : 7.5 * (1 - Math.max(0, c.speed) / maxF)) * fwd * dt;
       else if (fwd < -0.05) c.speed -= (c.speed > 0.5 ? 16 : 5 * (1 - Math.max(0, -c.speed) / maxR)) * -fwd * dt;
@@ -59,7 +60,7 @@ export class Vehicles {
         if (d < 3.4) { const k = (3.4 - d) / (d || 1); c.x -= (o.x - c.x) * k * 0.6; c.z -= (o.z - c.z) * k * 0.6; o.v = 0; hit = Math.max(hit, Math.abs(c.speed)); }
       }
       for (const o of this.cars) if (o !== c) { const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < 3.4) { const k = (3.4 - d) / (d || 1); c.x -= (o.x - c.x) * k * 0.5; c.z -= (o.z - c.z) * k * 0.5; o.x += (o.x - c.x) * k * 0.3; o.z += (o.z - c.z) * k * 0.3; hit = Math.max(hit, Math.abs(c.speed)); } }
-      if (hit > 2) { c.speed *= -0.25; this.bump = Math.min(1, hit / 25); audio && audio.crash(Math.min(1, hit / 30)); }
+      if (hit > 2) { c.speed *= -0.25; this.bump = Math.min(1, hit / 25); audio && audio.crash(Math.min(1, hit / 30)); const was = c.damage || 0; c.damage = Math.min(1, was + hit / 70); if (c.damage >= 1 && was < 1) this.onWreck && this.onWreck(c); }
       else if (hit) c.speed *= 0.6;
       // the ground: follow it, or fly off a crest
       const gF = this.city.heightAt(c.x + Math.cos(c.ang) * D.wb / 2, c.z + Math.sin(c.ang) * D.wb / 2);
@@ -81,7 +82,7 @@ export class Vehicles {
     this.bump = Math.max(0, (this.bump || 0) - dt * 2);
     // draw them
     this.kit.begin();
-    for (const o of this.cars) this.kit.add(o.x, o.y, o.z, o.ang, o.pitch || 0, o.kind, o.color);
+    for (const o of this.cars) { const d = o.damage || 0; this.kit.add(o.x, o.y, o.z, o.ang, (o.pitch || 0) + (d > 0.6 ? 0.025 : 0), o.kind, d > 0.05 ? this._tint(o.color, d) : o.color); }
     this.kit.commit();
   }
   _resolve(c, x, z, D) {

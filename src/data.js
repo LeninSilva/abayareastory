@@ -1,5 +1,5 @@
 // Loads data/jiquilpan.bin + data/jiquilpan.json and answers spatial questions about the town and the valley.
-import { CLEAR, HALF, PLACES, barrio, CERRO_ROAD } from './geo.js';
+import { CLEAR, HALF, PLACES, barrio, CERRO_ROAD, BACK_ROAD } from './geo.js';
 
 export const SIDEWALK = 1.6;   // banquetas in Jiquilpan are narrow
 
@@ -47,8 +47,10 @@ export class City {
       this.streets.push({ pts, width: si[s * 3], kind: si[s * 3 + 1], name: meta.streetNames[si[s * 3 + 2]] || '' });
     }
     // the stone road up the cerro (not in the open map data: see geo.js), and its link to Calle Amadeo Betancourt
-    this.cerroRoad = { pts: CERRO_ROAD.map(p => [p[0], p[1]]), width: 6, kind: 3, name: 'Camino al Cerro de San Francisco', rocky: true };
-    this.streets.push(this.cerroRoad, { pts: [[504, 1383], [476, 1382]], width: 6, kind: 3, name: 'Camino al Cerro de San Francisco', rocky: true });
+    // the stone path up the cerro is for feet, horses and burros (no cars); the back road from Paredones brings the hamlet's few pickups
+    this.cerroRoad = { pts: CERRO_ROAD.map(p => [p[0], p[1]]), width: 4, kind: 1, name: 'Camino empedrado al Cerro de San Francisco', rocky: true };
+    this.backRoad = { pts: BACK_ROAD.map(p => [p[0], p[1]]), width: 6, kind: 3, name: 'Camino a Paredones y Abadiano', rocky: true };
+    this.streets.push(this.cerroRoad, { pts: [[504, 1383], [476, 1382]], width: 4, kind: 1, name: 'Camino empedrado al Cerro de San Francisco', rocky: true }, this.backRoad);
     const t = S('trees'), keep = [], clear0 = CLEAR.map(([x, z, hw, hd]) => ({ x, z, hw, hd }));
     const road = CERRO_ROAD, onRoad = (x, z) => { if (x < 340 || x > 2340 || z < 1300 || z > 5140) return false; for (let i = 0; i + 1 < road.length; i++) { const [ax, az] = road[i], [bx, bz] = road[i + 1], dx = bx - ax, dz = bz - az, L2 = dx * dx + dz * dz || 1, u = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / L2)); if ((ax + dx * u - x) ** 2 + (az + dz * u - z) ** 2 < 36) return true; } return false; };
     for (let k = 0; k < t.length / 4; k++) { const x = t[k * 4], z = t[k * 4 + 1]; if (!clear0.some(c => Math.abs(x - c.x) < c.hw && Math.abs(z - c.z) < c.hd) && !onRoad(x, z)) keep.push(x, z, t[k * 4 + 2], t[k * 4 + 3]); }
@@ -65,8 +67,44 @@ export class City {
       if (clear.some(c => Math.abs(x - c.x) < c.hw && Math.abs(z - c.z) < c.hd)) continue;
       this.buildings.push({ x, z, w: b[o + 2], d: b[o + 3], ang: b[o + 4], h: b[o + 5], y: b[o + 6], styleId: b[o + 7], seed: b[o + 8], houses: b[o + 9], floors: b[o + 10] });
     }
+    // the footprints are boxes fitted to real outlines; where a box overhangs a street or its sidewalk, pull that face back to the curb
+    this.buildings = this.buildings.filter(q => this._trim(q));
     this.colliders = new Colliders(12000);
     for (const q of this.buildings) this.colliders.addBox(q.x, q.z, q.w, q.d, q.ang, q.y - 3, q.y + q.h, 'building');
+  }
+  _trim(q) {
+    const hits = this._trimHits || (this._trimHits = []);
+    const pen = (x, z) => { let p = 0; for (const h of this.streetsAt(x, z, hits)) { const st = this.streets[h.si]; if (st.kind === 1 || st.kind === 2) continue; p = Math.max(p, h.half - 0.12 - Math.abs(h.d)); } return p; };
+    for (let it = 0; it < 4; it++) {
+      const ca = Math.cos(q.ang), sa = Math.sin(q.ang), W = (lx, lz) => [q.x + lx * ca - lz * sa, q.z + lx * sa + lz * ca];
+      let moved = false;
+      // each face: [axis 'w' or 'd', sign]
+      for (const [ax, sg] of [['w', 1], ['w', -1], ['d', 1], ['d', -1]]) {
+        let m = 0;
+        for (let k = 0; k <= 6; k++) {
+          const t = (k / 6 - 0.5) * (ax === 'w' ? q.d : q.w) * 0.96;
+          const [x, z] = ax === 'w' ? W(sg * q.w / 2, t) : W(t, sg * q.d / 2);
+          m = Math.max(m, pen(x, z));
+        }
+        if (m > 0.08) {
+          const cut = Math.min(m + 0.05, q[ax] * 0.45); q[ax] -= cut;
+          const sh = sg * cut / 2; if (ax === 'w') { q.x -= ca * sh; q.z -= sa * sh; } else { q.x += sa * sh; q.z -= ca * sh; }
+          moved = true;
+        }
+      }
+      // a street right through the middle of a box: cut away the smaller side
+      if (!moved) for (let i = 1; i < 6 && !moved; i++) for (let j = 1; j < 6 && !moved; j++) {
+        const lx = (i / 6 - 0.5) * q.w, lz = (j / 6 - 0.5) * q.d, [x, z] = W(lx, lz), p = pen(x, z);
+        if (p > 0.5) {
+          const dw = q.w / 2 - Math.abs(lx), dd = q.d / 2 - Math.abs(lz);
+          if (dw < dd) { const keep = q.w / 2 + Math.abs(lx) - p - 0.6, cut = q.w - keep, sg = Math.sign(lx) || 1; q.w = keep; q.x -= ca * sg * cut / 2; q.z -= sa * sg * cut / 2; }
+          else { const keep = q.d / 2 + Math.abs(lz) - p - 0.6, cut = q.d - keep, sg = Math.sign(lz) || 1; q.d = keep; q.x += sa * sg * cut / 2; q.z -= ca * sg * cut / 2; }
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    return q.w >= 2.5 && q.d >= 2.5;
   }
   /* The story's invented places, put on real ground: Rosa's garage on a real street frontage,
      Aurelio's house in a real house of San Cayetano. */

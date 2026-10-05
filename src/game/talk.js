@@ -227,19 +227,21 @@ export class Talk {
     out.push({ label: 'Insult them.', tone: 'cruel', kind: 'social', run: () => this.express(npc, 'insult') });
     return out;
   }
+  face(npc, e) { if (npc.mesh && npc.mesh.userData.setExpression) npc.mesh.userData.setExpression(e); }
   express(npc, what, partner) {
     const g = this.g, L = g.life, id = npc.id, t = R[this.temper(npc)], r = L.rel(id), n = L.did(id, what), d = npc.def;
+    const F = e => this.face(npc, e);
     const say = (me, them) => { g.ui.logLine('me', me); g.ui.logLine('npc', them); };
     if (what === 'compliment') {
       const line = pick(['You have a good face for this town.', 'You keep this corner looking better than the whole Presidencia.', 'Everybody says you\'re the one to ask about this town. They were right.', 'That colour suits you.']);
       if (n > 1) { say(line, pick(t.again)); L.affinity(id, -1); }
-      else { say(line, pick(t.compliment)); L.affinity(id, r.a < 60 ? 6 : 3, true); L.trait('heart', 1, true); }
+      else { say(line, pick(t.compliment)); F('happy'); L.affinity(id, r.a < 60 ? 6 : 3, true); L.trait('heart', 1, true); }
     }
     if (what === 'joke') {
       const j = pick(PLAYER_JOKES), funny = { warm: 0.75, teen: 0.55, dry: 0.65, parental: 0.7, elder: 0.55, shy: 0.6, pious: 0.45, suspicious: 0.35, political: 0.8 }[this.temper(npc)] || 0.5;
       g.life.s.stats.jokes++;
       if (n > 2) { say(j, 'Enough jokes for today, cómico. Come back tomorrow.'); }
-      else if (Math.random() < funny + L.style() * 0.005) { say(j, pick(t.laugh)); L.affinity(id, 5, true); L.trait('fame', 1, true); g.unlock('comico', () => g.life.s.stats.jokes >= 10); }
+      else if (Math.random() < funny + L.style() * 0.005) { say(j, pick(t.laugh)); F('happy'); L.affinity(id, 5, true); L.trait('fame', 1, true); g.unlock('comico', () => g.life.s.stats.jokes >= 10); }
       else { say(j, pick(t.flat)); L.affinity(id, -1); }
     }
     if (what === 'flirt') {
@@ -247,18 +249,18 @@ export class Talk {
       if (n > 1) { say(line, 'Once a day is plenty, galán. Leave something for tomorrow.'); return this.g.renderChips(); }
       const chance = (r.a - 15) / 50 + L.style() * 0.012 + (L.s.fame / 300);
       if (r.a >= 25 && Math.random() < chance) {
-        say(line, pick(t.flirtYes)); r.romance = 1; L.affinity(id, 8, true); g.ui.toast(`${d.name}: ${ROMANCE[1]}`, 'love');
+        say(line, pick(t.flirtYes)); F('surprised'); r.romance = 1; L.affinity(id, 8, true); g.ui.toast(`${d.name}: ${ROMANCE[1]}`, 'love');
         if (partner) this.jealous(partner[0], id);
       } else { say(line, r.a < 25 ? 'Hm. We hardly know each other. Ask me something first.' : pick(t.flirtNo)); L.affinity(id, r.a < 25 ? -2 : -1); }
     }
     if (what === 'brag') {
       const line = pick(['I flew over the cerro faster than a jet. Twice. Before breakfast.', 'I once beat the whole Chivas reserve team at penalties. Alone.', 'The Presidente asked for my advice yesterday. I said no.', 'In Guadalajara they call me El Rayo. Or La Rayo. Something with lightning.']);
       const believed = Math.random() < 0.25 + L.s.fame / 200;
-      say(line, believed ? pick(t.bragYes) : pick(t.bragNo)); L.trait('word', -2, true); L.trait('fame', believed ? 2 : 0, true); L.affinity(id, believed ? 2 : -2);
+      say(line, believed ? pick(t.bragYes) : pick(t.bragNo)); F(believed ? 'surprised' : 'angry'); L.trait('word', -2, true); L.trait('fame', believed ? 2 : 0, true); L.affinity(id, believed ? 2 : -2);
     }
     if (what === 'insult') {
       const line = pick(['You look like the bache on Calle Morelos: deep and useless.', 'I\'ve met friendlier stray dogs.', 'Is your face always like that, or only on weekdays?', 'Nobody in this town would miss you.']);
-      say(line, pick(t.insult)); L.affinity(id, -18, true); L.trait('heart', -4); L.trait('fame', 1, true); g.life.s.stats.insults++;
+      say(line, pick(t.insult)); F('angry'); L.affinity(id, -18, true); L.trait('heart', -4); L.trait('fame', 1, true); g.life.s.stats.insults++;
       if (r.romance >= 2) { r.romance = Math.max(0, r.romance - 1); g.ui.toast(`${d.name} is hurt. Romance cools.`, 'warn'); }
     }
     g.audio.ui(); g.save(); g.renderChips();
@@ -282,10 +284,10 @@ export class Talk {
     if (item === 'flores' && L.rel(id).romance >= 1) score = 2;
     const n = L.did(id, 'gift');
     if (n > 2) { g.ui.logLine('npc', 'You\'re very generous, but you\'re embarrassing me. Enough for today!'); L.affinity(id, 1); }
-    else if (score >= 2) { g.ui.logLine('npc', pick(t.giftLove)); L.affinity(id, 14, true); L.trait('heart', 1, true); }
+    else if (score >= 2) { g.ui.logLine('npc', pick(t.giftLove)); this.face(npc, 'happy'); L.affinity(id, 14, true); L.trait('heart', 1, true); }
     else if (score === 1) { g.ui.logLine('npc', pick(t.giftOk)); L.affinity(id, 7, true); }
     else if (score === 0) { g.ui.logLine('npc', pick(t.giftOk)); L.affinity(id, 3, true); }
-    else { g.ui.logLine('npc', pick(t.giftBad)); L.affinity(id, -5); }
+    else { g.ui.logLine('npc', pick(t.giftBad)); this.face(npc, 'sad'); L.affinity(id, -5); }
     L.s.stats.gifts++; if (L.s.stats.gifts >= 10) g.unlock('detallista');
     g.side.event('gift', { npc: id, item }); g.audio.ui(); g.save(); g.renderChips();
   }

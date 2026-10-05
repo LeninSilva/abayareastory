@@ -426,7 +426,7 @@ class Game {
     const ground = p.y - this.city.heightAt(p.x, p.z) < 3;
     if (d < 4.5 && ground) { c.grab += dt; if (c.grab > (easy ? 2.2 : 1.3)) { c.grab = 0; c.caught++; c.x -= Math.cos(c.ang) * 50; c.z -= Math.sin(c.ang) * 50; c.v = 0; this.ui.toast(c.caught > 1 ? 'He grabs your collar and you tear free again! Keep going!' : 'His hand closes on your sleeve. You twist free! Run!', 'warn'); this.audio.crash(0.5); } }
     else c.grab = Math.max(0, c.grab - dt);
-    this.chaseKit.begin(); this.chaseKit.add(c.x, c.y, c.z, c.ang, 0, 1, 0x101012); this.chaseKit.commit(); this.chaseKit.night(this.uNight());
+    this.chaseKit.begin(); this.chaseKit.add(c.x, c.y, c.z, c.ang, 0, 5, 0x101012); this.chaseKit.commit(); this.chaseKit.night(this.uNight());
     const t = PLACES.taller; if (Math.hypot(p.x - t.x, p.z - t.z) < t.r + 4) { this.chaser = null; this.chaseKit.begin(); this.chaseKit.commit(); this.story.event('escaped'); if (this.pending) { const f = this.pending; this.pending = null; f(); } }
   }
   _timer(dt) {
@@ -468,6 +468,8 @@ class Game {
   /* ---------------- conversation ---------------- */
   startTalk(npc) {
     this.talk = { npc, history: [] }; if (npc.mesh) npc.mesh.userData.talking = true; this.pauseInput(true);
+    // stand at a talking distance, not on their toes
+    { const p = this.player, dx = p.x - npc.x, dz = p.z - npc.z, d = Math.hypot(dx, dz) || 1; if (d < 2.1 && !this.vehicles.driving && !p.jet) { const nx = npc.x + dx / d * 2.1, nz = npc.z + dz / d * 2.1; if (p.isFree(nx, nz, p.y)) { p.x = nx; p.z = nz; } } }
     document.exitPointerLock && document.exitPointerLock();
     const s = this.state; if (!npc.def.ambient && !s.met.includes(npc.id)) s.met.push(npc.id);
     this.ui.openDialogue(npc);
@@ -640,7 +642,7 @@ class Game {
     this.audio.update(dt, { t: this.t, sea: 0, height: Math.max(0, agl), fog: 0, night: this.uNight() > 0.5, under: false, noHorn: true });
     this.audio.jet(p.jet ? p.thrust : 0);
     const kmh = Math.round((V.driving ? Math.abs(V.driving.speed) : p.speed) * 3.6);
-    this.ui.speedo(V.driving ? `${kmh} km/h` : p.jet ? `${p.jetLanding ? 'LANDING · ' : ''}ALT ${Math.round(agl)} m · ${kmh} km/h` : null);
+    this.ui.speedo(V.driving ? `${kmh} km/h${V.driving.damage > 0.05 ? ` · damage ${Math.round(V.driving.damage * 100)}%` : ''}` : p.jet ? `${p.jetLanding ? 'LANDING · ' : ''}ALT ${Math.round(agl)} m · ${kmh} km/h` : null);
     document.body.classList.toggle('jet', !!p.jet); document.body.classList.toggle('car', !!V.driving);
     if (p.speed > 0.5 && p.onGround && !p.jet && !V.driving) { this.stepT = (this.stepT || 0) + dt * p.speed; if (this.stepT > 1.4) { this.stepT = 0; this.audio.step('street'); } }
     this.saveT = (this.saveT || 0) + dt; if (this.saveT > 30) { this.saveT = 0; this.save(); }
@@ -672,7 +674,7 @@ class Game {
     if (this.walkers.length < want && this.walkT < 0 && p.y - this.city.heightAt(p.x, p.z) < 60) {
       this.walkT = 0.6;
       const sts = this.nearStreets(p.x, p.z, 150).filter(s => s.kind === 0 || s.kind === 4);
-      if (sts.length) {
+      for (let attempt = 0; attempt < 8 && sts.length; attempt++) {
         const st = sts[Math.floor(Math.random() * sts.length)], i = Math.floor(Math.random() * (st.pts.length - 1));
         const [ax, az] = st.pts[i], d0 = Math.hypot(ax - p.x, az - p.z), side = Math.random() < 0.5 ? -1 : 1;
         // start on the sidewalk, and only where a person can actually stand
@@ -681,11 +683,20 @@ class Game {
         if (d0 > 40 && d0 < 150 && !C.blocked(sx, sz, 0.4, sy + 0.3, sy + 1.6)) {
           const def = makeCitizen((Math.random() * 2 ** 31) | 0, barrio(ax, az)), mesh = makePerson(def.look); this.scene.add(mesh);
           this.walkers.push({ mesh, def, st, i, t: 0, dir: 1, side, speed: (1.0 + Math.random() * 0.5) * (def.age > 70 ? 0.7 : 1), lat: 0, block: 0, turns: 0 });
+          break;
         }
       }
     }
     for (const w of this.walkers) {
       const mp = w.mesh.position, dP = Math.hypot(mp.x - p.x, mp.z - p.z);
+      if (w.down) continue;   // hurt: StreetLife looks after them
+      if (w.gawk) {   // something happened: go and look, then stand and stare
+        w.gawk.t -= dt; const gx = w.gawk.x - mp.x, gz = w.gawk.z - mp.z, gd = Math.hypot(gx, gz);
+        if (gd > 3.5) { const [rx, rz] = C.resolve(mp.x + gx / gd * dt * 1.4, mp.z + gz / gd * dt * 1.4, 0.3, mp.y + 0.3, mp.y + 1.6); mp.set(rx, this.city.heightAt(rx, rz) + 0.2, rz); w.mesh.userData.animate(dt, 1.4, this.t); }
+        else w.mesh.userData.animate(dt, 0, this.t);
+        w.mesh.rotation.y = Math.atan2(gx, gz); if (w.gawk.t < 0) w.gawk = null; continue;
+      }
+      if (w.limp > 0) w.limp -= dt;
       if (w.talk || (dP < 2.4 && !p.jet && !this.vehicles.driving) || (w.paused && dP < 3.6 && !p.jet)) {
         w.paused = true; const wantA = w.talk ? w.talk.facing : Math.atan2(p.x - mp.x, p.z - mp.z);
         let a = wantA - w.mesh.rotation.y; a = Math.atan2(Math.sin(a), Math.cos(a)); w.mesh.rotation.y += a * Math.min(1, dt * 5); w.mesh.userData.animate(dt, 0, this.t); continue;
@@ -696,7 +707,7 @@ class Game {
       // step aside for other people coming the other way
       let lat = 0; for (const o of this.walkers) if (o !== w) { const ox = o.mesh.position.x - mp.x, oz = o.mesh.position.z - mp.z, f = ox * ux + oz * uz, l = -ox * uz + oz * ux; if (f > 0 && f < 2.5 && Math.abs(l) < 0.8) lat = l > 0 ? -0.6 : 0.6; }
       w.lat += (lat - w.lat) * Math.min(1, dt * 3);
-      const t1 = w.t + dt * w.speed / L, x = a[0] + (b[0] - a[0]) * t1 - uz * (off * w.side + w.lat), z = a[1] + (b[1] - a[1]) * t1 + ux * (off * w.side + w.lat), y = this.city.heightAt(x, z) + (w.st.kind === 0 ? 0.22 : 0.05);
+      const t1 = w.t + dt * w.speed * (w.limp > 0 ? 0.45 : 1) / L, x = a[0] + (b[0] - a[0]) * t1 - uz * (off * w.side + w.lat), z = a[1] + (b[1] - a[1]) * t1 + ux * (off * w.side + w.lat), y = this.city.heightAt(x, z) + (w.st.kind === 0 ? 0.22 : 0.05);
       // trunks, lamps, parked cars, garden beds, walls: slide round them, and if really stuck, turn back
       const [rx, rz] = C.resolve(x, z, 0.3, y + 0.3, y + 1.6), push = Math.hypot(rx - x, rz - z);
       if (push > 0.45) w.block += dt; else { w.block = Math.max(0, w.block - dt * 2); w.t = t1; }
@@ -705,7 +716,7 @@ class Game {
       if (w.t >= 1) { w.t = 0; w.i += w.dir; if (w.i + w.dir < 0 || w.i + w.dir >= pts.length) { w.dir *= -1; w.side *= -1; } continue; }
       mp.set(rx, this.city.heightAt(rx, rz) + (w.st.kind === 0 ? 0.22 : 0.05), rz); w.mesh.rotation.y = Math.atan2(ux, uz);
       w.mesh.userData.animate(dt, push > 0.45 ? 0.3 : w.speed, this.t);
-      if (dP > 200) w.gone = true;
+      if (dP > 200 && !w.down) w.gone = true;
     }
     for (const w of this.walkers) if (w.gone && !w.talk) this.scene.remove(w.mesh);
     this.walkers = this.walkers.filter(w => !w.gone || w.talk);

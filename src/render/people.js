@@ -16,87 +16,8 @@ const G = {
   box: (w, h, d) => new THREE.BoxGeometry(w, h, d)
 };
 
-/* spec: { skin, hair, hairStyle, top, bottom, shoes, hat, coat, height, build, beard, glasses, accessory, dress, ghost } */
-export function makePerson(spec = {}) {
-  const s = Object.assign({ skin: 0xc99a78, hair: 0x2a1d16, hairStyle: 'short', top: 0x5a6a7a, bottom: 0x3a3d44, shoes: 0x2a2420, hat: 'none', coat: false, height: 1, build: 1, dress: false }, spec);
-  const ghost = s.ghost ? { transparent: true, opacity: 0.82, emissive: 0x3a5a66, emissiveIntensity: 0.35 } : null;
-  const M = c => mat(c, ghost);
-  const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
-  body.scale.set(s.build, s.height, s.build);
-  // legs (pivot at hip)
-  const legs = [];
-  for (const side of [-1, 1]) {
-    const hip = new THREE.Group(); hip.position.set(side * 0.11, 0.92, 0); body.add(hip);
-    if (!s.dress) hip.add(mesh(G.capsule(0.085, 0.62), M(s.bottom), 0, -0.42, 0));
-    hip.add(mesh(G.box(0.14, 0.09, 0.27), M(s.shoes), 0, -0.87, 0.05));
-    legs.push(hip);
-  }
-  // torso
-  const torso = new THREE.Group(); torso.position.y = 0.92; body.add(torso);
-  const chest = mesh(G.capsule(0.19, 0.36), M(s.top), 0, 0.33, 0); chest.scale.set(1.08, 1, 0.72); torso.add(chest);
-  if (s.dress) { const skirt = mesh(G.cyl(0.2, 0.36, 0.78, 14), M(s.bottom), 0, -0.3, 0); torso.add(skirt); }
-  if (s.coat) { const c = mesh(G.cyl(0.24, 0.33, 0.95, 14), M(s.coat === true ? 0x3b3a3a : s.coat), 0, 0.02, 0); c.scale.z = 0.78; torso.add(c); }
-  if (s.accessory === 'collar') torso.add(mesh(G.box(0.1, 0.05, 0.02), M(0xffffff), 0, 0.62, 0.15));
-  if (s.accessory === 'apron') { const a = mesh(G.box(0.34, 0.6, 0.02), M(0xefe8da), 0, 0.12, 0.15); torso.add(a); }
-  if (s.accessory === 'scarf') torso.add(mesh(G.cyl(0.13, 0.15, 0.1, 12), M(0xa33a2e), 0, 0.62, 0));
-  if (s.accessory === 'bag') { const b = mesh(G.box(0.26, 0.22, 0.09), M(0x6b4a30), -0.26, 0.05, 0.02); torso.add(b); }
-  if (s.belly) { const b = mesh(G.sphere(0.2 + s.belly * 0.06, 16, 12), M(s.coat && s.coat !== true ? s.top : s.top), 0, 0.16, 0.08 + s.belly * 0.05); b.scale.set(1.05, 0.95, 0.9); torso.add(b); }
-  if (s.sash) { const sa = mesh(G.box(0.1, 0.62, 0.36), M(s.sash), 0, 0.3, 0.02); sa.rotation.z = 0.55; sa.scale.set(1, 1, 1 + (s.belly || 0) * 0.4); torso.add(sa); }
-  if (s.accessory === 'rebozo' || s.accessory === 'sarape') { const r = mesh(G.cyl(0.21, 0.3, 0.5, 14), M(s.accColor || 0x26346e), 0, 0.42, 0); r.scale.z = 0.8; torso.add(r); if (s.accessory === 'rebozo') { const t = mesh(G.box(0.12, 0.55, 0.03), M(s.accColor || 0x26346e), 0.12, 0.05, 0.16); torso.add(t); } }
-  if (s.accessory === 'necklace' || s.accessory === 'amulet') torso.add(mesh(new THREE.TorusGeometry(0.11, 0.012, 6, 16), mat(s.accColor || 0xd8d8e0, { metalness: 0.7, roughness: 0.3 }), 0, 0.58, 0.06));
-  if (s.accessory === 'belt') torso.add(mesh(G.cyl(0.2, 0.2, 0.06, 14), M(s.accColor || 0x6a4a2a), 0, -0.02, 0));
-  // arms (pivot at shoulder)
-  const arms = [];
-  for (const side of [-1, 1]) {
-    const sh = new THREE.Group(); sh.position.set(side * 0.25, 0.6, 0); torso.add(sh);
-    sh.add(mesh(G.capsule(0.066, 0.5), M(s.coat && s.coat !== false ? (s.coat === true ? 0x3b3a3a : s.coat) : s.top), 0, -0.3, 0));
-    sh.add(mesh(G.sphere(0.068, 10, 8), M(s.skin), 0, -0.62, 0));
-    arms.push(sh);
-  }
-  if (s.accessory === 'cane' || s.accessory === 'sword') {
-    const it = s.accessory === 'sword' ? mesh(G.box(0.03, 0.9, 0.012), mat(0xd0d4d8, { metalness: 0.8, roughness: 0.3 }), 0, -0.95, 0.12) : mesh(G.cyl(0.018, 0.018, 0.9, 6), M(0x3a2618), 0, -1.0, 0.05);
-    if (s.accessory === 'sword') it.rotation.x = -1.2;
-    arms[1].add(it);
-  }
-  // head
-  const neck = new THREE.Group(); neck.position.y = 0.66; torso.add(neck);
-  const head = mesh(G.sphere(0.13, 18, 14), M(s.skin), 0, 0.17, 0); head.scale.set(0.92, 1.08, 1); neck.add(head);
-  neck.add(mesh(G.sphere(0.02, 6, 5), M(s.skin), 0, 0.15, 0.13));   // nose
-  for (const side of [-1, 1]) neck.add(mesh(G.sphere(0.014, 6, 5), mat(0x1a1410), side * 0.045, 0.19, 0.115));
-  if (s.glasses) for (const side of [-1, 1]) { const g = mesh(new THREE.TorusGeometry(0.03, 0.006, 5, 12), mat(0x222222), side * 0.045, 0.19, 0.125); neck.add(g); }
-  if (s.beard) { const b = mesh(G.sphere(0.1, 12, 8), M(s.hair), 0, 0.09, 0.06); b.scale.set(1, 0.9, 0.7); neck.add(b); }
-  const hs = s.hairStyle;
-  if (hs !== 'bald') {
-    const cap = mesh(G.sphere(0.138, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), M(s.hair), 0, 0.19, -0.005); neck.add(cap);
-    if (hs === 'long') { const l = mesh(G.box(0.26, 0.3, 0.08), M(s.hair), 0, 0.05, -0.1); neck.add(l); }
-    if (hs === 'bun') neck.add(mesh(G.sphere(0.07), M(s.hair), 0, 0.3, -0.1));
-    if (hs === 'afro') { const a = mesh(G.sphere(0.2, 16, 12), M(s.hair), 0, 0.24, -0.03); neck.add(a); }
-    if (hs === 'braid') neck.add(mesh(G.capsule(0.035, 0.3), M(s.hair), 0, -0.05, -0.13));
-  }
-  if (s.hat === 'fedora' || s.hat === 'wide') { neck.add(mesh(G.cyl(s.hat === 'wide' ? 0.3 : 0.22, s.hat === 'wide' ? 0.3 : 0.22, 0.02, 20), M(s.hatColor || 0x2b2622), 0, 0.3, 0)); neck.add(mesh(G.cyl(0.12, 0.14, 0.14, 16), M(s.hatColor || 0x2b2622), 0, 0.37, 0)); }
-  if (s.hat === 'bowler') { neck.add(mesh(G.sphere(0.14, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), M(s.hatColor || 0x1e1c1a), 0, 0.3, 0)); neck.add(mesh(G.cyl(0.18, 0.18, 0.015, 20), M(s.hatColor || 0x1e1c1a), 0, 0.3, 0)); }
-  if (s.hat === 'cap' || s.hat === 'beanie') neck.add(mesh(G.sphere(0.145, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), M(s.hatColor || 0x2a3a5a), 0, 0.22, 0));
-  if (s.hat === 'cap') { const bill = mesh(G.box(0.18, 0.015, 0.12), M(s.hatColor || 0x2a3a5a), 0, 0.23, 0.15); neck.add(bill); }
-  if (s.hat === 'veil') { const v = mesh(G.cyl(0.15, 0.25, 0.5, 16), mat(0x111111, { transparent: true, opacity: 0.55 }), 0, 0.1, 0); neck.add(v); }
-  root.traverse(o => { if (o.isMesh) { o.castShadow = false; } });
-  let phase = Math.random() * 10;
-  root.userData = {
-    spec: s, talking: false,
-    animate(dt, speed, t) {
-      phase += dt * (speed > 0.1 ? 1.9 + speed * 0.9 : 1);
-      const walk = Math.min(1, speed / 1.5), sw = Math.sin(phase * 2.2) * 0.55 * walk;
-      legs[0].rotation.x = sw; legs[1].rotation.x = -sw;
-      arms[0].rotation.x = -sw * 0.8; arms[1].rotation.x = sw * 0.8;
-      body.position.y = Math.abs(Math.cos(phase * 2.2)) * 0.03 * walk + Math.sin(t * 1.3 + phase) * 0.006;
-      const talk = root.userData.talking;
-      neck.rotation.x = talk ? Math.sin(t * 5.3) * 0.06 : Math.sin(t * 0.6 + phase) * 0.03;
-      neck.rotation.y = talk ? Math.sin(t * 1.7) * 0.12 : 0;
-      if (talk) { arms[1].rotation.x = -0.5 + Math.sin(t * 3.1) * 0.25; arms[1].rotation.z = 0.2; } else arms[1].rotation.z = 0;
-      if (root.userData.attacking) { arms[1].rotation.x = -1.8 + root.userData.attacking * 2.4; }
-    }
-  };
-  return root;
-}
+/* the people themselves live in human.js */
+export { makePerson } from './human.js';
 
 /* The Hollows: the dead who have forgotten their names. Smoke with eyes. */
 const hollowMat = new THREE.ShaderMaterial({

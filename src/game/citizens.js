@@ -72,9 +72,9 @@ export function makeCitizen(seed, district, opts = {}) {
   const tag = opts.tag || `the ${job.split(/ (on|at|in|for|who|from|by|with|to|of) | \(/)[0]}`;
   const look = {
     skin: pickR(r, LOOKS.skin), hair: age > 58 ? pickR(r, LOOKS.hairOld) : pickR(r, LOOKS.hairYoung),
-    hairStyle: age > 68 && !fem && r() < 0.4 ? 'bald' : fem ? pickR(r, ['long', 'bun', 'braid', 'long', 'short']) : pickR(r, ['short', 'short', 'short', 'long']),
+    hairStyle: age > 68 && !fem && r() < 0.4 ? 'bald' : fem ? pickR(r, ['long', 'bun', 'braid', 'long', 'short', 'curly']) : pickR(r, ['short', 'short', 'short', 'curly', 'long']),
     top: pickR(r, LOOKS.tops), bottom: pickR(r, LOOKS.bottoms), coat: r() < 0.15 ? pickR(r, LOOKS.coats) : false,
-    hat: !fem && r() < 0.3 ? pickR(r, ['wide', 'cap', 'wide']) : r() < 0.1 ? 'cap' : 'none', hatColor: pickR(r, [0xd8c8a0, 0xe8e2d4, 0x2a2a2a, 0x8a6a3a]),
+    hat: !fem && r() < 0.35 ? pickR(r, ['wide', 'cap', 'wide', 'cap', 'panama']) : r() < 0.1 ? 'cap' : 'none', shoes: pickR(r, [0x2a2420, 0xe8e8e8, 0x5a3a20, 0x2a2420, 0x8a5a30, 0x1a1a1a]), hatColor: pickR(r, [0xd8c8a0, 0xe8e2d4, 0x2a2a2a, 0x8a6a3a]),
     glasses: r() < 0.2, beard: !fem && r() < 0.25, dress: fem && r() < 0.35,
     accessory: /tortill|cook|baker|butcher|carnitas|tamales|nevero|elotes/.test(job) ? 'apron' : r() < 0.2 ? pickR(r, ['bag', 'scarf']) : age > 75 && r() < 0.4 ? 'cane' : undefined,
     height: (fem ? 0.92 : 0.98) * (0.94 + r() * 0.1) * (age > 72 ? 0.96 : 1), build: 0.92 + r() * 0.25
