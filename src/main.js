@@ -1,6 +1,8 @@
-// AÑIL: a mystery in Jiquilpan de Juárez, Michoacán. The game: world, story, driving, flying, people, rendering.
+// Las luces del Cerro: a mystery in Jiquilpan de Juárez, Michoacán. The game: world, story, driving, flying, people, rendering.
 import * as THREE from 'three';
 import { loadCity } from './data.js';
+import { warpStep } from './game/warp.js';
+import { SHOPS } from './game/shops.js';
 import { U } from './render/shaders.js';
 import { makeRegionalVista } from './render/vista.js';
 import { makeSky, setTimeOfDay } from './render/sky.js';
@@ -24,10 +26,10 @@ import { Input } from './game/input.js';
 import { Player } from './game/player.js';
 import { CHARACTERS, EXTRAS } from './game/story.js';
 import { Story, CHAPTERS, CLUES, ENDINGS } from './game/quests.js';
-import { PAGES, ACHIEVEMENTS } from './game/lore.js';
+import { PAGES, ACHIEVEMENTS, READABLES } from './game/lore.js';
 import { Life, lifeDefaults } from './game/life.js';
 import { Talk } from './game/talk.js';
-import { SideQuests, QUEST } from './game/sidequests.js';
+import { SideQuests, QUEST, QUESTS as QUESTS_SIDE } from './game/sidequests.js';
 import { MiniGames } from './game/minigames.js';
 import { LifeGame } from './game/lifegame.js';
 import { CAST } from './game/cast.js';
@@ -45,6 +47,10 @@ const $ = id => document.getElementById(id);
 const mobile = matchMedia('(pointer: coarse)').matches;
 const DEFAULT_SETTINGS = { quality: mobile ? 'low' : 'medium', text: 'm', contrast: 'normal', reduced: false, timeScale: '1', sensitivity: 1, invertY: false, touch: 'auto', chase: 'normal', master: 0.8, music: 0.5, fx: 0.8 };
 
+// fog bank thickness by hour: piecewise linear and closed around midnight, so it never steps
+const HAZE = [[0, 0.3], [6, 0.3], [10, 0.1], [17, 0.1], [20, 0.25], [24, 0.3]];
+function hazeAt(h) { for (let i = 0; i < HAZE.length - 1; i++) { const [a, ha] = HAZE[i], [b, hb] = HAZE[i + 1]; if (h >= a && h <= b) return ha + (hb - ha) * (h - a) / (b - a); } return 0.3; }
+
 class Game {
   constructor() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, store.get(SET_KEY) || {});
@@ -58,7 +64,10 @@ class Game {
     this.applySettings();
     this.input.onUnlock = () => { if (this.started && !this.paused && !this.talk && !this.ui.cardOpen) this.ui.openMenu(); };
     this._titleWiring();
-    addEventListener('keydown', e => this._globalKeys(e));
+    addEventListener('keydown', e => this._globalKeys(e), true);
+    // phones suspend or kill background tabs: keep the save current when the page is hidden or closed
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.save(); });
+    addEventListener('pagehide', () => this.save());
   }
 
   /* ---------------- title & settings ---------------- */
@@ -72,7 +81,7 @@ class Game {
     $('btn-continue').addEventListener('click', () => this.begin(store.get(SAVE_KEY)));
     $('btn-title-settings').addEventListener('click', () => this.ui.openMenu('settings'));
     $('btn-about').addEventListener('click', () => this.ui.card([
-      '<em>AÑIL</em>\nA mystery in Jiquilpan de Juárez, Michoacán: the real town, its streets, houses, churches, plazas and mountains, built from open map and elevation data.',
+      '<em>LAS LUCES DEL CERRO</em>\nA mystery in Jiquilpan de Juárez, Michoacán: the real town, its streets, houses, churches, plazas and mountains, built from open map and elevation data.',
       'Your grandfather found what his father hid in 1940. Then he vanished on the Cerro de San Francisco. Follow the clues. Talk to anyone. Drive any car. Fly.',
       'The town, its landmarks and its history are real. Every character, the company, the 1938 title and the cave are invented.'
     ]));
@@ -511,10 +520,22 @@ class Game {
 
   /* ---------------- world queries ---------------- */
   uNight() { return U.uNight.value; }
+  /** Let the clock run on to `target` (hour of day) in about two seconds instead of jumping, so sleeping or a long
+   *  evening plays out as a continuous sunset, night and dawn. Input is locked meanwhile; `done` runs on arrival. */
+  warpTo(target, done) {
+    const s = this.state; if (this.warp) return;
+    if (((target - s.hour) % 24 + 24) % 24 < 0.01) { done && done(); return; }
+    this.warp = { target, done }; this.input.enabled = false; this.input.releaseAll();
+  }
+  stepWarp(dt) {
+    const s = this.state, w = this.warp, left = ((w.target - s.hour) % 24 + 24) % 24, step = warpStep(s.hour, left, dt);
+    if (step >= left) { s.hour = w.target; this.warp = null; this.input.enabled = true; w.done && w.done(); return; }
+    s.hour += step; if (s.hour >= 24) { s.hour -= 24; s.day++; }
+  }
   viewYaw() { const c = this.vehicles.driving; return c ? -c.ang - Math.PI / 2 + this.vehicles.camYaw : this.player.yaw; }
   placeName() {
     const p = this.player; let best = null, bd = Infinity;
-    for (const id of LANDMARK_IDS.concat(['taller', 'petra', 'cueva', 'sendero', 'azulPortal', 'cremeria', 'ranchoNovoa', 'ranchoSalazar', 'bache', 'sitioAbasolo', 'sitioFajardo'])) { const q = PLACES[id], d = Math.hypot(q.x - p.x, q.z - p.z); if (d < Math.max(40, q.r * 1.6) && d < bd) { bd = d; best = q.name.split(' (')[0]; } }
+    for (const id of LANDMARK_IDS.concat(['taller', 'petra', 'cueva', 'sendero', 'azulPortal', 'cremeria', 'ranchoNovoa', 'ranchoSalazar', 'casaCecilia', 'bache', 'sitioAbasolo', 'sitioFajardo'])) { const q = PLACES[id], d = Math.hypot(q.x - p.x, q.z - p.z); if (d < Math.max(40, q.r * 1.6) && d < bd) { bd = d; best = q.name.split(' (')[0]; } }
     return best || barrio(p.x, p.z);
   }
   targetPos() {
@@ -550,6 +571,7 @@ class Game {
     this.lifeInteractables(out, near);
     const ins = this.story.inspectable();
     if (ins) { const sp = this.spots[ins.spot] || (PLACES[ins.spot] && [PLACES[ins.spot].x, 0, PLACES[ins.spot].z]); if (sp && near(sp[0], sp[2], ins.spot === 'cueva' ? 8 : 4.5)) out.push({ x: sp[0], z: sp[2], label: ins.label, icon: '🔍', run: ins.run }); }
+    for (const r of READABLES) { const sp = this.spots[r.spot]; if (sp && near(sp[0], sp[2], 3.4)) out.push({ x: sp[0], z: sp[2], label: r.label, icon: '🔍', minor: true, run: () => this.ui.card(r.cards) }); }
     for (const m of this.pageMarks) if (!s.pages.includes(m.pg.id) && near(m.pg.x, m.pg.z, 2.8)) out.push({ x: m.pg.x, z: m.pg.z, label: 'Pick up a page of Aurelio\'s notebook', icon: '📄', run: () => this.takePage(m.pg) });
     if (!p.jet) {
       const own = this.vehicles.nearest(p.x, p.z, 3.4); if (own) out.push({ x: own.x, z: own.z, label: own.rosa ? 'Drive Rosa\'s green sedan' : own.taxi ? 'Drive the taxi' : own.kind === 3 ? 'Ride the scooter' : 'Get in the car', icon: '🚗', minor: true, run: () => this.vehicles.enter(own, p) });
@@ -571,7 +593,8 @@ class Game {
 
   /* ---------------- the loop ---------------- */
   _globalKeys(e) {
-    if (!this.started) return;
+    if (!this.started) { if (e.code === 'Escape' && this.ui.menuOpen) { e.preventDefault(); e.stopPropagation(); this.ui.closeMenu(); } return; }
+    if (e.code === 'Escape' && this.ui.panelOpen && !this.ui.menuOpen && !this.ui.cardOpen) { e.preventDefault(); e.stopPropagation(); this.ui.closePanel(); return; }
     const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
     if (e.code === 'KeyU' && !this.paused) { this.rescue(); this.ui.toast('You find your footing on the street.', 'good'); }
   }
@@ -602,10 +625,11 @@ class Game {
     if (inp.pressed('camera') && !this.talk) { this.view = this.view === 'third' ? 'first' : 'third'; this.ui.toast(this.view === 'third' ? 'Third person (V to go back).' : 'First person.'); }
     // time
     const ts = +this.settings.timeScale, h0 = s.hour;
-    if (!this.talk) { s.hour += dt * ts / 90; if (s.hour >= 24) { s.hour -= 24; s.day++; } }
-    if (Math.floor(s.hour) !== Math.floor(h0) && s.hour >= 7 && s.hour < 22 && Math.hypot(p.x - PLACES.parroquia.x, p.z - PLACES.parroquia.z) < 1600) { const n = Math.floor(s.hour) % 12 || 12; this.audio.bells(Math.min(n, 6)); if (Math.floor(s.hour) === 12 && Math.hypot(p.x - PLACES.jardin.x, p.z - PLACES.jardin.z) < 60) this.unlock('campanas'); }
-    if (s.hour > 2.9 && s.hour < 3.3) this.unlock('noctambulo');
-    const h = s.hour, haze = h < 6 ? 0.3 : h < 10 ? 0.3 - (h - 6) * 0.05 : h < 17 ? 0.1 : h < 20 ? 0.1 + (h - 17) * 0.04 : 0.25;
+    if (this.warp) this.stepWarp(dt);
+    else if (!this.talk) { s.hour += dt * ts / 90; if (s.hour >= 24) { s.hour -= 24; s.day++; } }
+    if (!this.warp && Math.floor(s.hour) !== Math.floor(h0) && s.hour >= 7 && s.hour < 22 && Math.hypot(p.x - PLACES.parroquia.x, p.z - PLACES.parroquia.z) < 1600) { const n = Math.floor(s.hour) % 12 || 12; this.audio.bells(Math.min(n, 6)); if (Math.floor(s.hour) === 12 && Math.hypot(p.x - PLACES.jardin.x, p.z - PLACES.jardin.z) < 60) this.unlock('campanas'); }
+    if (!this.warp && s.hour > 2.9 && s.hour < 3.3) this.unlock('noctambulo');
+    const h = s.hour, haze = hazeAt(h);
     setTimeOfDay(h, haze); U.uTime.value = this.t; this.vista.userData.update();
     if (this.talk) {
       const n = this.talk.npc;
@@ -784,5 +808,5 @@ class Game {
 
 Object.assign(Game.prototype, LifeGame);
 const game = new Game();
-window.__anil = window.__undertow = game; game.__THREE = THREE;   // for testing
+window.__anil = window.__undertow = game; game.__THREE = THREE; game.__PLACES = PLACES; game.__SHOPS = SHOPS; game.__U = U; game.__QUESTS = QUESTS_SIDE;   // for testing
 if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.claude) navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -17,6 +17,12 @@ export const PAGES = [
   { at: 'cayetano', dx: 14, dz: 18, title: 'Añil', text: 'Jiquilpan comes from the Nahuatl for the place of the jiquilite, the plant that gives añil, indigo. Before the town was a town, people dyed cloth blue in the springs of the cerro. We have been the blue town for longer than we have been anything else.' }
 ].map((p, i) => Object.assign(p, { id: i, x: PLACES[p.at].x + p.dx, z: PLACES[p.at].z + p.dz }));
 
+// things you can stop and look at, with no quest attached: a prop, a sign, a pot on a fire
+export const READABLES = [
+  { spot: 'muicle', label: 'Look at the muicle', cards: ['<em>Muicle</em>\nAlso called micle (Justicia spicigera). The sign by the hearth says so, with the Latin name underneath, as if the plant might want to be sure.',
+    'A bed of leafy plants, green with a few purple-red ones, and a clay pot on three stones. The leaves go in green; the tea in the pot is red and purple. Cecilia puts it on the fire in the mornings.'] }
+];
+
 export const NOTES = [
   { title: 'Jiquilpan de Juárez', text: 'A town of about 35,000 in the northwest of Michoacán, at around 1,560 metres, in the Ciénega de Chapala, beside its twin town, Sahuayo. It was named a Pueblo Mágico in 2012. The name comes from the Nahuatl for the place of the jiquilite, the plant used to make indigo (añil).' },
   { title: 'Lázaro Cárdenas', text: 'Born in Jiquilpan on 21 May 1895; President of Mexico from 1934 to 1940. He carried out a vast land reform, granting land to ejidos, and on 18 March 1938 announced the expropriation of the foreign oil companies, creating PEMEX. He died in 1970. The Estadio 18 de Marzo is named for that day, and its portada carries his words about natural resources.' },

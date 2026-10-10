@@ -1,4 +1,4 @@
-// AÑIL: the mystery, chapter by chapter, and the engine that runs it.
+// Las luces del Cerro: the mystery, chapter by chapter, and the engine that runs it.
 // A step is one thing to do: talk to someone (with gold choices), reach a place, examine something (sometimes a
 // puzzle), find three witnesses in any order, escape a pursuer, or race a clock. Steps grant clues and flags.
 
@@ -10,7 +10,7 @@ export const CLUES = {
   card: { name: 'A business card', text: 'Lic. Octavio Barragán, Manantiales del Cerro S.A. Found by the forced door, printed on thick cream paper. A muddy tyre track beside it, too wide for a car.' },
   foja: { name: 'Scratched in bronze', text: 'Behind the raised hand of the eighteenth figure, counting backward: "ARCHIVO — LIBRO DE 1940 — FOJA 18".' },
   margin: { name: 'Cuco\'s note, 1940', text: 'In the margin of the parish book, in a boy\'s careful hand: "Lo que el General dejó al pueblo lo guardé donde sus palabras dicen que es del pueblo." (What the General left the town, I kept where his words say it belongs to the town.) A pressed indigo leaf between the pages.' },
-  quote: { name: 'The General\'s words', text: '"Los recursos naturales del país deben servir para su propia prosperidad. Entregarlos a intereses extraños es traicionar la patria." Cast in bronze beside the stadium gate.' },
+  quote: { name: 'The General\'s words', text: '"Los recursos naturales del país deben servir para su propia prosperidad. Entregarlos a intereses extranjeros es traición a la patria." Cast in bronze beside the stadium gate.' },
   ironkey: { name: 'An iron key: "C.V. 1940"', text: 'From the hollow stone in the right pylon of the portada. Heavy, hand-forged, for a box, not a door.' },
   map: { name: 'A map of the cerro', text: 'Drawn in indigo ink on waxed paper: the trail, the curandera\'s house, and higher, a spring marked "Ojo del Añil" beside a mouth in the rock.' },
   register: { name: 'The cut page', text: 'Don Emeterio: the 1938 register of the town\'s grants survives, but the page for the Ojo del Añil spring was cut out years ago. Whoever holds the original title holds the spring.' },

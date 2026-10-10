@@ -441,6 +441,8 @@ export function makeLandmarks(city) {
     for (const sx of [-1, 1]) box(pg, 1.1, 5.1, 1.2, sx * 2.3, 0, 0, CA);
     box(pg, .8, 1, 1.3, 0, 7.1, 0, CA2);
     plaque(pg, ['18 DE MARZO'], 4, .7, 0, 6.15, -.62, Math.PI, { bg: '#b8806a', fg: '#4a2014', border: false, size: 150, h: 200, w: 1100 });
+    // the date, cut in the crest under the eagle
+    plaque(pg, ['1935'], 1.6, .62, 0, 9.35, -.5, Math.PI, { bg: '#f2efe8', fg: '#4a2014', border: false, size: 150, h: 200, w: 640, weight: 700 });
     // the eagle
     const eg = new THREE.Group(), BZ = M(0x8a6a3a, { metalness: .65, roughness: .4 });
     box(eg, .9, .5, .9, 0, 0, 0, CA2);
@@ -450,13 +452,14 @@ export function makeLandmarks(city) {
     eg.position.y = 10.6; pg.add(eg);
     // the General's words, painted in black script on the white panels
     const script = { bg: '#f2efe8', fg: '#1a1612', border: false, font: 'Cormorant Garamond, Georgia, serif', weight: 600, w: 1024, h: 420, size: 74 };
-    const quote = plaque(pg, ['Los recursos naturales del', 'país deben servir para su', 'propia prosperidad'], 6, 2.5, -7.8, 4, -.47, Math.PI, script);
-    plaque(pg, ['Entregarlos a intereses', 'extraños es traicionar', 'la patria'], 6, 2.5, 7.8, 4, -.47, Math.PI, script);
+    // seen from the street (facing the front, toward +z), +x is on your left: the resources line is on the left, the traición line on the right
+    const quote = plaque(pg, ['Los recursos naturales del', 'país deben servir para su', 'propia prosperidad'], 6, 2.5, 7.8, 4, -.47, Math.PI, script);
+    plaque(pg, ['Entregarlos a intereses', 'extranjeros es traición', 'a la patria'], 6, 2.5, -7.8, 4, -.47, Math.PI, script);
     quote.material.roughness = .9;
     const gate = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 3.6), landmarkMaterial({ map: gateTex(), alphaTest: .5, side: THREE.DoubleSide, metalness: .5, roughness: .5 })); gate.position.set(0, 1.8, .2); pg.add(gate);
     place(pg, p.x, p.z, 0);
     for (const [cx, w] of [[-7.8, 8.4], [7.8, 8.4], [-3.4, 1.8], [3.4, 1.8], [-12.1, 1.5], [12.1, 1.5]]) col.addBox(p.x + cx, p.z, w, 1.6, 0, py - 1, py + 9, 'landmark');
-    spots.portadaQuote = [p.x - 7.8, py, p.z - 2.4]; spots.portadaStone = [p.x + 2.6, py, p.z - 1.6];
+    spots.portadaQuote = [p.x + 7.8, py, p.z - 2.4]; spots.portadaStone = [p.x + 2.6, py, p.z - 1.6];
   }
   /* ---- the Plaza de la Feria: a round plaza of rings ---- */
   {
@@ -826,6 +829,34 @@ function extras(city, root, spots, glow, place, H) {
       stalk.castShadow = true; root.add(stalk); }
     // horses in the corral
     for (let k = 0; k < 2; k++) { const h = makeHorse([0x5a3a22, 0x2a1e18, 0xc8b8a0][(k + id.length) % 3]); h.position.set(-8 - k * 4, 0, -2 - k * 2); h.rotation.y = 2 + k; g.add(h); }
+  }
+  /* ---- Francisco and Cecilia's milpa on the cerro: a small adobe house, a porch bench, rows of corn, and a pot of muicle ---- */
+  {
+    const id = 'casaCecilia', pl = P(id), ry = 0.35 /* fixed, so the cast offsets in cast.js (world axes) land on the porch */, y = H(pl.x, pl.z), g = new THREE.Group();
+    const cs = Math.cos(ry), sn = Math.sin(ry), W = (lx, lz) => [pl.x + lx * cs + lz * sn, pl.z - lx * sn + lz * cs];
+    box(g, 7.4, 3, 5.2, 0, -.4, 0, M(0xb8906a)); box(g, 7.6, .5, 5.4, 0, -.9, 0, M(0x8a7a66));
+    const rf = prism(6.4, 1.8, 8.4, M(TILE)); rf.rotation.y = Math.PI / 2; rf.position.y = 2.6; g.add(rf);
+    const dr = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2), M(0x3a2414)); dr.position.set(0, .6, -2.62); dr.rotation.y = Math.PI; g.add(dr);
+    for (const sx of [-1, 1]) cyl(g, .1, .12, 2.5, sx * 2.6, -.4, -3.6, M(0x5a3a22), 6); box(g, 6.2, .14, 1.9, 0, 2.1, -3.2, M(0x7a4a2a));   // the porch
+    box(g, 2.2, .45, .6, 0, -.4, -3.9, M(0x7a5a3a));                                                                                          // the bench
+    for (let k = 0; k < 5; k++) { const ear = new THREE.Mesh(new THREE.CylinderGeometry(.09, .12, .5, 6), M(0xe8c850)); ear.position.set(-2.4 + k * .35, 1.5, -2.7); g.add(ear); }   // elotes hung to dry
+    // the muicle: a bed of leafy plants (green leaves, a few purple-red) and a clay pot on stones, with its sign
+    const rr = rng(4141), leafG = M(0x3f7a3a, { roughness: .95 }), leafP = M(0x7a3a5a, { roughness: .95 });
+    for (let k = 0; k < 20; k++) { const bush = new THREE.Mesh(new THREE.IcosahedronGeometry(.42 + rr() * .2, 0), k % 5 === 0 ? leafP : leafG); bush.scale.y = .8; bush.position.set(-9.2 + (k % 5) * .85, .3, -2 - Math.floor(k / 5) * .85); bush.rotation.set(rr() * 3, rr() * 3, 0); g.add(bush); }
+    for (let k = 0; k < 6; k++) box(g, .5, .3, .5, -5.8 + Math.cos(k) * .55, 0, -4.2 + Math.sin(k) * .55, M(0x6a625a), k);
+    cyl(g, .5, .38, .62, -5.8, .1, -4.2, M(0x9a5a34), 12); cyl(g, .42, .42, .04, -5.8, .72, -4.2, M(0x7a2a4a, { roughness: .3 }), 12);
+    cyl(g, .05, .06, 1.5, -7.1, -.3, -5.4, M(0x5a3a22), 6);
+    plaque(g, ['MUICLE', { text: 'micle · Justicia spicigera', small: true }], 2.3, .8, -7.1, 1.55, -5.46, Math.PI, { bg: '#d8c8a0', fg: '#3a2414', border: false, weight: 700 });
+    g.position.set(pl.x, y, pl.z); g.rotation.y = ry; root.add(g);
+    // the milpa: corn in rows beside the house
+    { const n = 18 * 12, stalk = new THREE.InstancedMesh(cornGeo(), M(0x6a8a34, { roughness: .95 }), n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3(); let i = 0;
+      const r = rng(5252);
+      for (let a = 0; a < 18; a++) for (let b = 0; b < 12; b++) { const [wx, wz] = W(6 + a * 1.1 + r() * .3, -6 + b * 1.4 + r() * .3); const h = .8 + r() * .35;
+        m4.compose(v.set(wx, H(wx, wz) - .05, wz), q.setFromEuler(e.set((r() - .5) * .12, r() * 6.28, (r() - .5) * .12)), sc.set(h, h, h)); stalk.setMatrixAt(i, m4); stalk.setColorAt(i, new THREE.Color().setHSL(.2 + r() * .05, .45, .32 + r() * .1)); i++; }
+      stalk.castShadow = true; root.add(stalk); }
+    { const [hx, hz] = W(0, 0); col.addBox(hx, hz, 7.4, 5.2, -ry, y - 2, y + 3.4, 'roof'); }
+    { const [mx, mz] = W(-5.8, -4.2); spots.muicle = [mx, H(mx, mz), mz]; }
+    spots[id] = [pl.x, y, pl.z];
   }
   cerroLife(city, root, H);
 }

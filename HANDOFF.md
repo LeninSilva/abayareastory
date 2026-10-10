@@ -1,4 +1,4 @@
-# AÑIL: handoff to another assistant
+# LAS LUCES DEL CERRO: handoff to another assistant
 
 Paste section 1 into ChatGPT first, then attach the repo zip or link and your photos. Paste sections 2 to 6 as needed. Section 7 has ready-made image prompts.
 
@@ -6,7 +6,7 @@ Paste section 1 into ChatGPT first, then attach the repo zip or link and your ph
 
 ## 1. First message to paste
 
-> You are continuing work on **AÑIL**, a browser game built with three.js. It is a first-person mystery and life sim set in the real town of **Jiquilpan de Juárez, Michoacán, México**. The code is at https://github.com/LeninSilva/abayareastory on branch `ccr-1083fbdc-shiu1z`. I am attaching photos of the real town. Match them for architecture, plants, people and colour.
+> You are continuing work on **LAS LUCES DEL CERRO**, a browser game built with three.js. It is a first-person mystery and life sim set in the real town of **Jiquilpan de Juárez, Michoacán, México**. The code is at https://github.com/LeninSilva/abayareastory on branch `ccr-1083fbdc-shiu1z`. I am attaching photos of the real town. Match them for architecture, plants, people and colour.
 >
 > Rules:
 > - Keep everything in plain ES modules under `src/`. `npm run build` bundles the game into one `index.html`.
@@ -59,7 +59,9 @@ git push -u origin ccr-1083fbdc-shiu1z
 | O | Character |
 | V | Camera (1st / 3rd person) |
 | 1–9 | Dialogue choices |
-| Esc | Back |
+| Esc | Back (closes menus, panels, dialogue and minigames) |
+| Tab | Move between controls while a menu, panel, dialogue or minigame is open; opens the menu otherwise |
+| Controller | Sticks walk and look; in menus the D-pad or left stick moves focus, A selects, B or Start goes back, bumpers switch tabs |
 
 The published version is at https://claude.ai/artifact/AU7AEZParCFrNWUkNE4K6K.
 
@@ -265,6 +267,15 @@ The published version is at https://claude.ai/artifact/AU7AEZParCFrNWUkNE4K6K.
 - New title screen: ink-bleed wordmark, skyline, and a tagline.
 - Jardín flower beds replace the old blobs.
 
+### Also done in the *Las luces del Cerro* update
+
+- Game renamed **Las luces del Cerro** (title screen, page title, manifest, README, handoff). "Añil" remains the story's plant, dye, spring and cave.
+- Regional vista (Chapala, Cristo Rey, Sahuayo lights), title-screen valley artwork, input fixes, sky wrap: from the prepared update.
+- Exact stadium inscriptions and the 1935 date; Francisco Salazar (`franciscoSalazar`), Cecilia, the milpa house, the muicle prop and the "Elotes y una guitarra" quest.
+- Continuous dusk-to-dawn lighting and a paced sleep/time-skip (`src/game/warp.js`).
+- Browser audit of every control with fixes (`docs/button-audit.md`, `docs/bugfix-report.md`): Escape and Tab behaviour, the title Settings menu, touch double-activation, the phone menu, minigame Leave, controller navigation of menus, the Vercel build copying `assets/`.
+- **Not done:** the Drive art packs could not be downloaded (see `docs/art-integration.md`).
+
 ### Still to do
 
 1. **Cars.** Parked cars still look boxy. Give `CarKit` / `PROFILES` in `src/render/detail.js` rounder bodies, separate wheel arches, and window frames.
@@ -292,7 +303,7 @@ These give you textures and concept art.
 - Load them in code with `new THREE.TextureLoader().load('data/img/<name>.png')`.
 - Ask ChatGPT to wire them in.
 
-1. **Title art**: Minimal title card for a video game called "AÑIL". Deep indigo ink bleeding into handmade cotton paper, a faint silhouette of a colonial Mexican church dome with red ribs and a stone bell tower at dusk, lots of empty space, elegant serif wordmark "AÑIL", no other text, 16:9.
+1. **Title art**: Minimal title card for a video game called "LAS LUCES DEL CERRO". Deep indigo ink bleeding into handmade cotton paper, a faint silhouette of a colonial Mexican church dome with red ribs and a stone bell tower at dusk, lots of empty space, elegant serif wordmark "Las luces del Cerro", no other text, 16:9.
 2. **Laja street texture**: Seamless tileable top-down texture of reddish-brown laja flagstone paving from a small town in Michoacán, irregular slabs with grey mortar joints, slight wear, even daylight, no shadows, 1024×1024.
 3. **Cobblestone (empedrado) texture**: Seamless tileable top-down texture of rounded river-stone cobbles set in dirt, Mexican mountain footpath, even light, 1024×1024.
 4. **Colonial wall texture**: Seamless texture of a lime-plastered colonial wall painted white with an almagre red baseboard band at the bottom, subtle cracks and patina, front view, 1024×1024.

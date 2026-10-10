@@ -61,11 +61,14 @@ export class MiniGames {
     const x = $('button', 'mini-x', 'Leave'); x.type = 'button'; x.onclick = () => this.done({ win: false, quit: true }); head.appendChild(x);
     r.appendChild(head); this.body = $('div', 'mini-body'); r.appendChild(this.body);
     document.body.appendChild(r); this.g.pauseInput(true); document.exitPointerLock && document.exitPointerLock();
+    // Escape always leaves, whether or not the game itself listens for keys (and keeps the game's own handlers from seeing it)
+    this._esc = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.done({ win: false, quit: true }); } };
+    addEventListener('keydown', this._esc, true);
     return new Promise(res => { this._res = res; });
   }
   done(result) {
     if (!this.root) return; this.root.remove(); this.root = null; this.alive = false;
-    clearInterval(this._iv); cancelAnimationFrame(this._raf); removeEventListener('keydown', this._key);
+    clearInterval(this._iv); cancelAnimationFrame(this._raf); removeEventListener('keydown', this._key); removeEventListener('keydown', this._esc, true);
     this.g.pauseInput(false); const r = this._res; this._res = null; r && r(result);
   }
   key(fn) { this._key = e => { if (e.key === 'Escape') { e.preventDefault(); this.done({ win: false, quit: true }); } else fn(e); }; addEventListener('keydown', this._key); }

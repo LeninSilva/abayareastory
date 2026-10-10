@@ -26,6 +26,7 @@ export class UI {
     $('card-next').addEventListener('click', () => this._cardNext());
     $('card').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._cardNext(); } });
     $('panel-x').addEventListener('click', () => this.closePanel());
+    $('side').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.closePanel(); } });
   }
   /* ---------------- HUD ---------------- */
   showHUD(on) { $('hud').hidden = !on; $('touch').hidden = !on || !this.g.touchUI(); }
@@ -120,11 +121,12 @@ export class UI {
   /* ---------------- conversation ---------------- */
   _dialogueWiring() {
     $('dlg-close').addEventListener('click', () => this.g.endTalk());
+    // capture + stopPropagation: Escape and the number keys belong to the conversation, not to the game's key handler
     addEventListener('keydown', e => {
       if ($('dialogue').hidden || this.cardOpen) return;
-      if (e.key === 'Escape') { e.preventDefault(); this.g.endTalk(); return; }
-      const n = parseInt(e.key, 10); if (n >= 1 && n <= 9) { const b = $('dlg-chips').querySelectorAll('button')[n - 1]; if (b) { e.preventDefault(); b.click(); } }
-    });
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.g.endTalk(); return; }
+      const n = parseInt(e.key, 10); if (n >= 1 && n <= 9) { const b = $('dlg-chips').querySelectorAll('button')[n - 1]; if (b) { e.preventDefault(); e.stopPropagation(); b.click(); } }
+    }, true);
   }
   openDialogue(npc, inspect) {
     const c = npc.def; $('dialogue').hidden = false; $('dlg-name').textContent = c.name; $('dlg-title').textContent = c.title || '';
@@ -252,16 +254,18 @@ export class UI {
     $('btn-save').addEventListener('click', () => { if (this.g.started) { this.g.save(); this.toast('Saved.', 'good'); } });
     $('btn-rescue').addEventListener('click', () => { if (!this.g.started) return; this.closeMenu(); this.g.rescue(); this.toast('You find your footing on the street.', 'good'); });
     $('btn-quit').addEventListener('click', () => { this.closeMenu(); this.g.toTitle(); });
-    $('menu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); this.closeMenu(); } });
+    // stopPropagation: the game's own key handler would otherwise also see Escape and reopen the menu next frame
+    $('menu').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.closeMenu(); } });
   }
   get menuOpen() { return !$('menu').hidden; }
-  openMenu(tab) { this.g.pauseInput(true); $('menu').hidden = false; document.exitPointerLock && document.exitPointerLock(); $('btn-save').disabled = $('btn-rescue').disabled = !this.g.started; this.showTab(tab || this.tab); }
+  openMenu(tab) { this.g.pauseInput(true); $('menu').hidden = false; document.exitPointerLock && document.exitPointerLock(); $('btn-save').disabled = $('btn-rescue').disabled = !this.g.started; this.showTab(tab || this.tab); document.querySelector('#tabs button.on')?.focus({ preventScroll: true }); }
   closeMenu() { $('menu').hidden = true; this.g.pauseInput(false); if (!this.g.started) $('btn-new').focus(); }
   showTab(t) {
     if (!this.g.started && t !== 'settings' && t !== 'notes') t = 'settings';
     this.tab = t;
     for (const b of document.querySelectorAll('#tabs button[data-tab]')) { b.classList.toggle('on', b.dataset.tab === t); b.disabled = !this.g.started && !['settings', 'notes'].includes(b.dataset.tab); b.setAttribute('aria-current', b.dataset.tab === t ? 'page' : 'false'); }
     for (const d of document.querySelectorAll('#panel > div')) d.classList.toggle('on', d.dataset.panel === t);
+    document.querySelector('#tabs button.on')?.scrollIntoView?.({ inline: 'center', block: 'nearest' });   // on a phone the strip scrolls: keep the current tab in view
     const el = document.querySelector(`#panel > div[data-panel=${t}]`);
     if (t === 'map') this.drawMap(true);
     else el.innerHTML = { case: () => this._case(), journal: () => this._journal(), people: () => this._people(), you: () => this._you(), property: () => this._property(), notes: () => this._notes(), settings: () => this._settings() }[t]();

@@ -89,6 +89,19 @@ export const QUESTS = [
     ],
     reward: { money: 900, aff: { luis: 20, francisco: 20 }, trait: { heart: 3 }, flag: 'esperanzaOpen', ach: 'esperanza', cards: ['At seven the next morning Francisco rolls up the steel curtain of Ferretería La Esperanza. It squeals like a pig. The street turns to look.', 'The first customer is a señora who needs one screw. Francisco sells her the screw, and Tío Luis gives her a free “¡Ánimo!” with it.', 'Above the counter there is a new photo next to the old one of Don Chencho: Francisco, Tío Luis, and you, all three dusty, next to four black tinacos. “Partners,” Tío Luis says. “Of the heart, patrón. The money partnership costs extra.”'] } },
 
+  /* ---------- the milpa on the cerro: Francisco Salazar (the guitarist, not the ferretero) and Cecilia ---------- */
+  { id: 'milpa', name: 'Elotes y una guitarra', giver: 'cecilia', offer: 'Can I help with the milpa, Doña Cecilia?', avail: g => g.state.ch >= 1 || g.state.ending,
+    intro: 'The elotes are ready and the crows know it before we do. Cut six for me before the sun gets high, and mind the leaves, they cut back. Then go and ask Francisco to play. He will say no. Ask twice.',
+    steps: [
+      { text: 'Cut six elotes in the milpa beside Francisco and Cecilia\'s house, on the cerro above the Rancho de los Salazar.', collect: { n: 6, at: 'casaCecilia', r: 12, label: 'Cut an elote', icon: 'plant' } },
+      { text: 'Ask Francisco Salazar to play something. (He played with Los Calis for years; the guitar on his back is the proof.)', talk: 'franciscoSalazar', chips: [
+        { label: 'Cecilia says you are hiding from the guitar.', tone: 'funny', reply: 'Hiding? I am negotiating. (He swings the guitar round, tunes by ear, and plays four bars of something old that makes the corn lean in.) Tell Cecilia the elotes were a bribe, and a good one.', next: 'done', fx: { trait: { heart: 2 }, aff: { franciscoSalazar: 12, cecilia: 8 } } },
+        { label: 'Please. Just one song, for the cerro.', tone: 'kind', reply: 'For the cerro, then. (He plays something slow, a bolero Los Calis used to close with, and doesn\'t look at you once. When he finishes he says: that one was for the elotes.)', next: 'done', fx: { trait: { heart: 3 }, aff: { franciscoSalazar: 15, cecilia: 8 } } },
+        { label: 'Which song did Los Calis play best?', tone: 'honest', reply: 'Ah. A listener. Every wedding asked for the same three, and I played them badly on purpose, so they would ask for a fourth. (He plays the fourth.)', next: 'done', fx: { trait: { word: 2 }, aff: { franciscoSalazar: 12 } } }
+      ] }
+    ],
+    reward: { money: 250, aff: { cecilia: 15 }, trait: { heart: 2 }, cards: ['Cecilia boils four of the elotes in the pot beside the muicle and gives you the first one on a stick, with lime and a little chile.', 'From the porch you can hear the guitar start again, softer now, the way a man plays when he thinks nobody is counting.'] } },
+
   /* ---------- Los Rinos de Jiquilpan ---------- */
   { id: 'rinos', name: 'La rodada de los Rinos', giver: 'chava', offer: 'Can I ride with the Rinos?',
     intro: 'With us? ¡Órale! But first the initiation. Every Rino has done it: the Bosque, then up past the Rancho de Novoa, then the stone path to the chapel of San Francisco, all before the peloton finishes the back road through Paredones. No bicycle up the stones: you run, you walk, you fly in that ridiculous jetpack, I don\'t care. Ready? ¡Rinos!',

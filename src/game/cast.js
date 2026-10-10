@@ -116,6 +116,26 @@ export const CAST = {
       self: ['My father had a ferretería on this corner for thirty-four years. When he died I sold it and went to Morelia to be an accountant. Twenty years of other people\'s numbers. Now I\'m back, and I bought it again, from the man I sold it to, at twice the price. That\'s the accounting of the heart, joven.', 'My hair? It was curly when I was born and it will be curly in the coffin. My beard is the only thing that obeys the years.'],
       town: ['Everybody in Jiquilpan builds. Slowly, a room a year, with the varilla sticking out of the roof waiting for the next floor. That\'s why a ferretería here never dies. It only waits.', 'The Monumento? The General looks down this street every morning. My father used to say he checks if the shops opened on time.']
     } },
+  /* ---------------- the cerro: a guitarist and his milpa ---------------- */
+  // Francisco Salazar is NOT the ferretero (that is `francisco`): a different man with the same first name, as in any pueblo.
+  franciscoSalazar: { name: 'Francisco Salazar', title: 'guitarist; lives on the cerro with Cecilia; once played with Los Calis', at: 'casaCecilia', offset: [-3.5, -5.2], temper: 'warm', adult: true, fem: false, age: 54,
+    look: P({ skin: 0xa8765a, hair: 0x1e1a18, hairStyle: 'short', beard: true, beardColor: 0x2e2a28, hat: 'wide', hatColor: 0xb89a62, top: 0x7a8a9a, bottom: 0x4a4636, shoes: 0x4a3220, accessory: 'guitar', build: 0.95, face: { jaw: 0.92, nose: 1.1, brow: 1.1 } }),
+    schedule: (d, h) => h >= 7.5 && h < 21, likes: ['charanda', 'pan', 'libro'],
+    greet: ['Buenas. Mind the corn, it is listening. (He tunes a string by ear and winces at it.)', 'Come, sit. Cecilia is making the tea and I am making excuses not to hoe.', 'Welcome up. We have no signal, no neighbours and no hurry. The guitar is the only thing that complains.'],
+    lines: {
+      self: ['I played with Los Calis for eleven years: weddings, quinceañeras, one very long baptism in Sahuayo. Then my fingers got slow and my knees got honest. Now I play for the corn, which does not clap but does not leave either.', 'Salazar, yes, like the rancho down the road. Cousins, if you count the way people count here, which is generously.'],
+      town: ['From up here Jiquilpan looks like a handful of white dice somebody forgot to pick up. At night it looks like it is breathing.', 'I come down for strings, for salt, and for the Friday serenatas. The rest of the week the cerro keeps me.'],
+      cerro: ['The corn likes the cerro more than I do. Cecilia says it is because I talk to it in the wrong key.', 'Wild cows came through last week and ate the edge of the milpa. They left the guitar alone. Critics.']
+    } },
+  cecilia: { name: 'Cecilia', title: 'grows corn with Francisco on the cerro (appearance: provisional concept)', at: 'casaCecilia', offset: [3.6, -5.0], temper: 'warm', adult: true, fem: true, age: 49,
+    look: P({ skin: 0xb88763, hair: 0x2a1c16, hairStyle: 'bun', top: 0xc8b090, bottom: 0x5a3a52, shoes: 0x4a3220, accessory: 'apron', accColor: 0x7a5a8a, build: 1.02, height: 0.95 }),
+    schedule: (d, h) => h >= 6.5 && h < 20.5, likes: ['flores', 'pan', 'ate'],
+    greet: ['Ay, visitors. Sit, sit. The tea is on the fire; the corn is on its own schedule.', 'Buenas. Francisco is somewhere being a musician. Tell me you did not come to ask him to play. He will say no and then play for three hours.', 'Come in out of the sun. Look at the milpa first, everybody does.'],
+    lines: {
+      self: ['Corn, beans, calabaza, in that order, the way my mother planted them. Francisco says I am stubborn. I say the corn agrees with me.', 'I put a pot of muicle on the fire in the mornings. The leaves are green going in and the water comes out red and purple, and that is all I will tell you about it.'],
+      town: ['We sell elotes at the Friday tianguis when the corn lets us. People say it tastes like the cerro. It tastes like corn. The cerro is just where it lives.', 'Down there everyone is in a hurry to get somewhere. Up here the somewhere comes to you.'],
+      cerro: ['If you walk the stone path at dusk, stop at the second bend and look back. You will see why we never left.']
+    } },
   luis: { name: 'Tío Luis', title: 'helps out at Ferretería La Esperanza; everybody\'s tío', at: 'ferreLuis', offset: [-2.5, 3.5], temper: 'warm', adult: true, fem: false, age: 72,
     look: P({ skin: 0xa8765a, hair: 0xd8d4cc, hairStyle: 'short', beard: true, beardColor: 0xf2f0ea, hat: 'panama', top: 0xf2ecdc, bottom: 0x6a5a40, shoes: 0x5a3a20, build: 1.05, height: 0.97, face: { cheek: 1.06, brow: 1.3, lids: 0.2 } }),
     schedule: (d, h) => h >= 7.5 && h < 20, likes: ['pan', 'charanda', 'ate', 'gaspacho'],

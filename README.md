@@ -1,4 +1,4 @@
-# Añil
+# Las luces del Cerro
 
 A first-person mystery set in Jiquilpan de Juárez, Michoacán. The town is the real one, built from open map and elevation data.
 
@@ -44,6 +44,8 @@ You can play it in a browser or install it on Android as an app: open the page i
   - Walk it in first person.
   - Get into **any car**: a parked one, one stopped in traffic ("¡Oiga!"), or Rosa's green sedan. Drive it with a chase camera, a handbrake, crashes and airtime.
   - Aurelio's homemade jetpack flies where you look. Boost winds up to nearly **600 km/h**. You can land on streets, fields and flat roofs, and it catches you if you step off one.
+- **On the cerro:** Francisco Salazar, a guitarist who once played with Los Calis, and Cecilia grow corn above the Rancho de los Salazar. Look at the *muicle* by their hearth (also called *micle*, *Justicia spicigera*), and help with the elotes in the side quest "Elotes y una guitarra". He is not the hardware-store Francisco.
+- **The stadium's portada** carries the General's words as on the real one: "Los recursos naturales del país deben servir para su propia prosperidad." and "Entregarlos a intereses extranjeros es traición a la patria.", with "18 DE MARZO" on the arch and "1935" under the eagle.
 - **The mystery:** seven chapters and three endings.
   - Clues and a puzzle: count the figures on the bronze door.
   - The parish archive's book of 1940, the hollow words of the stadium's portada, and three witnesses.
@@ -64,6 +66,9 @@ You can play it in a browser or install it on Android as an app: open the page i
   - On-screen controls: automatic, always or never
   - Four quality presets (Low, Medium, High, Cinematic)
   - An "I'm stuck" button (U) that always gets you back to a street
+  - Everything can be done by mouse, keyboard (Tab moves between controls, 1–9 pick answers, Escape goes back), touch, or a controller: on a controller the D-pad or left stick moves through menus, dialogue and shop panels, A selects, B or Start goes back, and the bumpers switch menu tabs
+  - On a phone the menu's ✕ stays in the corner
+  - Sleeping, or a long evening, plays out as a continuous sunset, night and dawn instead of jumping the clock
 
 ## What's real and what isn't
 
@@ -105,6 +110,16 @@ Serve the folder with any static server. Vercel deploys it from `public/` (see `
   - citizens, dialogue voices and races.
 
 The earlier San Francisco game, Undertow, is in the git history.
+
+## Tests and verification
+
+```bash
+npm ci
+npm test        # unit and regression tests (sky, sleep time-lapse, input, CSS stacking, deploy files, minigames)
+npm run build   # writes index.html, sw.js and public/
+```
+
+The browser audit, the bug-fix report, the art-integration status and the screenshots are in `docs/`: `button-audit.md`, `bugfix-report.md`, `verification-report.md`, `art-integration.md`, `screenshots/`.
 
 ## Data and credits
 

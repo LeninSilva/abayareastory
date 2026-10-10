@@ -96,6 +96,11 @@ export function makePerson(spec = {}) {
   if (s.accessory === 'collar') tl.push([bx(0.05, 0.035, 0.01, 0, 0.53, 0.115), 0xffffff]);
   if (s.accessory === 'scarf') tl.push([cyl(0.1, 0.12, 0.08, 0, 0.53, 0, 12), s.accColor || 0xa33a2e]);
   if (s.accessory === 'bag') tl.push([bx(0.24, 0.2, 0.08, -0.24 * W, 0.05, 0.02), 0x6b4a30], [bx(0.02, 0.5, 0.02, -0.1, 0.33, 0.1).rotateZ(-0.5), 0x5a3a20]);
+  if (s.accessory === 'guitar') { // slung on the back, neck up over the shoulder
+    const gt = g => g.rotateZ(0.6).translate(0.03, 0.3, -0.17);
+    tl.push([gt(new THREE.CylinderGeometry(0.115, 0.115, 0.05, 18).rotateX(Math.PI / 2).translate(0, -0.1, 0)), 0xb8803a], [gt(new THREE.CylinderGeometry(0.085, 0.085, 0.05, 18).rotateX(Math.PI / 2).translate(0, 0.02, 0)), 0xb8803a],
+      [gt(new THREE.CylinderGeometry(0.03, 0.03, 0.056, 12).rotateX(Math.PI / 2).translate(0, -0.03, 0)), 0x1a1210], [gt(bx(0.032, 0.34, 0.02, 0, 0.28, 0)), 0x4a2e1a], [gt(bx(0.05, 0.07, 0.022, 0, 0.47, 0)), 0x2a1c12]);
+  }
   if (s.accessory === 'rebozo' || s.accessory === 'sarape') tl.push([cyl(0.19 * W, 0.26 * W, 0.34, 0, 0.4, 0, 14).scale(1, 1, 0.82), s.accColor || 0x26346e], s.accessory === 'rebozo' ? [bx(0.1, 0.5, 0.02, 0.1, 0.05, 0.15), s.accColor || 0x26346e] : null);
   if (s.accessory === 'necklace' || s.accessory === 'amulet') tl.push([new THREE.TorusGeometry(0.075, 0.008, 6, 18).rotateX(1.3).translate(0, 0.52, 0.04), s.accColor || 0xd8d8e0]);
   if (s.accessory === 'belt') tl.push([cyl(0.155 * W, 0.155 * W, 0.05, 0, 0.0, 0, 16).scale(1, 1, 0.8), s.accColor || 0x6a4a2a]);

@@ -318,6 +318,6 @@ export class Talk {
     g.endTalk();
     g.ui.card([`You take ${npc.def.name} to the Azul Portal. Blue walls, white tablecloths, the arches lit up like a birthday cake.`,
       pick(['Enchiladas placeras, a jarra of agua de jamaica, the band warming up on the kiosco across the Jardín. You talk until the waiter starts stacking chairs.', 'Corundas and uchepos. A story about their grandmother that makes you laugh until the next table joins in.', 'They steal your last taco. You let them. That is how you know.']),
-      'Walking back around the Jardín, they take your arm.'], () => { L.affinity(id, n > 1 ? 3 : 10); g.state.hour = Math.min(23.5, Math.max(g.state.hour, 21)); g.save(); });
+      'Walking back around the Jardín, they take your arm.'], () => { L.affinity(id, n > 1 ? 3 : 10); if (g.state.hour < 21) g.warpTo(21, () => g.save()); else g.save(); });
   }
 }

@@ -269,7 +269,7 @@ export const LifeGame = {
   sleep(lotId) {
     const s = this.state; if (s.hour >= 7 && s.hour < 18) { this.ui.toast('It\'s the middle of the day. You lie down for a nap; the neighbours\' radio says no.'); return; }
     this.ui.card(['You sleep in your own house in Jiquilpan. The church bells, a rooster, a motorbike, the bells again.', s.life.spouse ? `${this.npcName(s.life.spouse)} has already made coffee.` : 'Morning comes in through the window, gold on the wall.'], () => {
-      if (s.hour >= 7) s.day++; s.hour = 7; this.life.tick(); this.save(); this.ui.toast('Saved. Good morning.', 'good');
+      this.warpTo(7, () => { this.life.tick(); this.save(); this.ui.toast('Saved. Good morning.', 'good'); });
     });
   },
 

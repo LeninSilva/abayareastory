@@ -47,6 +47,7 @@ export const PLACES = {
   sanFrancisco:{ name: 'San Francisco del Cerro (the hamlet on the summit)', x: 1790, z: 5010, r: 60 },
   ranchoNovoa: { name: 'Rancho de Novoa', x: 1153, z: 2417, r: 34 },
   ranchoSalazar:{ name: 'Rancho de los Salazar', x: 1113, z: 3685, r: 34 },
+  casaCecilia:{ name: 'Francisco and Cecilia\'s milpa', x: 1176, z: 3748, r: 24 },
   boutique:   { name: 'Boutique Rosa Mexicano (clothes)', x: -206, z: -24, r: 8 },
   sombreros:  { name: 'Sombrerería La Texana (hats and boots)', x: -178, z: -18, r: 8 },
   peluqueria: { name: 'Peluquería Don Beto (barber and salon)', x: -214, z: -68, r: 8 },

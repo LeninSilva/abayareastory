@@ -92,23 +92,50 @@ const KEYS = [
   [20.6, 0x4a5a8a, 0x080b18, 0x232a44, 0x262c40, 0x2c3452, 0.95],
   [24.0, 0x4a5a8a, 0x05070f, 0x1b2335, 0x1d2536, 0x2a3350, 1.0]
 ];
-const c1 = new THREE.Color(), c2 = new THREE.Color();
-export function setTimeOfDay(hour, fogBank) {
-  hour = ((hour % 24) + 24) % 24;
+const c1 = new THREE.Color(), c2 = new THREE.Color(), dSun = new THREE.Vector3(), dMoon = new THREE.Vector3();
+// rises in the east, sets in the west, passes a little to the south
+const keyDir = (elev, az, out) => { const c = Math.cos(Math.asin(elev)); return out.set(-Math.sin(az) * c, elev, Math.cos(az) * 0.35 * c).normalize(); };
+// the keyframe pair around an hour, with the smoothed fraction between them
+function frame(hour) {
   let a = KEYS[0], b = KEYS[1];
   for (let i = 0; i < KEYS.length - 1; i++) if (hour >= KEYS[i][0] && hour <= KEYS[i + 1][0]) { a = KEYS[i]; b = KEYS[i + 1]; break; }
-  const t = (hour - a[0]) / Math.max(0.001, b[0] - a[0]), s = t * t * (3 - 2 * t);
-  const mix = (i, u) => u.value.copy(c1.setHex(a[i])).lerp(c2.setHex(b[i]), s);
-  mix(1, U.uSunColor); mix(2, U.uSkyTop); mix(3, U.uSkyHorizon); mix(4, U.uFogColor); mix(5, U.uAmbient);
-  U.uNight.value = a[6] + (b[6] - a[6]) * s;
-  U.uGroundBounce.value.copy(U.uAmbient.value).multiplyScalar(0.55).lerp(new THREE.Color(0.35, 0.28, 0.2), 0.4);
-  // the sun (or the moon, at night) crosses from east to west
-  const day = (hour - 6) / 12, el = Math.sin(Math.PI * day), az = Math.PI * (day - 0.5);
-  const night = U.uNight.value;
-  const sunEl = night > 0.6 ? 0.55 : Math.max(0.06, el * 0.95);
-  const sunAz = night > 0.6 ? az + Math.PI : az;
-  U.uSunDir.value.set(-Math.sin(sunAz) * Math.cos(Math.asin(sunEl)), sunEl, Math.cos(sunAz) * 0.35 * Math.cos(Math.asin(sunEl))).normalize();   // rises in the east, sets in the west, passes a little to the south
-  if (night > 0.6) U.uSunColor.value.multiplyScalar(0.55);
-  U.uFogBank.value = fogBank;
-  U.uFogDensity.value = 0.00008 + fogBank * 0.00026 + night * 0.00004;
+  const t = (hour - a[0]) / Math.max(0.001, b[0] - a[0]);
+  return { a, b, s: t * t * (3 - 2 * t) };
 }
+// The sun crosses from east to west; at night the key light is the moon. The two are blended by how dark it is
+// (never switched), so dusk, blue hour, night, predawn and dawn move the light and its shadows continuously,
+// including across midnight. Returns the blend weight (0 sun .. 1 moon).
+function keyLight(hour, night, out) {
+  const day = (hour - 6) / 12, el = Math.sin(Math.PI * day), az = Math.PI * (day - 0.5), w = Math.min(1, Math.max(0, (night - 0.2) / 0.7));
+  keyDir(Math.max(0.06, el * 0.95), az, dSun); keyDir(0.55, az + Math.PI, dMoon);
+  out.copy(dSun).lerp(dMoon, w).normalize(); return w;
+}
+/** The whole sky state for an hour as plain values (no uniforms touched): colours, night factor, key light direction. */
+export function skySample(hour, o = {}) {
+  hour = ((hour % 24) + 24) % 24;
+  const { a, b, s } = frame(hour);
+  const col = (i, k) => (o[k] || (o[k] = new THREE.Color())).copy(c1.setHex(a[i])).lerp(c2.setHex(b[i]), s);
+  col(1, 'sun'); col(2, 'top'); col(3, 'hor'); col(4, 'fog'); col(5, 'amb');
+  o.night = a[6] + (b[6] - a[6]) * s;
+  o.w = keyLight(hour, o.night, o.dir || (o.dir = new THREE.Vector3()));
+  o.sun.multiplyScalar(1 - 0.45 * o.w);
+  return o;
+}
+const sA = {}, sB = {};
+export const LIMITS = { sweep: 0.05, colour: 0.04, night: 0.04 };
+/** How much the sky changes between two hours, as a multiple of what we allow in one frame (1 = at the limit):
+ *  key light turn, the largest colour channel change, and the night factor. Used to pace the sleep/time-skip. */
+export function skyChange(h0, h1) {
+  skySample(h0, sA); skySample(h1, sB);
+  let col = 0; for (const k of ['sun', 'top', 'hor', 'fog', 'amb']) col = Math.max(col, Math.abs(sA[k].r - sB[k].r), Math.abs(sA[k].g - sB[k].g), Math.abs(sA[k].b - sB[k].b));
+  return Math.max(Math.acos(Math.min(1, sA.dir.dot(sB.dir))) / LIMITS.sweep, col / LIMITS.colour, Math.abs(sA.night - sB.night) / LIMITS.night);
+}
+export function setTimeOfDay(hour, fogBank) {
+  const o = skySample(hour, sT);
+  U.uSunColor.value.copy(o.sun); U.uSkyTop.value.copy(o.top); U.uSkyHorizon.value.copy(o.hor); U.uFogColor.value.copy(o.fog); U.uAmbient.value.copy(o.amb);
+  U.uNight.value = o.night; U.uSunDir.value.copy(o.dir);
+  U.uGroundBounce.value.copy(U.uAmbient.value).multiplyScalar(0.55).lerp(new THREE.Color(0.35, 0.28, 0.2), 0.4);
+  U.uFogBank.value = fogBank;
+  U.uFogDensity.value = 0.00008 + fogBank * 0.00026 + o.night * 0.00004;
+}
+const sT = {};

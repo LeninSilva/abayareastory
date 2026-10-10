@@ -1,10 +1,10 @@
-// AÑIL: a mystery in Jiquilpan de Juárez, Michoacán.
+// Las luces del Cerro: a mystery in Jiquilpan de Juárez, Michoacán.
 // The town, its landmarks and its history are real. Every character, the Manantiales company, the 1938 water title,
 // Cuco's box and the Cueva del Añil are invented.
 
 export { PLACES } from '../geo.js';
 
-export const BRIEF = `AÑIL is a first-person mystery game set in present-day Jiquilpan de Juárez, Michoacán, Mexico: a Pueblo Mágico of about 35,000 people at 1,560 m in the Ciénega de Chapala, birthplace of President Lázaro Cárdenas (born 21 May 1895), whose Biblioteca Gabino Ortiz (a 19th-century former sanctuary) holds murals José Clemente Orozco painted in 1940. The Estadio 18 de Marzo is named for 18 March 1938, the day Cárdenas nationalized Mexico's oil; its portada carries his words: "Los recursos naturales del país deben servir para su propia prosperidad. Entregarlos a intereses extraños es traicionar la patria." The Cerro de San Francisco rises south of town.
+export const BRIEF = `LAS LUCES DEL CERRO is a first-person mystery game set in present-day Jiquilpan de Juárez, Michoacán, Mexico: a Pueblo Mágico of about 35,000 people at 1,560 m in the Ciénega de Chapala, birthplace of President Lázaro Cárdenas (born 21 May 1895), whose Biblioteca Gabino Ortiz (a 19th-century former sanctuary) holds murals José Clemente Orozco painted in 1940. The Estadio 18 de Marzo is named for 18 March 1938, the day Cárdenas nationalized Mexico's oil; its portada carries his words: "Los recursos naturales del país deben servir para su propia prosperidad. Entregarlos a intereses extranjeros es traición a la patria." The Cerro de San Francisco rises south of town.
 THE STORY (invented): The player's grandfather, Don Aurelio Valdovinos, a retired PEMEX engineer and volunteer at the Biblioteca, vanished on the Cerro de San Francisco after calling the player to say "I found what Cuco hid." Cuco (Refugio Valdovinos, Aurelio's father) was a boy who mixed plaster for Orozco in 1940. A company, Manantiales del Cerro S.A., wants the town council (the cabildo) to grant it the springs on the cerro to bottle the water, while wells in town run low. Aurelio believed Cuco hid the town's 1938 title to the Ojo del Añil spring. The player follows the clues: the bronze door of the library, the parish archive, the stadium's portada, three witnesses, the museum, and the indigo cave on the cerro.`;
 
 // shorthand for person specs
