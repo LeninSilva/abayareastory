@@ -275,6 +275,7 @@ The published version is at https://claude.ai/artifact/AU7AEZParCFrNWUkNE4K6K.
 - Continuous dusk-to-dawn lighting and a paced sleep/time-skip (`src/game/warp.js`).
 - Browser audit of every control with fixes (`docs/button-audit.md`, `docs/bugfix-report.md`): Escape and Tab behaviour, the title Settings menu, touch double-activation, the phone menu, minigame Leave, controller navigation of menus, the Vercel build copying `assets/`.
 - **Not done:** the Drive art packs could not be downloaded (see `docs/art-integration.md`).
+- **Not deployed:** the Pages workflow fails at `configure-pages` because Pages is not enabled for the repository (Settings → Pages → Source: GitHub Actions); see `docs/verification-report.md` §6.
 
 ### Still to do
 

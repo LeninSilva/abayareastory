@@ -91,6 +91,12 @@ Measured in headless Chromium on a machine with **no GPU** (software WebGL), so 
 
 That draw load is high for phones. It predates this update (the vista adds one plane, about eight meshes and one 80-instance mesh), and I did not change it. The game already lowers its pixel ratio when frames run slow; whether that is enough on a low-end phone is untested.
 
-## 6. Deployment
+## 6. Deployment: **not deployed**
 
-See the end of `bugfix-report.md` and the repository's commit history for what was pushed. GitHub Pages deploys from `.github/workflows/pages.yml` on pushes to `ccr-1083fbdc-shiu1z`; `vercel.json` now copies `assets/`.
+- **Pushed:** `9f19a11`, `1ac3ab0` and `17c11d4` on `ccr-1083fbdc-shiu1z`.
+- **GitHub Pages workflow** (run #21, https://github.com/LeninSilva/abayareastory/actions/runs/38038461970) **failed** at `actions/configure-pages@v5`:
+  *"Get Pages site failed. Please verify that the repository has Pages enabled and configured to build using GitHub Actions."*
+  The four runs before this update (#17 to #20) failed at the same step, so this is a repository setting, not the code. The session's GitHub access cannot reach the Pages settings API, and turning Pages on is the owner's decision, so I did not try to change it.
+- **Vercel:** no Vercel status or deployment is attached to any of these commits, so I found no other deployment setup to trigger. `vercel.json` now copies `assets/`, so a Vercel project connected to this repository would publish the title artwork.
+- **Result:** there is no live URL to report, and I did not verify a deployed copy. Everything in this report was verified on the built `public/` served from `localhost`.
+- **To deploy:** repository *Settings → Pages → Build and deployment → Source: GitHub Actions*, then *Re-run all jobs* on run #21 (or push again).
