@@ -1,0 +1,101 @@
+[
+ {
+  "screen": "Save compatibility",
+  "control": "original build writes a save",
+  "input": "game call",
+  "expected": "a save exists in localStorage",
+  "actual": "918 bytes",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Save compatibility",
+  "control": "Continue shows for an old save",
+  "input": "visual",
+  "expected": "the Continue button is visible",
+  "actual": "hidden=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Save compatibility",
+  "control": "Continue loads an old save",
+  "input": "mouse click",
+  "expected": "same name, money, hour, chapter, clues, flags and position as when it was saved",
+  "actual": "{\"name\":\"Veterana\",\"money\":4321,\"hour\":9.49,\"ch\":1,\"clue\":true,\"flag\":7,\"met\":[\"cuca\"],\"pos\":[-164,-75],\"posErr\":0}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Save compatibility",
+  "control": "new characters and quest exist for an old save",
+  "input": "game data",
+  "expected": "Francisco Salazar, Cecilia and the muicle spot exist; the Elotes quest is offered",
+  "actual": "{\"fs\":true,\"ce\":true,\"mu\":true,\"avail\":true,\"state\":null}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Save compatibility",
+  "control": "saving again keeps working",
+  "input": "game call",
+  "expected": "the migrated save is written and readable",
+  "actual": "{\"name\":\"Veterana\",\"money\":4321,\"hasMilpa\":false}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Save compatibility",
+  "control": "console errors while loading an old save",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Corrupt saves",
+  "control": "corrupt JSON",
+  "input": "page load, then Continue or Begin",
+  "expected": "the page loads; the game can still be started (no crash, no stuck title)",
+  "actual": "continue hidden; used Begin; errors: ",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Corrupt saves",
+  "control": "empty object",
+  "input": "page load, then Continue or Begin",
+  "expected": "the page loads; the game can still be started (no crash, no stuck title)",
+  "actual": "continue shown; used Continue; errors: ",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Corrupt saves",
+  "control": "truncated: name only",
+  "input": "page load, then Continue or Begin",
+  "expected": "the page loads; the game can still be started (no crash, no stuck title)",
+  "actual": "continue shown; used Continue; errors: ",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Corrupt saves",
+  "control": "wrong type (array)",
+  "input": "page load, then Continue or Begin",
+  "expected": "the page loads; the game can still be started (no crash, no stuck title)",
+  "actual": "continue shown; used Continue; errors: ",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Corrupt saves",
+  "control": "null life",
+  "input": "page load, then Continue or Begin",
+  "expected": "the page loads; the game can still be started (no crash, no stuck title)",
+  "actual": "continue shown; used Continue; errors: ",
+  "result": "pass",
+  "note": ""
+ }
+]

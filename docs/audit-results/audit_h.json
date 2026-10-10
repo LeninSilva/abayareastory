@@ -1,0 +1,56 @@
+[
+ {
+  "screen": "Lifecycle",
+  "control": "one key press = one action after 4 title/continue cycles",
+  "input": "keyboard V after returning to the title and continuing 3 times",
+  "expected": "the camera toggles exactly once per press (no duplicate listeners)",
+  "actual": "view first -> third; Input.press calls for one key press: 1",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Lifecycle",
+  "control": "one click on Save = one save and one toast after the same cycles",
+  "input": "mouse click",
+  "expected": "a single click stores once and shows one confirmation",
+  "actual": "{\"sets\":1,\"toasts\":1}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Lifecycle",
+  "control": "returning to the title during a conversation",
+  "input": "menu › Title screen with a dialogue open (via game call)",
+  "expected": "the conversation is closed, input restored after Continue, no dialogue box left on screen",
+  "actual": "{\"talk\":false,\"dlg\":false} inputEnabled=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Lifecycle",
+  "control": "resize and rotate mid-game",
+  "input": "viewport 800×450 → 390×844 → 844×390",
+  "expected": "the canvas follows the window each time with no error",
+  "actual": "[[390,844,390,844],[844,390,844,390],[800,450,800,450]]",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Lifecycle",
+  "control": "tab hidden and shown again",
+  "input": "visibilitychange",
+  "expected": "the game saves when hidden and keeps running when shown",
+  "actual": "saved while hidden=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Console",
+  "control": "JavaScript errors and failed requests during the lifecycle run",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none (the only failed request was Google Fonts, blocked by this sandbox)",
+  "result": "pass",
+  "note": ""
+ }
+]

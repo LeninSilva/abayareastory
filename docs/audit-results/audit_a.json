@@ -1,0 +1,767 @@
+[
+ {
+  "screen": "Title",
+  "control": "Continue",
+  "input": "visual",
+  "expected": "hidden when there is no saved game",
+  "actual": "hidden=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "grandson",
+  "input": "mouse click",
+  "expected": "exactly this option is pressed (aria-pressed) and the others are not",
+  "actual": "m:true f:false x:false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "granddaughter",
+  "input": "mouse click",
+  "expected": "exactly this option is pressed (aria-pressed) and the others are not",
+  "actual": "m:false f:true x:false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "grandchild",
+  "input": "mouse click",
+  "expected": "exactly this option is pressed (aria-pressed) and the others are not",
+  "actual": "m:false f:false x:true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Your name",
+  "input": "keyboard typing",
+  "expected": "accepts text, limited to 24 characters",
+  "actual": "length 24",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Gender buttons",
+  "input": "keyboard (focus + Space)",
+  "expected": "Space presses the focused option without starting the game",
+  "actual": "{\"f\":\"true\",\"started\":false}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "About",
+  "input": "mouse click",
+  "expected": "opens a card about the game titled Las luces del Cerro; Continue closes it",
+  "actual": "open=true closedAfter=true text=LAS LUCES DEL CERRO\nA mystery ",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Settings",
+  "input": "mouse click",
+  "expected": "opens the menu on the Settings tab; only Settings and Notes tabs are enabled before a game starts",
+  "actual": "{\"menu\":true,\"tab\":\"settings\",\"dis\":[\"map\",\"case\",\"journal\",\"people\",\"you\",\"property\"]}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Back to the town (menu-close)",
+  "input": "mouse click",
+  "expected": "closes the menu and shows the title again",
+  "actual": "menu=false title=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Escape",
+  "input": "keyboard",
+  "expected": "closes the title settings menu",
+  "actual": "menu=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Begin",
+  "input": "mouse click",
+  "expected": "starts a new game named Zoe and shows the first intro card",
+  "actual": "started=true name=Zoe card=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Intro card",
+  "control": "Continue",
+  "input": "mouse click",
+  "expected": "advances exactly one card",
+  "actual": "0 -> 1",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Intro card",
+  "control": "Continue",
+  "input": "keyboard Enter",
+  "expected": "advances exactly one card (no double activation)",
+  "actual": "1 -> 2",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Intro card",
+  "control": "Continue",
+  "input": "keyboard Space",
+  "expected": "advances exactly one card",
+  "actual": "2 -> 3",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Intro card",
+  "control": "Continue (last)",
+  "input": "mouse click",
+  "expected": "the story card closes and gameplay input is restored",
+  "actual": "cardsLeft=false inputEnabled=true clicks=2",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "HUD",
+  "control": "Menu (pause)",
+  "input": "mouse click",
+  "expected": "opens the menu",
+  "actual": "menu=true tab=map",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Escape",
+  "input": "keyboard",
+  "expected": "closes the menu",
+  "actual": "menu=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "M",
+  "input": "keyboard",
+  "expected": "opens the map tab",
+  "actual": "menu=true tab=map",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "J",
+  "input": "keyboard",
+  "expected": "opens the case tab",
+  "actual": "menu=true tab=case",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "P",
+  "input": "keyboard",
+  "expected": "opens the people tab",
+  "actual": "menu=true tab=people",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "O",
+  "input": "keyboard",
+  "expected": "opens the you tab",
+  "actual": "menu=true tab=you",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "Tab",
+  "input": "keyboard",
+  "expected": "opens the menu (and does not move browser focus away)",
+  "actual": "menu=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "V",
+  "input": "keyboard",
+  "expected": "toggles first/third person",
+  "actual": "first -> third -> first",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "G (jetpack) before it is unlocked",
+  "input": "keyboard",
+  "expected": "explains that the player has no jetpack yet and does not take off",
+  "actual": "{\"jet\":false,\"toast\":\"Third person (V to go back).First person.You don't have a jetpack. Yet. (Tía Cuca is on the Jardín.)\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "WASD / arrows",
+  "input": "keyboard (held)",
+  "expected": "moves the player while held; stops when released",
+  "actual": "moved 12.92 m, drift after release 0.00 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Keyboard",
+  "control": "Held key + window blur",
+  "input": "keyboard + focus loss",
+  "expected": "losing focus releases held movement (no runaway walking)",
+  "actual": "moved after blur 0.00 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Map tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"map\",\"cur\":\"map\",\"shown\":\"map\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Mystery tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"case\",\"cur\":\"case\",\"shown\":\"case\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Journal tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"journal\",\"cur\":\"journal\",\"shown\":\"journal\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "People tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"people\",\"cur\":\"people\",\"shown\":\"people\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "You tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"you\",\"cur\":\"you\",\"shown\":\"you\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Property tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"property\",\"cur\":\"property\",\"shown\":\"property\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Notes tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"notes\",\"cur\":\"notes\",\"shown\":\"notes\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Settings tab",
+  "input": "mouse click",
+  "expected": "shows that tab and marks it current",
+  "actual": "{\"tab\":\"settings\",\"cur\":\"settings\",\"shown\":\"settings\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Tab buttons",
+  "input": "keyboard (arrow focus + Enter)",
+  "expected": "a focused tab activates with Enter",
+  "actual": "tab=journal",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Save",
+  "input": "mouse click",
+  "expected": "writes the saved game and confirms",
+  "actual": "{\"saved\":true,\"toast\":\"Saved.\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "I'm stuck: take me to the nearest street",
+  "input": "mouse click",
+  "expected": "moves the player to a street position and closes/updates the menu",
+  "actual": "moved 67 m, menu=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map",
+  "control": "Zoom in (＋)",
+  "input": "mouse click",
+  "expected": "increases map scale",
+  "actual": "0.250 -> 0.350",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map",
+  "control": "Zoom out (－)",
+  "input": "mouse click",
+  "expected": "decreases map scale",
+  "actual": "0.350 -> 0.250",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map",
+  "control": "Center on me",
+  "input": "mouse click",
+  "expected": "centres the view on the player",
+  "actual": "distance 0.0 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map",
+  "control": "Map canvas",
+  "input": "mouse click on empty ground",
+  "expected": "sets a marker (compass waypoint) and says so",
+  "actual": "waypoint={\"x\":-1269.4750518798828,\"z\":1020.6702270507812}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map",
+  "control": "Clear marker",
+  "input": "mouse click",
+  "expected": "removes the marker",
+  "actual": "waypoint=null",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map",
+  "control": "Landmark marker",
+  "input": "mouse click on a landmark",
+  "expected": "opens an info card with Set marker and Close",
+  "actual": "Jardín Colón (the main square) {\"on\":true,\"btns\":[\"Travel here\",\"Set marker\",\"Close\"]}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map info",
+  "control": "Set marker",
+  "input": "mouse click",
+  "expected": "sets the waypoint on that landmark and closes the card",
+  "actual": "{\"on\":false,\"wp\":{\"x\":-178,\"z\":-52}}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map info",
+  "control": "Close",
+  "input": "mouse click",
+  "expected": "closes the info card",
+  "actual": "infoOpen=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Map",
+  "control": "Escape / M",
+  "input": "keyboard",
+  "expected": "M closes the map tab",
+  "actual": "menu=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Light [quality=low]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"low\",\"on\":true,\"stored\":\"low\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Balanced [quality=medium]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"medium\",\"on\":true,\"stored\":\"medium\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Beautiful [quality=high]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"high\",\"on\":true,\"stored\":\"high\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Cinematic [quality=cinematic]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"cinematic\",\"on\":true,\"stored\":\"cinematic\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Small [text=s]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"s\",\"on\":true,\"stored\":\"s\"} data-text=s",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Medium [text=m]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"m\",\"on\":true,\"stored\":\"m\"} data-text=m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Large [text=l]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"l\",\"on\":true,\"stored\":\"l\"} data-text=l",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Largest [text=xl]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"xl\",\"on\":true,\"stored\":\"xl\"} data-text=xl",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Off [contrast=normal]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"normal\",\"on\":true,\"stored\":\"normal\"} data-contrast=normal",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "On [contrast=high]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"high\",\"on\":true,\"stored\":\"high\"} data-contrast=high",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Off [reduced=false]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"false\",\"on\":true,\"stored\":\"false\"} reduced=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "On [reduced=true]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"true\",\"on\":true,\"stored\":\"true\"} reduced=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Never [timeScale=0]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"0\",\"on\":true,\"stored\":\"0\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Slowly [timeScale=0.5]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"0.5\",\"on\":true,\"stored\":\"0.5\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Normally [timeScale=1]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"1\",\"on\":true,\"stored\":\"1\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Quickly [timeScale=3]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"3\",\"on\":true,\"stored\":\"3\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Off [invertY=false]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"false\",\"on\":true,\"stored\":\"false\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "On [invertY=true]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"true\",\"on\":true,\"stored\":\"true\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Automatic [touch=auto]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"auto\",\"on\":true,\"stored\":\"auto\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Always [touch=on]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"on\",\"on\":true,\"stored\":\"on\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Never [touch=off]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"off\",\"on\":true,\"stored\":\"off\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Normal [chase=normal]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"normal\",\"on\":true,\"stored\":\"normal\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "Forgiving [chase=easy]",
+  "input": "mouse click",
+  "expected": "applies the setting, marks the button on, and stores it",
+  "actual": "{\"val\":\"easy\",\"on\":true,\"stored\":\"easy\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "sensitivity slider",
+  "input": "mouse/keyboard input",
+  "expected": "changing the slider updates and stores the value",
+  "actual": "set 0.9 -> 0.9 (range 0.3..2.5)",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "master slider",
+  "input": "mouse/keyboard input",
+  "expected": "changing the slider updates and stores the value",
+  "actual": "set 0.25 -> 0.25 (range 0..1)",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "music slider",
+  "input": "mouse/keyboard input",
+  "expected": "changing the slider updates and stores the value",
+  "actual": "set 0.25 -> 0.25 (range 0..1)",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Settings",
+  "control": "fx slider",
+  "input": "mouse/keyboard input",
+  "expected": "changing the slider updates and stores the value",
+  "actual": "set 0.25 -> 0.25 (range 0..1)",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "You",
+  "control": "See yourself 👁",
+  "input": "mouse click",
+  "expected": "closes the menu and switches to third person",
+  "actual": "menu=false view=third",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "You",
+  "control": "Wearing/Wear (outfit)",
+  "input": "mouse click",
+  "expected": "toggles the outfit piece or confirms it is on without error",
+  "actual": "label \"Wearing\" outfit unchanged",
+  "result": "pass",
+  "note": "no exception"
+ },
+ {
+  "screen": "Property",
+  "control": "See land for sale",
+  "input": "mouse click",
+  "expected": "closes the menu and opens the land side panel",
+  "actual": "{\"menu\":false,\"panel\":true,\"title\":\"Land for sale\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Side panel",
+  "control": "Close (✕)",
+  "input": "mouse click",
+  "expected": "closes the panel and restores input",
+  "actual": "{\"panel\":false,\"en\":true}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Property",
+  "control": "See businesses for sale",
+  "input": "mouse click",
+  "expected": "opens the businesses side panel",
+  "actual": "{\"panel\":true,\"title\":\"Businesses\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Side panel",
+  "control": "Escape",
+  "input": "keyboard",
+  "expected": "closes the side panel",
+  "actual": "panelOpen=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Mystery",
+  "control": "tab content",
+  "input": "visual",
+  "expected": "shows the case chapters and objective",
+  "actual": "The case of Aurelio ValdovinosPrologue: The Last Call→ Find Tía Cuca at her gaspachos cart on the Jardín.CluesNothing ye",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Journal",
+  "control": "Track / Race buttons",
+  "input": "mouse click",
+  "expected": "every Track toggles the tracked quest",
+  "actual": "no side quest is active yet, so no Track buttons exist at the start of a new game",
+  "result": "blocked",
+  "note": ""
+ },
+ {
+  "screen": "Menu",
+  "control": "Title screen",
+  "input": "mouse click",
+  "expected": "saves, returns to the title and shows Continue",
+  "actual": "{\"started\":false,\"title\":true,\"cont\":true}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Continue",
+  "input": "mouse click",
+  "expected": "resumes the saved game with the same name and hour",
+  "actual": "name=Zoe hour=18.25",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Title",
+  "control": "Begin with a saved game",
+  "input": "mouse click + dialog",
+  "expected": "asks to confirm; Cancel keeps the save, OK starts over",
+  "actual": "dismissed->started=false; accepted->name=Nuevo; dialogs=2",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Console",
+  "control": "JavaScript errors during the whole run",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none",
+  "result": "pass",
+  "note": ""
+ }
+]

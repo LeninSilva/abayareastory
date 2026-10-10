@@ -1,0 +1,614 @@
+[
+ {
+  "screen": "Dialogue",
+  "control": "start a conversation",
+  "input": "game call (E near a person)",
+  "expected": "shows the dialogue box with the person, a greeting and numbered answer buttons; gameplay input pauses",
+  "actual": "name=Tía Cuca chips=7 lines=1 inputEnabled=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue",
+  "control": "numbered answers 1-9",
+  "input": "keyboard Digit1",
+  "expected": "pressing 1 picks the first answer and the conversation continues",
+  "actual": "lines 1 -> 3, talk=true, panel=undefined; first chip: 1Tía, sit down. Let me sell the gaspacho",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue",
+  "control": "Escape / back",
+  "input": "keyboard",
+  "expected": "Escape leaves the conversation and gives control back",
+  "actual": "talk=false shown=false inputEnabled=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue",
+  "control": "Leave (✕)",
+  "input": "mouse click",
+  "expected": "ends the conversation",
+  "actual": "talk=false shown=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue",
+  "control": "Tab key inside the dialogue",
+  "input": "keyboard",
+  "expected": "Tab moves focus between answers instead of opening the menu",
+  "actual": "focus \"1Tía, what happened \" -> \"2He called me. He said he\"; menuOpen=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (Tía Cuca)",
+  "control": "answer 1: Tía, what happened to my grandfather?",
+  "input": "mouse click",
+  "expected": "does something sensible (a reply, a menu, a shop, or leaves) with no error",
+  "actual": "lines 1->3 talk=true panel=undefined card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (Tía Cuca)",
+  "control": "answer 2: He called me. He said he found what Cuco hid",
+  "input": "mouse click",
+  "expected": "does something sensible (a reply, a menu, a shop, or leaves) with no error",
+  "actual": "lines 1->3 talk=true panel=undefined card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (Tía Cuca)",
+  "control": "answer 3: A gaspacho, Tía. ($40)",
+  "input": "mouse click",
+  "expected": "does something sensible (a reply, a menu, a shop, or leaves) with no error",
+  "actual": "lines 1->2 talk=true panel=undefined card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (Tía Cuca)",
+  "control": "answer 4: Ask about…",
+  "input": "mouse click",
+  "expected": "does something sensible (a reply, a menu, a shop, or leaves) with no error",
+  "actual": "lines 1->1 talk=true panel=undefined card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (Tía Cuca)",
+  "control": "answer 5: Say something…",
+  "input": "mouse click",
+  "expected": "does something sensible (a reply, a menu, a shop, or leaves) with no error",
+  "actual": "lines 1->1 talk=true panel=undefined card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (Tía Cuca)",
+  "control": "answer 6: Goodbye.",
+  "input": "mouse click",
+  "expected": "does something sensible (a reply, a menu, a shop, or leaves) with no error",
+  "actual": "lines 1->1 talk=false panel=undefined card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "1: Tell me about yourself.",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "2: What's this part of town like?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "3: What do people say about the ayuntamiento?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "4: What do you think about the water vote?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "5: What do you know about my grandfather?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "6: Is there any work around here?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "7: What kinds of things do you like?They don't know",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->2 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Ask about…",
+  "control": "8: ← Back",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->1 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Say something…",
+  "control": "1: Pay them a compliment.♥ Compassionate",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Say something…",
+  "control": "2: Tell a joke.☺ Joke",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Say something…",
+  "control": "3: Give them a gift…",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->1 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Say something…",
+  "control": "4: Tell them a tall tale about yourself.◌ A lie",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Say something…",
+  "control": "5: Insult them.✖ Cruel",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (cuca) › Say something…",
+  "control": "6: ← Back",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->1 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Ask about…",
+  "control": "1: Tell me about yourself.",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Ask about…",
+  "control": "2: What's this part of town like?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Ask about…",
+  "control": "3: What do people say about the ayuntamiento?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Ask about…",
+  "control": "4: Is there any work around here?",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Ask about…",
+  "control": "5: What kinds of things do you like?They don't know",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->2 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Ask about…",
+  "control": "6: ← Back",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->1 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Say something…",
+  "control": "1: Pay them a compliment.♥ Compassionate",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Say something…",
+  "control": "2: Tell a joke.☺ Joke",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Say something…",
+  "control": "3: Give them a gift…",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->1 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Say something…",
+  "control": "4: Flirt a little.❀ Romantic",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Say something…",
+  "control": "5: Tell them a tall tale about yourself.◌ A lie",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Say something…",
+  "control": "6: Insult them.✖ Cruel",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->3 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Dialogue (franciscoSalazar) › Say something…",
+  "control": "7: ← Back",
+  "input": "mouse click",
+  "expected": "responds with a reply, an explanation of why it is locked, or goes back, with no error",
+  "actual": "lines 1->1 talk=true card=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Francisco Salazar",
+  "control": "is a different person from the ferretero",
+  "input": "game data",
+  "expected": "two cast ids with different names (francisco = El Ferretero, franciscoSalazar = guitarist)",
+  "actual": "[\"Francisco “El Ferretero”\",\"Francisco Salazar\"]",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Francisco Salazar",
+  "control": "talk",
+  "input": "game call",
+  "expected": "greets and offers answers",
+  "actual": "name=Francisco Salazar chips=3",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Cecilia",
+  "control": "offer is hidden before chapter 1",
+  "input": "game data",
+  "expected": "the milpa quest is not offered in the prologue",
+  "actual": "available at ch0 = null",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Cecilia",
+  "control": "offer: Can I help with the milpa?",
+  "input": "mouse click",
+  "expected": "offers the side quest and asks to accept",
+  "actual": "1I'll help.♥ Compassionate | 2Not now.",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Cecilia",
+  "control": "I'll help.",
+  "input": "mouse click",
+  "expected": "starts the quest \"Elotes y una guitarra\" with six elotes to cut",
+  "actual": "{\"name\":\"Elotes y una guitarra\",\"n\":6}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Quest Elotes y una guitarra",
+  "control": "cut six elotes",
+  "input": "keyboard E at each corn ear",
+  "expected": "each press cuts one; after six the next step (ask Francisco) begins",
+  "actual": "cut=0, step=1",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Quest Elotes y una guitarra",
+  "control": "ask Francisco to play",
+  "input": "mouse click",
+  "expected": "the answer ends the quest, pays $250 and the player can leave",
+  "actual": "done=true money 2000 -> 2250",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Muicle prop",
+  "control": "Look at the muicle",
+  "input": "keyboard E",
+  "expected": "shows a card naming it muicle / micle (Justicia spicigera) with no health claims",
+  "actual": "E🔍Look at the muicle | Muicle Also called micle (Justicia spicigera). The sign by the hearth says so, with the La",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: boutique",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=9 clicked=5 moneyChanged=4 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: sombreros",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=1 clicked=1 moneyChanged=0 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: casita",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=0 clicked=0 moneyChanged=0 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: mercado",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=2 clicked=2 moneyChanged=2 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: floreria",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=1 clicked=1 moneyChanged=1 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: cremeria",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=0 clicked=0 moneyChanged=0 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: peluqueria",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=0 clicked=0 moneyChanged=0 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: notaria",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=0 clicked=0 moneyChanged=0 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: ferreLuis",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=0 clicked=0 moneyChanged=0 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Shop: ferreteria",
+  "control": "open / buttons / close",
+  "input": "game call + mouse clicks",
+  "expected": "opens a panel; every enabled Buy/Wear button changes money or clothing without error; ✕ closes it",
+  "actual": "opened=true buttons=0 clicked=0 moneyChanged=0 closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Barber",
+  "control": "open, change look, pay and stand up",
+  "input": "mouse clicks",
+  "expected": "each option changes the look; Pay closes the chair",
+  "actual": "controls=22 lookChanged=true paid+closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Land for sale",
+  "control": "panel buttons",
+  "input": "mouse clicks",
+  "expected": "lists lots; unaffordable purchases are refused clearly",
+  "actual": "buttons=10 Buy · $26,000[disabled] | Show on map | Buy · $18,000[disabled] | Show on map | toast: You need $120. You have $25.",
+  "result": "pass",
+  "note": "money 25"
+ },
+ {
+  "screen": "Businesses for sale",
+  "control": "panel buttons",
+  "input": "mouse clicks",
+  "expected": "lists businesses with Buy buttons",
+  "actual": "buttons=5 Buy · $6,000[disabled] | Buy · $15,000[disabled] | Buy · $21,000[disabled]",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Vehicle",
+  "control": "Get in the car",
+  "input": "keyboard E",
+  "expected": "the nearest car is entered (driving state)",
+  "actual": "prompt \"E🚗Get in the car\" driving=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Vehicle",
+  "control": "accelerate (W) and horn (H)",
+  "input": "keyboard held",
+  "expected": "the car moves forward; horn does not error",
+  "actual": "moved 23.8 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Vehicle",
+  "control": "steer (A/D) and handbrake (Space)",
+  "input": "keyboard",
+  "expected": "steering changes heading; Space slows the car",
+  "actual": "heading changed -2.51 rad, speed after handbrake 0.0",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Vehicle",
+  "control": "Get out of the car",
+  "input": "keyboard E (or F)",
+  "expected": "leaves the car and walking resumes",
+  "actual": "driving=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Camera",
+  "control": "V and the 📷 touch button",
+  "input": "keyboard",
+  "expected": "toggles first/third person",
+  "actual": "first -> third",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Jetpack",
+  "control": "G, Space (up) and Z (down)",
+  "input": "keyboard",
+  "expected": "G takes off, Space climbs, Z descends, G lands",
+  "actual": "jet on=true, y 105.0 -> 130.3 -> 111.6, landed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Stuck recovery",
+  "control": "I'm stuck button + U key",
+  "input": "mouse click / keyboard",
+  "expected": "the floating button appears when the player is stuck and puts them back on a street; U does the same",
+  "actual": "button visible=true; button moved 70 m; hidden again=true; U moved 20 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Time skip",
+  "control": "warpTo(7) from 22:00 (what sleeping does)",
+  "input": "game call, sampled every frame",
+  "expected": "hour passes midnight once, ends on 7:00, input locked meanwhile and restored after, no frame turns the light more than 0.1 rad or changes night by more than 0.1",
+  "actual": "{\"frames\":116,\"maxSweep\":0.05,\"maxNight\":0.027,\"wraps\":1,\"lockedDuring\":true,\"arrive\":{\"h\":7,\"d\":6,\"en\":true}}",
+  "result": "pass",
+  "note": "software-rendered WebGL (SwiftShader): frame count is low, so per-frame steps are larger than on a real GPU"
+ },
+ {
+  "screen": "Console",
+  "control": "JavaScript errors during the run",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none",
+  "result": "pass",
+  "note": ""
+ }
+]

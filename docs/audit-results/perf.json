@@ -1,0 +1,74 @@
+{
+ "build": {
+  "index.html": {
+   "raw": "1260 KB",
+   "gzip": "387 KB"
+  },
+  "sw.js": {
+   "raw": "1 KB",
+   "gzip": "1 KB"
+  },
+  "data/jiquilpan.json": {
+   "raw": "91 KB",
+   "gzip": "25 KB"
+  },
+  "data/jiquilpan.bin": {
+   "raw": "6133 KB",
+   "gzip": "3148 KB"
+  },
+  "assets/jiquilpan-vista.jpg": {
+   "raw": "477 KB",
+   "gzip": "477 KB"
+  },
+  "manifest.webmanifest": {
+   "raw": "1 KB",
+   "gzip": "0 KB"
+  }
+ },
+ "browser": {
+  "beginToPlayable_ms": 5029,
+  "navigation": {
+   "domContentLoaded": 267,
+   "load": 302,
+   "transferKB": 1743
+  },
+  "titleVisible_ms": 80,
+  "heapMB_afterStart": 288,
+  "update_ms": 1.85,
+  "scenes": {
+   "Jardín (day)": {
+    "frames": 1,
+    "drawCallsPerFrame": 4538,
+    "trianglesPerFrame": 9142540,
+    "geometries": 3439,
+    "textures": 60,
+    "programs": 82
+   },
+   "Jardín (night)": {
+    "frames": 1,
+    "drawCallsPerFrame": 6004,
+    "trianglesPerFrame": 11693608,
+    "geometries": 3452,
+    "textures": 60,
+    "programs": 82
+   },
+   "Portada": {
+    "frames": 1,
+    "drawCallsPerFrame": 3060,
+    "trianglesPerFrame": 9246372,
+    "geometries": 3489,
+    "textures": 60,
+    "programs": 82
+   },
+   "Cerro summit": {
+    "frames": 1,
+    "drawCallsPerFrame": 6153,
+    "trianglesPerFrame": 11531074,
+    "geometries": 3935,
+    "textures": 81,
+    "programs": 85
+   }
+  },
+  "note": "Software WebGL (SwiftShader) in headless Chromium on a CPU-only machine: only sizes, update-loop CPU cost and draw-call/triangle counts are meaningful; frame rate is not."
+ }
+}

@@ -1,0 +1,200 @@
+[
+ {
+  "screen": "Land for sale",
+  "control": "Buy",
+  "input": "mouse click",
+  "expected": "buys the lot: money drops by its price, the card shows Yours + Plan the house",
+  "actual": "owned=1 plan button=true money 5000000 -> 4974000",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Land for sale",
+  "control": "Show on the compass (📍)",
+  "input": "mouse click",
+  "expected": "sets a compass marker on that lot",
+  "actual": "{\"x\":-37.66404860400894,\"z\":-596.0876848709131}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Land for sale",
+  "control": "Plan the house",
+  "input": "mouse click",
+  "expected": "closes the card and opens the builder with a view of the lot",
+  "actual": "{\"builder\":true,\"view\":\"build\",\"title\":\"Your house\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Builder",
+  "control": "Turn the view right ▶",
+  "input": "mouse click",
+  "expected": "rotates the build camera with no error",
+  "actual": "spin state null -> 3",
+  "result": "pass",
+  "note": "no exception; camera effect is visual"
+ },
+ {
+  "screen": "Builder",
+  "control": "Turn the view left ◀",
+  "input": "mouse click",
+  "expected": "rotates the build camera with no error",
+  "actual": "spin state 3 -> -3",
+  "result": "pass",
+  "note": "no exception; camera effect is visual"
+ },
+ {
+  "screen": "Builder",
+  "control": "Hold the view",
+  "input": "mouse click",
+  "expected": "stops the rotation with no error",
+  "actual": "spin state -3 -> 0",
+  "result": "pass",
+  "note": "no exception; camera effect is visual"
+ },
+ {
+  "screen": "Builder",
+  "control": "Style buttons",
+  "input": "mouse click",
+  "expected": "every style changes the lot style and is marked on",
+  "actual": "colonial:true adobe:true piedra:true moderna:true nortena:true obra:true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Builder",
+  "control": "Colour swatches",
+  "input": "mouse click",
+  "expected": "every swatch changes the wall colour",
+  "actual": "2 swatches, applied: true,true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Builder",
+  "control": "Name over the door + Paint it",
+  "input": "keyboard typing + click",
+  "expected": "the name is stored on the lot",
+  "actual": "name=Casa Luces",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Builder",
+  "control": "Order a part",
+  "input": "mouse click",
+  "expected": "ordering the first available part charges money and queues it",
+  "actual": "button \"Hire · $1,375 · 3 h\" queue=1 money 4974000 -> 4972625",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Builder",
+  "control": "Escape / ✕",
+  "input": "keyboard + click",
+  "expected": "closes the builder, leaves build view and gives control back",
+  "actual": "{\"panel\":false,\"view\":\"first\",\"en\":true}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Businesses",
+  "control": "Buy / upgrade",
+  "input": "mouse click",
+  "expected": "buying takes the price and the card shows the level; upgrading (if offered) costs more",
+  "actual": "owned=1 money 4972625 -> 4966625, upgrade charged=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Journal",
+  "control": "Race buttons",
+  "input": "mouse click",
+  "expected": "each race button closes the menu and starts the race (countdown, rings)",
+  "actual": "centro:true sahuayo:true morelia:true guadalajara:true torres:true cerro:true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: loteria",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=17 clicked=8 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: penales",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=7 clicked=7 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: quiz",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=4 clicked=4 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: albanil",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=1 clicked=1 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: anil",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=1 clicked=1 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: mesero",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=1 clicked=1 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: serenata",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=4 clicked=1 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Minigame: ferreteria",
+  "control": "open, every button, Leave / Escape",
+  "input": "game call + mouse clicks + keyboard",
+  "expected": "opens a dialog; its buttons respond without error; Leave and Escape both end it and restore input",
+  "actual": "buttons=4 clicked=4 Leave closes=true Escape closes=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Console",
+  "control": "JavaScript errors during the property/minigame run",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none",
+  "result": "pass",
+  "note": ""
+ }
+]

@@ -1,0 +1,281 @@
+[
+ {
+  "screen": "Gamepad",
+  "control": "left stick",
+  "input": "axes",
+  "expected": "moves the player; releasing the stick stops",
+  "actual": "moved 8.4 m, drift 0.00 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "right stick",
+  "input": "axes",
+  "expected": "turns the view",
+  "actual": "yaw 1.82 -> -2.12",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 0",
+  "input": "button press",
+  "expected": "fires \"interact\" once on press and releases on release",
+  "actual": "+interact -interact",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 1",
+  "input": "button press",
+  "expected": "fires \"block\" once on press and releases on release",
+  "actual": "+block -block",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 2",
+  "input": "button press",
+  "expected": "fires \"attack\" once on press and releases on release",
+  "actual": "+attack -attack",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 3",
+  "input": "button press",
+  "expected": "fires \"ability\" once on press and releases on release",
+  "actual": "+ability -ability",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 4",
+  "input": "button press",
+  "expected": "fires \"cycle\" once on press and releases on release",
+  "actual": "+cycle -cycle",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 5",
+  "input": "button press",
+  "expected": "fires \"attack\" once on press and releases on release",
+  "actual": "+attack -attack",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 6",
+  "input": "button press",
+  "expected": "fires \"block\" once on press and releases on release",
+  "actual": "+block -block",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 7",
+  "input": "button press",
+  "expected": "fires \"attack\" once on press and releases on release",
+  "actual": "+attack -attack",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 8",
+  "input": "button press",
+  "expected": "fires \"map\" once on press and releases on release",
+  "actual": "+map -map",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 9",
+  "input": "button press",
+  "expected": "fires \"menu\" once on press and releases on release",
+  "actual": "+menu -menu",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 10",
+  "input": "button press",
+  "expected": "fires \"sprint\" once on press and releases on release",
+  "actual": "+sprint -sprint",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 11",
+  "input": "button press",
+  "expected": "fires \"bike\" once on press and releases on release",
+  "actual": "+bike -bike",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 12",
+  "input": "button press",
+  "expected": "fires \"heal\" once on press and releases on release",
+  "actual": "+heal -heal",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 13",
+  "input": "button press",
+  "expected": "fires \"jet\" once on press and releases on release",
+  "actual": "+jet -jet",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 14",
+  "input": "button press",
+  "expected": "fires \"weaponPrev\" once on press and releases on release",
+  "actual": "+weaponPrev -weaponPrev",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "button 15",
+  "input": "button press",
+  "expected": "fires \"weaponNext\" once on press and releases on release",
+  "actual": "+weaponNext -weaponNext",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "Start (button 9) / Select (8)",
+  "input": "button press",
+  "expected": "Start opens the menu; Select opens the map",
+  "actual": "[{\"m\":true,\"t\":\"map\"},{\"m\":true,\"t\":\"map\"}]",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "several buttons, one action (2, 5, 7 = attack)",
+  "input": "two buttons held",
+  "expected": "the action stays held until the last of them is released",
+  "actual": "held after releasing one: true; after releasing both: false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "disconnect while a button is held",
+  "input": "device removed",
+  "expected": "held actions are released (no stuck sprint)",
+  "actual": "held true -> after disconnect false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad",
+  "control": "reconnect after disconnect",
+  "input": "device added again",
+  "expected": "works again without reloading",
+  "actual": "+interact -interact +interact",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: menu",
+  "control": "D-pad / left stick",
+  "input": "D-pad down, up and stick down",
+  "expected": "moves keyboard focus through the menu controls",
+  "actual": "Back to the town -> Light -> Back to the town -> (stick down) Light",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: menu",
+  "control": "A button",
+  "input": "press",
+  "expected": "activates the focused control (a Settings option)",
+  "actual": "text size m -> l",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: menu",
+  "control": "LB / RB bumpers",
+  "input": "press",
+  "expected": "switch to the previous / next menu tab",
+  "actual": "case -> journal -> case",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: menu",
+  "control": "B button and Start",
+  "input": "press",
+  "expected": "B goes back (closes the menu); Start closes it too",
+  "actual": "menu open after B=false, after Start=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: menu",
+  "control": "held button when the menu opens",
+  "input": "A held while pressing Start",
+  "expected": "the held A is ignored until released, and no gameplay action fires under the menu",
+  "actual": "actions while open: none; menu still open=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: dialogue",
+  "control": "D-pad + A, then B",
+  "input": "press",
+  "expected": "choose an answer with the D-pad and A; B leaves the conversation",
+  "actual": "focus 1Tía, sit down. Let me sell th; log lines 1 -> 3; conversation open after B=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: shop panel",
+  "control": "D-pad + A, then B",
+  "input": "press",
+  "expected": "move to a button, activate it; B closes the panel",
+  "actual": "focused \"$320\"; panel open after B=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Gamepad: minigame",
+  "control": "D-pad + A / B",
+  "input": "press",
+  "expected": "A presses the focused button; B leaves",
+  "actual": "focused \"La Rana\"; minigame open after B=false",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Console",
+  "control": "JavaScript errors during the gamepad run",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none",
+  "result": "pass",
+  "note": ""
+ }
+]

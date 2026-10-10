@@ -1,0 +1,47 @@
+[
+ {
+  "screen": "Service worker",
+  "control": "first visit installs and caches the game",
+  "input": "page load",
+  "expected": "a cache named anil-<version> holds the page, town data and valley artwork",
+  "actual": "{\"keys\":[\"anil-mv23r8jk\"],\"urls\":[\"/\",\"/index.html\",\"/data/jiquilpan.json\",\"/data/jiquilpan.bin\",\"/manifest.webmanifest\",\"/assets/jiquilpan-vista.jpg\",\"/icons/icon-192.png\",\"/icons/icon-512.png\"]}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Service worker",
+  "control": "offline repeat visit",
+  "input": "reload with the network off",
+  "expected": "the title screen loads from the cache, with its artwork",
+  "actual": "{\"h1\":\"Las luces del Cerro\",\"bg\":true}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Service worker",
+  "control": "update path: new deploy replaces the old cache",
+  "input": "reload twice after a rebuild",
+  "expected": "a new cache name appears, the old one is deleted, and the new worker controls the page",
+  "actual": "{\"keys\":[\"anil-mv24comi\"],\"active\":true,\"controlled\":true} old=anil-mv23r8jk",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Service worker",
+  "control": "a saved game survives the update",
+  "input": "localStorage across deploys",
+  "expected": "the save written before the update is still there afterwards",
+  "actual": "name after update: Persist",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Service worker",
+  "control": "console errors",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none",
+  "result": "pass",
+  "note": ""
+ }
+]

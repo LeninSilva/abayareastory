@@ -1,0 +1,182 @@
+[
+ {
+  "screen": "Touch UI",
+  "control": "touch controls visible on a phone",
+  "input": "visual",
+  "expected": "the stick area and action buttons are shown (body.touch)",
+  "actual": "{\"body\":true,\"btns\":[\"interact\",\"jump\",\"sprint\",\"jet\",\"camera\",\"case\",\"map\"]}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch UI",
+  "control": "jet-only and car-only buttons",
+  "input": "visual",
+  "expected": "Fly down and Horn are hidden on foot",
+  "actual": "descend:hidden horn:hidden",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "interact",
+  "input": "tap",
+  "expected": "fires the \"interact\" action",
+  "actual": "actions: interact,interact",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "jump",
+  "input": "tap",
+  "expected": "fires the \"jump\" action",
+  "actual": "actions: jump",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "sprint",
+  "input": "tap",
+  "expected": "fires the \"sprint\" action",
+  "actual": "actions: sprint",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "jet",
+  "input": "tap",
+  "expected": "fires the \"jet\" action",
+  "actual": "actions: jet",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "camera",
+  "input": "tap",
+  "expected": "fires the \"camera\" action",
+  "actual": "actions: camera",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "camera (📷)",
+  "input": "tap",
+  "expected": "toggles first/third person",
+  "actual": "third -> first",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "case (Mystery)",
+  "input": "tap",
+  "expected": "opens the Mystery tab; Back to the town closes it",
+  "actual": "{\"m\":true,\"t\":\"case\"} closed=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch button",
+  "control": "map",
+  "input": "tap",
+  "expected": "opens the Map tab",
+  "actual": "{\"m\":true,\"t\":\"map\"}",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "floating stick (drag on the left)",
+  "input": "touch drag",
+  "expected": "moves the player while the finger is down and stops when released",
+  "actual": "stick 0.00,1.00 moved 11.1 m; after release stick 0,0 drift 0.00 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "look (drag on the right)",
+  "input": "touch drag",
+  "expected": "turning the view by dragging",
+  "actual": "yaw 1.82 -> 2.36",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "stick + button at the same time",
+  "input": "two fingers",
+  "expected": "holding the stick and tapping Jump both work",
+  "actual": "actions jump stick 0.00,0.91",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "pointer cancel (system gesture)",
+  "input": "touchCancel",
+  "expected": "cancelling a drag stops movement",
+  "actual": "stick after cancel 0,0",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "app loses focus while moving",
+  "input": "touch drag + blur",
+  "expected": "movement is released",
+  "actual": "stick after blur 0,0",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "drag while a menu is open",
+  "input": "touch drag",
+  "expected": "does not start a stick or move the player under the menu",
+  "actual": "stick 0,0 moved 0.00 m",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "menu button and tabs by tap",
+  "input": "tap",
+  "expected": "the ☰ button opens the menu; tapping a tab switches to it",
+  "actual": "open=true tab=journal strip scrolled 140->365 closeOnScreen=true closedByTap=true",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "dialogue answers by tap",
+  "input": "tap",
+  "expected": "tapping an answer continues the conversation",
+  "actual": "lines 1 -> 3",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Touch",
+  "control": "tap targets are at least 40 px",
+  "input": "layout",
+  "expected": "all touch buttons are big enough to hit",
+  "actual": "smallest [[\"btn-pause\",46],[\"jet\",46],[\"camera\",46]]",
+  "result": "pass",
+  "note": ""
+ },
+ {
+  "screen": "Console",
+  "control": "JavaScript errors during the touch run",
+  "input": "n/a",
+  "expected": "none",
+  "actual": "none",
+  "result": "pass",
+  "note": ""
+ }
+]
