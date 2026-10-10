@@ -1,6 +1,6 @@
 // Offline play for the installed app: cache the page, the town data and the icons.
-const CACHE = 'anil-muvvxo0e';
-const FILES = ['./', 'index.html', 'data/jiquilpan.json', 'data/jiquilpan.bin', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'anil-mv1wlnk2';
+const FILES = ['./', 'index.html', 'data/jiquilpan.json', 'data/jiquilpan.bin', 'manifest.webmanifest', 'assets/jiquilpan-vista.jpg', 'icons/icon-192.png', 'icons/icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

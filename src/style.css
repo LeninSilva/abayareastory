@@ -279,3 +279,8 @@ details { margin: 10px 0; } summary { cursor: pointer; color: var(--teal); font-
 .title-card, .title-card .field { min-width: 0; } .title-card .field input { width: 100%; min-width: 0; }
 #gender button { min-width: 0; padding: 0.3em 0.4em; }
 @media (max-width: 480px) { #title .kicker { letter-spacing: 0.18em; font-size: 11px; } #gender { grid-template-columns: 1fr 1fr; } #gender button:last-child { grid-column: 1 / -1; } }
+
+/* The supplied valley artwork frames the title while keeping text readable. */
+#title { background: linear-gradient(90deg,rgba(10,15,30,.55),rgba(10,15,30,.76),rgba(10,15,30,.55)),url("assets/jiquilpan-vista.jpg") center/cover no-repeat; }
+#title .ink { opacity:.25; }
+#title .skyline { opacity:.3; }

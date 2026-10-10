@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { loadCity } from './data.js';
 import { U } from './render/shaders.js';
+import { makeRegionalVista } from './render/vista.js';
 import { makeSky, setTimeOfDay } from './render/sky.js';
 import { makeTerrain, makeStreets, makeStreams } from './render/ground.js';
 import { SunShadows } from './render/shadows.js';
@@ -182,6 +183,7 @@ class Game {
     this.surface = new THREE.Group(); scene.add(this.surface);
     this.sky = makeSky(); scene.add(this.sky);
     this.terrain = makeTerrain(city, q); this.surface.add(this.terrain);
+    this.vista = makeRegionalVista(city); this.surface.add(this.vista);
     this.streams = makeStreams(city); this.surface.add(this.streams);
     set('Laying the empedrado…', 0.55); await tick();
     this.streets = makeStreets(city); this.surface.add(this.streets);
@@ -604,7 +606,7 @@ class Game {
     if (Math.floor(s.hour) !== Math.floor(h0) && s.hour >= 7 && s.hour < 22 && Math.hypot(p.x - PLACES.parroquia.x, p.z - PLACES.parroquia.z) < 1600) { const n = Math.floor(s.hour) % 12 || 12; this.audio.bells(Math.min(n, 6)); if (Math.floor(s.hour) === 12 && Math.hypot(p.x - PLACES.jardin.x, p.z - PLACES.jardin.z) < 60) this.unlock('campanas'); }
     if (s.hour > 2.9 && s.hour < 3.3) this.unlock('noctambulo');
     const h = s.hour, haze = h < 6 ? 0.3 : h < 10 ? 0.3 - (h - 6) * 0.05 : h < 17 ? 0.1 : h < 20 ? 0.1 + (h - 17) * 0.04 : 0.25;
-    setTimeOfDay(h, haze); U.uTime.value = this.t;
+    setTimeOfDay(h, haze); U.uTime.value = this.t; this.vista.userData.update();
     if (this.talk) {
       const n = this.talk.npc;
       if (n.mesh) { const want = Math.atan2(-(n.x - p.x), -(n.z - p.z)); let d = want - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); p.yaw += d * Math.min(1, dt * 4); p.pitch *= 0.9; n.facing = Math.atan2(p.x - n.x, p.z - n.z); }

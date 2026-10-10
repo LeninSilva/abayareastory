@@ -94,6 +94,7 @@ const KEYS = [
 ];
 const c1 = new THREE.Color(), c2 = new THREE.Color();
 export function setTimeOfDay(hour, fogBank) {
+  hour = ((hour % 24) + 24) % 24;
   let a = KEYS[0], b = KEYS[1];
   for (let i = 0; i < KEYS.length - 1; i++) if (hour >= KEYS[i][0] && hour <= KEYS[i + 1][0]) { a = KEYS[i]; b = KEYS[i + 1]; break; }
   const t = (hour - a[0]) / Math.max(0.001, b[0] - a[0]), s = t * t * (3 - 2 * t);

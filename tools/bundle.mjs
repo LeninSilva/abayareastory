@@ -15,5 +15,5 @@ console.log(`index.html ${(html.length / 1024).toFixed(0)} KB, script ${(js.leng
 import { rmSync, mkdirSync, cpSync } from 'node:fs';
 rmSync('public', { recursive: true, force: true });
 mkdirSync('public', { recursive: true });
-for (const f of ['index.html', 'sw.js', 'manifest.webmanifest', 'icons', 'data']) cpSync(f, 'public/' + f, { recursive: true });
+for (const f of ['index.html', 'sw.js', 'manifest.webmanifest', 'icons', 'data', 'assets']) cpSync(f, 'public/' + f, { recursive: true });
 console.log('public/ ready');

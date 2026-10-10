@@ -16,13 +16,13 @@ export class Input {
     this.onUnlock = null; this.lastPad = [];
     const typing = e => { const t = e.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); };
     addEventListener('keydown', e => {
-      if (typing(e)) return;
+      if (typing(e) || (e.target?.tagName === 'BUTTON' && (e.code === 'Enter' || e.code === 'Space'))) return;
       if (e.code === 'Tab' || e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
       if (e.repeat) return;
       this.keys.add(e.code); const a = KEYMAP[e.code]; if (a) this.press(a);
     });
-    addEventListener('keyup', e => { this.keys.delete(e.code); const a = KEYMAP[e.code]; if (a) this.release(a); });
-    addEventListener('blur', () => { this.keys.clear(); this.held_.clear(); this.touchMove.x = this.touchMove.y = 0; });
+    addEventListener('keyup', e => { this.keys.delete(e.code); const a = KEYMAP[e.code]; if (a && ![...this.keys].some(k => KEYMAP[k] === a)) this.release(a); });
+    addEventListener('blur', () => { this.releaseAll(); });
     // mouse: pointer lock where allowed; drag-to-look everywhere
     let dragging = false;
     canvas.addEventListener('mousedown', e => {
@@ -49,7 +49,7 @@ export class Input {
     const stick = { id: null, ox: 0, oy: 0 }, look = { id: null, x: 0, y: 0 };
     const knob = document.getElementById('stick-knob'), base = document.getElementById('stick-base');
     el.addEventListener('pointerdown', e => {
-      if (e.pointerType === 'mouse') return;
+      if (!this.enabled || e.pointerType === 'mouse') return;
       this.touchMode = true; document.body.classList.add('touch');
       el.setPointerCapture?.(e.pointerId);
       if (e.clientX < innerWidth * 0.45 && stick.id === null) {
@@ -81,6 +81,8 @@ export class Input {
     const up = e => { btn.classList.remove('down'); this.release(a); };
     btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up);
     btn.addEventListener('contextmenu', e => e.preventDefault());
+    // Assistive technology activates buttons with a click, without pointer events.
+    btn.addEventListener('click', e => { if (e.detail === 0) { this.press(a); this.release(a); } });
     // keyboard users can focus and press on-screen buttons too
     btn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); this.press(a); setTimeout(() => this.release(a), 120); } });
   }
@@ -91,7 +93,7 @@ export class Input {
   /** peek without consuming */
   peek(a) { return this.pressQ.has(a); }
   endFrame() { this.pressQ.clear(); this.look.dx = this.look.dy = 0; }
-  releaseAll() { this.held_.clear(); this.keys.clear(); this.touchMove.x = this.touchMove.y = 0; }
+  releaseAll() { this.held_.clear(); this.keys.clear(); this.pressQ.clear(); this.touchMove.x = this.touchMove.y = 0; this.padMove.x = this.padMove.y = 0; this.look.dx = this.look.dy = 0; }
   move() {
     if (!this.enabled) return { x: 0, y: 0 };
     let x = 0, y = 0;
@@ -108,16 +110,17 @@ export class Input {
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     const p = pads && [...pads].find(q => q && q.connected);
     this.padMove.x = this.padMove.y = 0;
-    if (!p) return;
+    if (!p) { for (const a of this.padHeld || []) this.release(a); this.padHeld = new Set(); this.lastPad = []; return; }
     const dz = v => Math.abs(v) < 0.15 ? 0 : v;
     this.padMove.x = dz(p.axes[0]); this.padMove.y = -dz(p.axes[1]);
     this.look.dx += dz(p.axes[2] || 0) * dt * 2.6; this.look.dy += dz(p.axes[3] || 0) * dt * 2.2;
     const map = ['interact', 'block', 'attack', 'ability', 'cycle', 'attack', 'block', 'attack', 'map', 'menu', 'sprint', 'bike', 'heal', 'jet', 'weaponPrev', 'weaponNext'];
-    p.buttons.forEach((b, i) => {
-      const a = map[i]; if (!a) return;
-      const was = this.lastPad[i], now = b.pressed;
-      if (now && !was) this.press(a); if (!now && was) this.release(a);
-      this.lastPad[i] = now;
-    });
+    // Several physical buttons map to one action. Aggregate before releasing it.
+    const active = new Set();
+    p.buttons.forEach((b, i) => { if (map[i] && b.pressed) active.add(map[i]); });
+    for (const a of active) if (!(this.padHeld || new Set()).has(a)) this.press(a);
+    for (const a of this.padHeld || []) if (!active.has(a)) this.release(a);
+    this.padHeld = active;
+
   }
 }
